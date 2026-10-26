@@ -1,5 +1,8 @@
-import { FolderOpen, Mic2, Settings, Sparkles } from "lucide-react";
+import { FolderOpen, Library, Mic2, Settings, Sparkles, WandSparkles } from "lucide-react";
 
+import { DialoguePanel } from "../components/workspace/dialogue-panel";
+import { Timeline } from "../components/workspace/timeline";
+import { VideoPreview } from "../components/workspace/video-preview";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/cn";
@@ -33,9 +36,18 @@ export function App() {
 
         <nav className="grid gap-0.5">
           <NavItem active><FolderOpen className="text-catty-accent" size={14} /> Project</NavItem>
+          <NavItem><Library size={14} /> Episodes</NavItem>
           <NavItem><Mic2 size={14} /> Voice Library</NavItem>
           <NavItem><Settings size={14} /> Settings</NavItem>
         </nav>
+
+        <div className="mt-4 px-1.5">
+          <p className="mb-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-catty-muted-2">Project</p>
+          <div className="rounded-catty border border-catty-border-subtle bg-catty-panel p-2">
+            <div className="flex items-center gap-1.5"><Sparkles size={11} className="text-catty-accent" /><span className="truncate text-[9px] text-catty-text-soft">Untitled project</span></div>
+            <p className="mt-1 text-[8px] text-catty-muted-2">0 episodes · Khmer dub</p>
+          </div>
+        </div>
 
         <div className="mt-auto border-t border-catty-border-subtle px-1.5 pb-0.5 pt-2.5">
           <div className="flex items-center gap-1.5 text-[9px] text-catty-muted">
@@ -45,16 +57,19 @@ export function App() {
         </div>
       </aside>
 
-      <main className="grid min-w-0 grid-rows-[52px_36px_1fr_185px]">
+      <main className="grid min-w-0 grid-rows-[52px_36px_minmax(0,1fr)_185px]">
         <header className="flex items-center justify-between border-b border-catty-border px-3.5">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-[13px] font-semibold">Untitled project</h1>
               <Badge>Draft</Badge>
             </div>
-            <p className="mt-0.5 text-[9px] text-catty-muted">Dubbing workspace</p>
+            <p className="mt-0.5 text-[9px] text-catty-muted">Dubbing workspace · Chinese/English → Khmer</p>
           </div>
-          <Button variant="primary" size="sm"><FolderOpen size={13} /> Import episode</Button>
+          <div className="flex items-center gap-1.5">
+            <Button size="sm"><WandSparkles size={13} /> Auto dub</Button>
+            <Button variant="primary" size="sm"><FolderOpen size={13} /> Import episode</Button>
+          </div>
         </header>
 
         <section className="flex items-center gap-0.5 overflow-x-auto border-b border-catty-border bg-catty-panel px-3">
@@ -72,27 +87,12 @@ export function App() {
           ))}
         </section>
 
-        <section className="flex min-h-0 flex-col items-center justify-center p-6 text-center">
-          <div className="mb-2 grid size-9 place-items-center rounded-catty-xl border border-catty-accent/25 bg-catty-accent-soft text-catty-accent"><Sparkles size={18} /></div>
-          <h2 className="text-[14px] font-semibold">Start a dubbing project</h2>
-          <p className="my-1.5 max-w-[440px] text-[10px] leading-5 text-catty-muted">
-            Import an episode to begin transcription, Khmer translation, speaker detection, voice assignment and dubbing.
-          </p>
-          <Button className="mt-1" size="sm"><FolderOpen size={13} /> Choose video</Button>
+        <section className="grid min-h-0 grid-cols-[minmax(420px,1.45fr)_minmax(300px,0.75fr)]">
+          <VideoPreview />
+          <DialoguePanel />
         </section>
 
-        <section className="min-h-0 border-t border-catty-border bg-[#12110f]">
-          <div className="flex h-7 items-center justify-between border-b border-catty-border px-2.5 text-[9px] text-catty-muted">
-            <div className="flex items-center gap-2"><span className="font-medium text-catty-text-soft">Timeline</span><Badge tone="accent">00:00:00</Badge></div>
-            <span>00:00:00 / 00:00:00</span>
-          </div>
-          {["VIDEO", "DIALOGUE", "KHMER DUB"].map((track) => (
-            <div className="grid min-h-[45px] grid-cols-[82px_1fr] border-b border-catty-border-subtle" key={track}>
-              <span className="border-r border-catty-border-subtle px-2 py-2 text-[8px] font-medium tracking-wide text-catty-muted-2">{track}</span>
-              <div className="m-1.5 rounded-catty border border-dashed border-catty-border-subtle bg-catty-panel/20" />
-            </div>
-          ))}
-        </section>
+        <Timeline />
       </main>
     </div>
   );
