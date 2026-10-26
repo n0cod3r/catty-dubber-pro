@@ -51,8 +51,11 @@ impl EngineProcess {
         std::thread::spawn(move || {
             for line in BufReader::new(stdout).lines() {
                 match line {
-                    Ok(line) if sender.send(line).is_err() => break,
-                    Ok(_) => {}
+                    Ok(line) => {
+                        if sender.send(line).is_err() {
+                            break;
+                        }
+                    }
                     Err(_) => break,
                 }
             }
