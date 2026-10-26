@@ -7,12 +7,17 @@ from catty_engine.ipc import handle_request
 from catty_engine.media.errors import FFprobeNotFoundError
 
 
-def test_health_lists_only_available_operations() -> None:
+def test_health_lists_available_operations() -> None:
     response = handle_request(
         {"version": 1, "id": "health-1", "method": "health", "params": {}}
     )
     assert response["id"] == "health-1"
-    assert response["result"]["capabilities"] == ["media.probe", "audio.prepare"]
+    assert response["result"]["capabilities"] == [
+        "media.probe",
+        "audio.prepare",
+        "system.shutdown",
+    ]
+    assert response["result"]["protocol_version"] == 1
     assert isinstance(response["result"]["ffprobe_available"], bool)
 
 
@@ -78,3 +83,28 @@ def test_cli_malformed_json_stays_in_protocol() -> None:
         timeout=10,
     )
     assert json.loads(result.stdout)["error"]["code"] == "INVALID_JSON"
+
+
+def test_server_handles_multiple_requests_and_shutdown() -> None:
+    requests = [
+        {"version": 1, "id": "one", "method": "system.hello", "params": {}},
+        {"version": 1, "id": "two", "method": "health", "params": {}},
+        {
+            "version": 1,
+            "id": "bye",
+            "method": "system.shutdown",
+            "params": {},
+        },
+    ]
+    result = subprocess.run(
+        [sys.executable, "-m", "catty_engine", "--server"],
+        input="".join(json.dumps(request) + "\n" for request in requests),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    responses = [json.loads(line) for line in result.stdout.splitlines()]
+    assert [response["id"] for response in responses] == ["one", "two", "bye"]
+    assert responses[0]["result"]["protocol_version"] == 1
+    assert responses[2]["result"] == {"shutting_down": True}
