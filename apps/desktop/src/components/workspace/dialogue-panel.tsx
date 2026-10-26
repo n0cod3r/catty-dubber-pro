@@ -1,48 +1,121 @@
-import { Languages, MessageSquareText, Search, SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
 
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import { Film, Languages, MessageSquareText } from "lucide-react";
 
-export function DialoguePanel() {
+import type { EpisodeMedia } from "@/features/episodes/types";
+import { formatTime } from "@/features/timeline/geometry";
+import { cn } from "@/lib/utils";
+
+const tabs = [
+  { id: "source", label: "Dialogue", icon: MessageSquareText },
+  { id: "translation", label: "Khmer", icon: Languages },
+  { id: "properties", label: "Media", icon: Film },
+] as const;
+
+export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
+  const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("source");
   return (
-    <section className="flex min-h-0 flex-col bg-catty-panel">
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-catty-border px-2.5">
-        <div className="flex items-center gap-1.5">
-          <MessageSquareText size={12} className="text-catty-accent" />
-          <span className="text-[9px] font-medium text-catty-text-soft">Dialogue</span>
-          <Badge>0 lines</Badge>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" aria-label="Search">
-            <Search size={12} />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label="Filters">
-            <SlidersHorizontal size={12} />
-          </Button>
-        </div>
+    <section
+      className="flex min-h-0 min-w-0 flex-col bg-card"
+      aria-label="Dialogue and media inspector"
+    >
+      <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-[11px] font-medium">
+        Inspector
+        <span className="rounded border px-1.5 py-0.5 text-[9px] font-normal text-muted-foreground">
+          {tab === "properties" ? "Source" : "0 lines"}
+        </span>
       </div>
-
-      <div className="grid h-8 shrink-0 grid-cols-2 border-b border-catty-border text-[8px]">
-        <button className="flex items-center justify-center gap-1 border-r border-catty-border bg-catty-surface text-catty-text-soft">
-          <MessageSquareText size={10} /> Source
-        </button>
-        <button className="flex items-center justify-center gap-1 text-catty-muted">
-          <Languages size={10} /> Khmer translation
-        </button>
+      <div role="tablist" aria-label="Inspector panels" className="flex h-9 shrink-0 border-b">
+        {tabs.map(({ id, label, icon: Icon }, index) => (
+          <button
+            key={id}
+            id={`inspector-tab-${id}`}
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={`inspector-panel-${id}`}
+            tabIndex={tab === id ? 0 : -1}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 border-b-2 border-transparent text-[10px] text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
+              tab === id && "border-primary bg-background/40 text-foreground",
+            )}
+            onClick={() => setTab(id)}
+            onKeyDown={(event) => {
+              const next =
+                event.key === "ArrowRight"
+                  ? (index + 1) % tabs.length
+                  : event.key === "ArrowLeft"
+                    ? (index + tabs.length - 1) % tabs.length
+                    : event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? tabs.length - 1
+                        : null;
+              const nextTab = next === null ? undefined : tabs[next];
+              if (nextTab) {
+                event.preventDefault();
+                setTab(nextTab.id);
+                document.getElementById(`inspector-tab-${nextTab.id}`)?.focus();
+              }
+            }}
+          >
+            <Icon className="size-3" />
+            {label}
+          </button>
+        ))}
       </div>
-
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 text-center">
-        <MessageSquareText size={22} strokeWidth={1.4} className="mb-2 text-catty-muted-2" />
-        <p className="text-[10px] font-medium text-catty-text-soft">No dialogue yet</p>
-        <p className="mt-1 max-w-[250px] text-[9px] leading-4 text-catty-muted-2">
-          Transcribed dialogue and Khmer translations will appear here with timestamps and speaker
-          assignments.
-        </p>
+      <div
+        role="tabpanel"
+        id={`inspector-panel-${tab}`}
+        aria-labelledby={`inspector-tab-${tab}`}
+        tabIndex={0}
+        className="flex min-h-0 flex-1 flex-col overflow-auto p-4 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        {tab === "properties" && episode ? (
+          <dl className="space-y-4 text-[11px]">
+            {[
+              ["File", episode.name],
+              ["Container", episode.extension.toUpperCase()],
+              ["Duration", formatTime(episode.durationSeconds ?? 0, true)],
+              [
+                "Resolution",
+                episode.width && episode.height
+                  ? `${episode.width} × ${episode.height}`
+                  : "Reading…",
+              ],
+              ["Target language", "Khmer"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt className="mb-1 text-[10px] text-muted-foreground">{label}</dt>
+                <dd className="break-words">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <div className="m-auto text-center">
+            <MessageSquareText
+              className="mx-auto mb-3 size-7 text-muted-foreground/50"
+              strokeWidth={1.3}
+            />
+            <p className="text-xs font-medium">
+              {tab === "translation"
+                ? "No translations yet"
+                : tab === "properties"
+                  ? "No media selected"
+                  : "No dialogue yet"}
+            </p>
+            <p className="mt-2 max-w-[230px] text-[11px] leading-relaxed text-muted-foreground">
+              {tab === "translation"
+                ? "Khmer translations and speaker assignments will appear here when translation is connected."
+                : tab === "properties"
+                  ? "Import an episode to inspect its duration and resolution."
+                  : "The transcription engine is not connected yet. Imported video and source audio are available on the timeline."}
+            </p>
+          </div>
+        )}
       </div>
-
-      <div className="flex h-8 shrink-0 items-center justify-between border-t border-catty-border px-2.5 text-[8px] text-catty-muted-2">
-        <span>0 selected</span>
+      <div className="flex h-7 shrink-0 items-center justify-between border-t px-3 text-[9px] text-muted-foreground">
         <span>Source → Khmer</span>
+        <span>Inspector</span>
       </div>
     </section>
   );

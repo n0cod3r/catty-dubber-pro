@@ -1,253 +1,395 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 
-import { Lock, Magnet, Minus, Plus, Scan, Scissors, Volume2 } from "lucide-react";
+import { Flag, Plus } from "lucide-react";
 
-import type { EpisodeMedia } from "../../features/episodes/types";
-import { Button } from "../ui/button";
-
-const tracks = [
-  { name: "VIDEO", label: "Video", tone: "bg-[#493225] border-[#805137]" },
-  { name: "SOURCE AUDIO", label: "Original audio", tone: "bg-[#26382f] border-[#3d624d]" },
-  { name: "DIALOGUE", label: "Transcript", tone: "bg-[#282d3b] border-[#414b69]" },
-  { name: "KHMER DUB", label: "Generated dub", tone: "bg-[#3b2c3c] border-[#68486a]" },
-];
-
-function formatClock(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 1000);
-  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
-}
-
-function rulerStep(duration: number, zoom: number) {
-  const visible = duration / zoom;
-  if (visible <= 12) return 1;
-  if (visible <= 30) return 2;
-  if (visible <= 70) return 5;
-  if (visible <= 160) return 10;
-  return 30;
-}
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TimelineToolbar } from "@/components/workspace/timeline-toolbar";
+import { TimelineTrack } from "@/components/workspace/timeline-track";
+import type { EpisodeMedia } from "@/features/episodes/types";
+import { clipRenderWindow, thumbnailTiles } from "@/features/media-visuals/render-window";
+import type { MediaVisuals } from "@/features/media-visuals/use-media-visuals";
+import { clamp, formatTime, snapTime, TIMELINE, visibleTicks } from "@/features/timeline/geometry";
+import {
+  splitCandidates,
+  type Layer,
+  type TimelineAction,
+  type TimelineClip,
+  type TimelineHistory,
+  type TrackKind,
+} from "@/features/timeline/model";
+import { trackStyles } from "@/features/timeline/tracks";
+import { useTimelineScrub } from "@/features/timeline/use-timeline-scrub";
+import { useTimelineViewport } from "@/features/timeline/use-timeline-viewport";
+import { cn } from "@/lib/utils";
 
 type TimelineProps = {
   episode: EpisodeMedia | null;
   currentTime: number;
   onSeek: (time: number) => void;
+  muted: boolean;
+  onMuteChange: (muted: boolean) => void;
+  followPlayhead: boolean;
+  history: TimelineHistory;
+  dispatch: Dispatch<TimelineAction>;
+  visuals: MediaVisuals;
 };
 
-export function Timeline({ episode, currentTime, onSeek }: TimelineProps) {
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
+export function Timeline({
+  episode,
+  currentTime,
+  onSeek,
+  muted,
+  onMuteChange,
+  followPlayhead,
+  history,
+  dispatch,
+  visuals,
+}: TimelineProps) {
+  const mediaDuration = episode?.durationSeconds ?? 0;
+  const duration = Math.max(mediaDuration, 30);
+  // A loaded short video fits its actual duration; empty media has a 30s ruler.
+  const timelineDuration = mediaDuration > 0 ? mediaDuration : duration;
+  const viewport = useTimelineViewport(timelineDuration, currentTime, followPlayhead);
+  const document = history.present;
+  const playheadRef = useRef(currentTime);
+  useEffect(() => {
+    playheadRef.current = currentTime;
+  }, [currentTime]);
   const [snap, setSnap] = useState(true);
-  const [draggingPlayhead, setDraggingPlayhead] = useState(false);
-  const duration = Math.max(episode?.durationSeconds ?? 0, 1);
-  const contentWidth = Math.max(100, zoom * 100);
-  const step = rulerStep(duration, zoom);
-
-  const ticks = useMemo(() => {
-    const values: number[] = [];
-    for (let value = 0; value <= duration; value += step) values.push(value);
-    if (values.at(-1) !== duration) values.push(duration);
-    return values;
-  }, [duration, step]);
-
-  function timeFromPointer(clientX: number) {
-    const viewport = viewportRef.current;
-    if (!viewport || !episode) return null;
-    const rect = viewport.getBoundingClientRect();
-    const x = clientX - rect.left + viewport.scrollLeft;
-    return Math.max(0, Math.min(duration, (x / viewport.scrollWidth) * duration));
+  const [markers, setMarkers] = useState<number[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const enabled = mediaDuration > 0;
+  const ticks = useMemo(
+    () =>
+      visibleTicks(timelineDuration, viewport.width, viewport.scrollLeft, viewport.viewportWidth),
+    [timelineDuration, viewport.width, viewport.scrollLeft, viewport.viewportWidth],
+  );
+  const clipsByLayer = useMemo(
+    () =>
+      new Map(
+        document.layers.map((layer) => [
+          layer.id,
+          document.clips.filter((clip) => clip.trackId === layer.id),
+        ]),
+      ),
+    [document.layers, document.clips],
+  );
+  const canEdit = !document.layers.some((layer) => layer.locked);
+  const canSplit = splitCandidates(document, currentTime, selected).length > 0;
+  function split() {
+    if (canSplit) dispatch({ type: "split", time: currentTime, selectedId: selected });
   }
+  const addLayer = (kind: TrackKind) => {
+    const count = document.layers.filter((layer) => layer.kind === kind).length + 1;
+    dispatch({
+      type: "add-layer",
+      layer: {
+        id: crypto.randomUUID(),
+        kind,
+        name: `${trackStyles[kind].label} ${count}`,
+        locked: false,
+        muted: false,
+        hidden: false,
+      },
+    });
+  };
+  const addClip = useCallback(
+    (layer: Layer) => {
+      if (!episode || mediaDuration <= 0) return;
+      const overlay = layer.kind === "subtitle" || layer.kind === "graphic";
+      const start = overlay ? Math.min(playheadRef.current, Math.max(0, mediaDuration - 0.1)) : 0;
+      const clip: TimelineClip = {
+        id: crypto.randomUUID(),
+        trackId: layer.id,
+        kind: layer.kind,
+        start,
+        sourceStart: 0,
+        duration: overlay ? Math.min(5, mediaDuration - start) : mediaDuration,
+        sourceId: overlay ? undefined : episode.id,
+        name: overlay
+          ? layer.kind === "subtitle"
+            ? "New subtitle"
+            : "Title graphic"
+          : episode.name,
+        text: overlay
+          ? layer.kind === "subtitle"
+            ? "Your subtitle here"
+            : "Your title here"
+          : undefined,
+        color: "#c084fc",
+      };
+      dispatch({ type: "add-clip", clip });
+      setSelected(clip.id);
+    },
+    [dispatch, episode, mediaDuration],
+  );
+  const frameTimes = useMemo(() => {
+    const times = document.clips
+      .filter((clip) => clip.kind === "video")
+      .flatMap((clip) => {
+        const window = clipRenderWindow(
+          clip.start,
+          clip.duration,
+          viewport.width / timelineDuration,
+          viewport.scrollLeft,
+          viewport.viewportWidth,
+        );
+        return thumbnailTiles(
+          clip.sourceStart,
+          window.left,
+          window.width,
+          viewport.width / timelineDuration,
+          mediaDuration,
+        ).map((tile) => tile.time);
+      });
+    return [...new Set(times)];
+  }, [
+    document.clips,
+    viewport.width,
+    viewport.scrollLeft,
+    viewport.viewportWidth,
+    timelineDuration,
+    mediaDuration,
+  ]);
+  const { available, requestFrames } = visuals;
+  useEffect(() => {
+    if (!available) return;
+    const timer = setTimeout(() => requestFrames(frameTimes), 60);
+    return () => clearTimeout(timer);
+  }, [frameTimes, available, requestFrames]);
+  const selectedClip = document.clips.find((clip) => clip.id === selected);
 
-  function seekFromPointer(clientX: number) {
-    const time = timeFromPointer(clientX);
-    if (time !== null) onSeek(time);
+  function addMarker() {
+    if (enabled)
+      setMarkers((values) =>
+        values.some((value) => Math.abs(value - currentTime) < 0.01)
+          ? values
+          : [...values, currentTime].sort((a, b) => a - b).slice(0, 100),
+      );
   }
-
-  function startScrub(event: React.PointerEvent) {
-    if (!episode) return;
-    setDraggingPlayhead(true);
-    seekFromPointer(event.clientX);
-    const move = (moveEvent: PointerEvent) => seekFromPointer(moveEvent.clientX);
-    const up = () => {
-      setDraggingPlayhead(false);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
+  function seekFromPointer(clientX: number, bypassSnap: boolean) {
+    let time = viewport.timeAt(clientX);
+    if (snap && !bypassSnap)
+      time = snapTime(
+        time,
+        [
+          0,
+          mediaDuration,
+          ...document.clips.flatMap((clip) => [clip.start, clip.start + clip.duration]),
+          ...markers,
+        ],
+        viewport.width / timelineDuration,
+      );
+    onSeek(clamp(time, 0, mediaDuration));
   }
-
-  const playheadLeft = `${(currentTime / duration) * 100}%`;
+  const scrubHandlers = useTimelineScrub(
+    viewport.viewportRef,
+    enabled,
+    seekFromPointer,
+    viewport.setScrubbing,
+  );
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-[#11100e] select-none">
-      <div className="flex h-9 shrink-0 items-center border-b border-catty-border bg-[#151310] px-2">
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" aria-label="Split">
-            <Scissors size={12} />
-          </Button>
-          <Button
-            variant={snap ? "default" : "ghost"}
-            size="icon"
-            aria-label="Toggle snapping"
-            onClick={() => setSnap((value) => !value)}
-          >
-            <Magnet size={12} />
-          </Button>
-          <span className="mx-1 h-4 w-px bg-catty-border" />
-          <span className="min-w-[72px] font-mono text-[9px] tabular-nums text-catty-text-soft">
-            {formatClock(currentTime)}
-          </span>
-          <span className="text-[8px] text-catty-muted-2">
-            / {episode ? formatClock(duration) : "00:00.000"}
-          </span>
-        </div>
-
-        <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Zoom out"
-            onClick={() => setZoom((value) => Math.max(1, value / 1.25))}
-          >
-            <Minus size={12} />
-          </Button>
-          <input
-            className="h-1 w-24 cursor-pointer accent-current"
-            type="range"
-            min="1"
-            max="12"
-            step="0.05"
-            value={zoom}
-            aria-label="Timeline zoom"
-            onChange={(event) => setZoom(Number(event.target.value))}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Zoom in"
-            onClick={() => setZoom((value) => Math.min(12, value * 1.25))}
-          >
-            <Plus size={12} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Fit timeline"
-            onClick={() => {
-              setZoom(1);
-              viewportRef.current?.scrollTo({ left: 0 });
-            }}
-          >
-            <Scan size={12} />
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid min-h-0 flex-1 grid-cols-[132px_minmax(0,1fr)] overflow-hidden">
-        <div className="z-30 border-r border-catty-border-subtle bg-[#151411]">
-          <div className="flex h-7 items-center border-b border-catty-border-subtle px-2 text-[8px] font-medium text-catty-muted-2">
-            TRACKS
-          </div>
-          {tracks.map((track, index) => (
-            <div
-              className="flex h-[46px] items-center gap-2 border-b border-catty-border-subtle px-2"
-              key={track.name}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[8px] font-semibold tracking-wide text-catty-text-soft">
-                  {track.name}
-                </div>
-                <div className="mt-0.5 truncate text-[7px] text-catty-muted-2">{track.label}</div>
-              </div>
-              {(index === 1 || index === 3) && <Volume2 size={10} className="text-catty-muted-2" />}
-              <Lock size={9} className="text-catty-muted-2/55" />
-            </div>
-          ))}
-        </div>
-
-        <div
-          ref={viewportRef}
-          className="min-h-0 min-w-0 overflow-auto bg-[#0e0d0c]"
-          onWheel={(event) => {
-            if (!event.ctrlKey && !event.metaKey) return;
+    <section
+      className="flex h-full min-h-0 flex-col bg-background select-none"
+      aria-label="Timeline editor"
+      onKeyDown={(event) => {
+        if (
+          (event.target as HTMLElement).closest("input, textarea, select, [contenteditable=true]")
+        )
+          return;
+        const command = event.metaKey || event.ctrlKey;
+        if (command && event.key.toLowerCase() === "z") {
+          event.preventDefault();
+          if (canEdit) dispatch({ type: event.shiftKey ? "redo" : "undo" });
+        } else if (!command && !event.altKey) {
+          if (event.key.toLowerCase() === "s") {
             event.preventDefault();
-            setZoom((value) => Math.max(1, Math.min(12, value * (event.deltaY > 0 ? 0.9 : 1.1))));
+            split();
+          }
+          if (event.key.toLowerCase() === "n") {
+            event.preventDefault();
+            setSnap((value) => !value);
+          }
+          if (event.key.toLowerCase() === "m") {
+            event.preventDefault();
+            addMarker();
+          }
+        }
+      }}
+    >
+      <TimelineToolbar
+        currentTime={currentTime}
+        duration={mediaDuration}
+        zoom={viewport.zoom}
+        snap={snap}
+        enabled={enabled}
+        canSplit={canSplit}
+        canUndo={history.past.length > 0 && canEdit}
+        canRedo={history.future.length > 0 && canEdit}
+        onSplit={split}
+        onUndo={() => dispatch({ type: "undo" })}
+        onRedo={() => dispatch({ type: "redo" })}
+        onSnap={() => setSnap((value) => !value)}
+        onMarker={addMarker}
+        onZoom={viewport.changeZoom}
+        onFit={viewport.fit}
+        layerControl={
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="xs" aria-label="Add layer" />}
+            >
+              <Plus />
+              Layer
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-40">
+              {(["video", "audio", "subtitle", "graphic"] as TrackKind[]).map((kind) => (
+                <DropdownMenuItem key={kind} onClick={() => addLayer(kind)}>
+                  Add {trackStyles[kind].label.toLowerCase()} layer
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      />
+      <div
+        ref={viewport.viewportRef}
+        tabIndex={0}
+        aria-label="Timeline tracks. Drag to scrub; S to split, M for marker, N for snapping."
+        className="relative min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+        onScroll={(event) => viewport.setScrollLeft(event.currentTarget.scrollLeft)}
+        {...scrubHandlers}
+      >
+        <div
+          className="relative grid min-h-full"
+          style={{
+            gridTemplateColumns: `${TIMELINE.headerWidth}px ${viewport.width}px`,
+            width: TIMELINE.headerWidth + viewport.width,
+            gridTemplateRows: `${TIMELINE.rulerHeight}px repeat(${document.layers.length}, ${TIMELINE.trackHeight}px) minmax(24px, 1fr)`,
           }}
         >
-          <div className="relative min-h-full min-w-full" style={{ width: `${contentWidth}%` }}>
-            <div
-              className="sticky top-0 z-20 h-7 cursor-ew-resize border-b border-catty-border-subtle bg-[#12110f]"
-              onPointerDown={startScrub}
-            >
-              {ticks.map((tick) => (
-                <div
-                  className="absolute bottom-0 top-0 border-l border-catty-border-subtle"
-                  key={tick}
-                  style={{ left: `${(tick / duration) * 100}%` }}
-                >
-                  <span className="absolute left-1 top-1 text-[7px] tabular-nums text-catty-muted-2">
-                    {formatClock(tick).slice(0, 5)}
-                  </span>
-                  <span className="absolute bottom-0 left-0 h-1.5 border-l border-catty-muted-2/60" />
-                </div>
-              ))}
-            </div>
-
-            {tracks.map((track, index) => (
+          <div className="sticky top-0 left-0 z-40 flex items-center border-r border-b bg-card px-3 text-[9px] font-medium tracking-widest text-muted-foreground">
+            TRACKS{" "}
+            <span className="ml-auto rounded border px-1 text-[9px]">{document.layers.length}</span>
+          </div>
+          <div
+            data-timeline-surface
+            className="sticky top-0 z-20 touch-none overflow-hidden border-b bg-card"
+            aria-label="Timeline ruler"
+          >
+            {ticks.map((tick) => (
               <div
-                className="relative h-[46px] border-b border-catty-border-subtle"
-                key={track.name}
-                onPointerDown={startScrub}
+                key={tick}
+                className="pointer-events-none absolute inset-y-0 border-l border-border/70"
+                style={{ left: (tick / timelineDuration) * viewport.width }}
               >
-                {ticks.map((tick) => (
-                  <div
-                    key={tick}
-                    className="pointer-events-none absolute inset-y-0 border-l border-catty-border-subtle/40"
-                    style={{ left: `${(tick / duration) * 100}%` }}
-                  />
-                ))}
-                {episode && index === 0 && (
-                  <div
-                    className={`absolute inset-y-[4px] left-[3px] right-[3px] overflow-hidden rounded-[3px] border ${track.tone}`}
-                  >
-                    <div className="flex h-full items-center px-2 text-[8px] font-medium text-[#e9ddd4]">
-                      <span className="max-w-[70%] truncate">{episode.name}</span>
-                      <span className="ml-auto text-[7px] text-white/45">
-                        {formatClock(duration)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                {episode && index === 1 && (
-                  <div
-                    className={`absolute inset-y-[4px] left-[3px] right-[3px] overflow-hidden rounded-[3px] border ${track.tone}`}
-                  >
-                    <div className="flex h-full items-center gap-[2px] px-1 opacity-65">
-                      {Array.from({ length: 140 }).map((_, bar) => (
-                        <span
-                          key={bar}
-                          className="min-w-px flex-1 bg-[#8eb89c]"
-                          style={{ height: `${15 + ((bar * 29) % 75)}%` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <span className="absolute top-1 left-1 whitespace-nowrap font-mono text-[9px] tabular-nums text-muted-foreground">
+                  {formatTime(tick, !Number.isInteger(tick))}
+                </span>
+                <span className="absolute bottom-0 h-1.5 border-l border-muted-foreground/70" />
               </div>
             ))}
-
-            {episode && (
-              <div
-                className={`pointer-events-none absolute bottom-0 top-0 z-40 w-px ${draggingPlayhead ? "bg-[#ffb16f]" : "bg-catty-accent"}`}
-                style={{ left: playheadLeft }}
+            {markers.map((time, index) => (
+              <button
+                key={time}
+                className="absolute bottom-0 text-amber-400"
+                style={{ left: (time / timelineDuration) * viewport.width - 5 }}
+                aria-label={`Marker ${index + 1} at ${formatTime(time, true)}`}
+                title="Click to seek; double-click to remove marker"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => onSeek(time)}
+                onDoubleClick={() =>
+                  setMarkers((values) => values.filter((value) => value !== time))
+                }
               >
-                <div className="absolute -left-[5px] top-0 h-3 w-[11px] rounded-b-[3px] bg-catty-accent" />
-              </div>
-            )}
+                <Flag className="size-3" fill="currentColor" />
+              </button>
+            ))}
           </div>
+          {document.layers.map((layer) => (
+            <TimelineTrack
+              key={layer.id}
+              layer={layer}
+              clips={clipsByLayer.get(layer.id) ?? []}
+              sourceDuration={mediaDuration}
+              timelineDuration={timelineDuration}
+              width={viewport.width}
+              viewportWidth={viewport.viewportWidth}
+              scrollLeft={viewport.scrollLeft}
+              ticks={ticks}
+              selected={selected}
+              muted={muted}
+              visuals={visuals}
+              dispatch={dispatch}
+              onMuteChange={onMuteChange}
+              onSelect={setSelected}
+              onSeek={onSeek}
+              onAddClip={addClip}
+            />
+          ))}
+          <div className="sticky left-0 z-30 border-r bg-card" />
+          <div className="bg-muted/5" />
+          {enabled && (
+            <div
+              className={cn(
+                "pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-primary",
+                viewport.scrubbing && "shadow-[0_0_6px_var(--primary)]",
+              )}
+              style={{
+                left:
+                  TIMELINE.headerWidth +
+                  (clamp(currentTime, 0, timelineDuration) / timelineDuration) * viewport.width,
+              }}
+            >
+              <div className="absolute top-0 -left-1 h-3 w-[9px] rounded-b-sm bg-primary" />
+            </div>
+          )}
         </div>
       </div>
+      {selectedClip && (selectedClip.kind === "subtitle" || selectedClip.kind === "graphic") && (
+        <div className="flex h-8 shrink-0 items-center gap-2 border-t bg-card px-3 text-[10px]">
+          <label htmlFor="clip-text">Layer text</label>
+          <input
+            key={selectedClip.id + selectedClip.text}
+            id="clip-text"
+            aria-label="Layer text"
+            className="min-w-0 flex-1 rounded border bg-background px-2 py-0.5"
+            defaultValue={selectedClip.text}
+            disabled={document.layers.find((layer) => layer.id === selectedClip.trackId)?.locked}
+            onBlur={(event) =>
+              dispatch({
+                type: "update-text",
+                id: selectedClip.id,
+                text: event.currentTarget.value,
+              })
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+          />
+          <span className="text-muted-foreground">Enter to apply</span>
+        </div>
+      )}
+      <footer className="flex h-6 shrink-0 items-center gap-4 border-t bg-card px-3 text-[9px] text-muted-foreground">
+        <span>
+          {enabled
+            ? `${document.layers.length} layers · ${document.clips.length} clips`
+            : "No media"}
+        </span>
+        <span>{markers.length} markers</span>
+        <span className="ml-auto">
+          {Math.round(viewport.zoom * 100)}%{" "}
+          <span className="ml-3 hidden md:inline">
+            Ctrl / ⌘ + scroll to zoom · Shift to bypass snap
+          </span>
+        </span>
+      </footer>
     </section>
   );
 }

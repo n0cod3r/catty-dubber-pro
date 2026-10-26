@@ -1,162 +1,311 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { Maximize2, Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Film,
+  Maximize2,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Upload,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 
-import type { EpisodeMedia } from "../../features/episodes/types";
-import { Button } from "../ui/button";
-
-function formatTime(seconds: number) {
-  if (!Number.isFinite(seconds)) return "00:00:00.000";
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 1000);
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
-}
+import { Button } from "@/components/ui/button";
+import { PreviewLayers } from "@/components/workspace/preview-layers";
+import type { EpisodeMedia } from "@/features/episodes/types";
+import { clamp, formatTime } from "@/features/timeline/geometry";
+import type { TimelineDocument } from "@/features/timeline/model";
 
 type VideoPreviewProps = {
+  document: TimelineDocument;
   episode: EpisodeMedia | null;
   currentTime: number;
   seekRequest: { time: number; nonce: number } | null;
   onTimeChange: (time: number) => void;
+  onSeek: (time: number) => void;
   onMetadata: (metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => void;
+  muted: boolean;
+  onMuteChange: (muted: boolean) => void;
+  onImport: () => void;
+  importing: boolean;
 };
 
 export function VideoPreview({
   episode,
+  document,
   currentTime,
   seekRequest,
   onTimeChange,
+  onSeek,
   onMetadata,
+  muted,
+  onMuteChange,
+  onImport,
+  importing,
 }: VideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
-
-  const src = episode ? convertFileSrc(episode.path) : null;
+  const [notice, setNotice] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState(false);
   const duration = episode?.durationSeconds ?? 0;
-  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
-
-  useEffect(() => {
-    setPlaying(false);
-  }, [episode?.id]);
+  const src = episode
+    ? episode.path.startsWith("blob:")
+      ? episode.path
+      : convertFileSrc(episode.path)
+    : undefined;
+  const ready = duration > 0 && !mediaError;
+  const pictureVisible = document.layers.some(
+    (layer) =>
+      layer.kind === "video" &&
+      !layer.hidden &&
+      document.clips.some(
+        (clip) =>
+          clip.trackId === layer.id &&
+          currentTime >= clip.start &&
+          currentTime <= clip.start + clip.duration,
+      ),
+  );
+  const audioAudible = document.layers.some(
+    (layer) =>
+      layer.kind === "audio" &&
+      !layer.muted &&
+      document.clips.some(
+        (clip) =>
+          clip.trackId === layer.id &&
+          currentTime >= clip.start &&
+          currentTime <= clip.start + clip.duration,
+      ),
+  );
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !seekRequest) return;
-    if (Math.abs(video.currentTime - seekRequest.time) > 0.01) video.currentTime = seekRequest.time;
+    if (!video || !seekRequest || video.readyState < 1) return;
+    video.currentTime = clamp(
+      seekRequest.time,
+      0,
+      Number.isFinite(video.duration) ? video.duration : 0,
+    );
   }, [seekRequest]);
 
-  async function togglePlayback() {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) await video.play();
-    else video.pause();
-  }
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    const tick = () => {
+      const video = videoRef.current;
+      if (video) onTimeChange(video.currentTime);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [onTimeChange, playing]);
 
-  function seekRelative(delta: number) {
+  const togglePlayback = useCallback(async () => {
     const video = videoRef.current;
-    if (!video) return;
-    video.currentTime = Math.max(0, Math.min(duration, video.currentTime + delta));
-    onTimeChange(video.currentTime);
+    if (!video || !ready) return;
+    try {
+      setNotice(null);
+      if (video.paused) await video.play();
+      else video.pause();
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "AbortError") return;
+      setNotice("Playback could not start. Try Play again or import a supported video.");
+    }
+  }, [ready]);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !ready)
+        return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(
+          "input, textarea, select, button, a, [contenteditable]:not([contenteditable=false]), [role=slider], [role=separator]",
+        )
+      )
+        return;
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (!event.repeat) void togglePlayback();
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        onSeek(
+          (videoRef.current?.currentTime ?? 0) +
+            (event.key === "ArrowRight" ? 1 : -1) * (event.shiftKey ? 5 : 1 / 30),
+        );
+      }
+      if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        onSeek(event.key === "Home" ? 0 : duration);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [duration, onSeek, ready, togglePlayback]);
+
+  async function fullscreen() {
+    try {
+      await videoRef.current?.requestFullscreen();
+    } catch {
+      setNotice("Fullscreen is unavailable in this window.");
+    }
   }
 
   return (
-    <section className="flex min-h-0 flex-col border-r border-catty-border bg-[#0d0c0b]">
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-catty-border px-2.5">
-        <span className="text-[9px] font-medium text-catty-text-soft">Preview</span>
-        <span className="max-w-[55%] truncate text-[8px] text-catty-muted-2">
-          {episode?.name ?? "No media loaded"}
+    <section
+      className="flex min-h-0 min-w-0 flex-col border-r bg-background"
+      aria-label="Video preview"
+    >
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b bg-card px-3 text-[11px]">
+        <Film className="size-3.5 text-muted-foreground" />
+        <span className="font-medium">Preview</span>
+        <span className="ml-auto truncate text-[10px] text-muted-foreground">
+          {episode
+            ? episode.width && episode.height
+              ? `${episode.width} × ${episode.height}`
+              : "Reading media…"
+            : "No media loaded"}
         </span>
       </div>
-
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black/40 p-3">
-        <div className="flex size-full max-h-full max-w-[900px] items-center justify-center overflow-hidden rounded-catty-lg border border-catty-border-subtle bg-[#080807] shadow-2xl">
-          {src ? (
-            <video
-              ref={videoRef}
-              className="size-full object-contain"
-              src={src}
-              onLoadedMetadata={(event) => {
-                const video = event.currentTarget;
-                onMetadata({
-                  durationSeconds: video.duration,
-                  width: video.videoWidth,
-                  height: video.videoHeight,
-                });
-              }}
-              onTimeUpdate={(event) => onTimeChange(event.currentTarget.currentTime)}
-              onSeeked={(event) => onTimeChange(event.currentTarget.currentTime)}
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-              onEnded={() => setPlaying(false)}
-            />
-          ) : (
-            <div className="text-center">
-              <div className="mx-auto mb-2 grid size-9 place-items-center rounded-full border border-catty-border bg-catty-panel text-catty-muted">
-                <Play size={15} fill="currentColor" />
-              </div>
-              <p className="text-[10px] text-catty-muted">Import an episode to preview video</p>
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black/30 p-5">
+        {src ? (
+          <video
+            ref={videoRef}
+            src={src}
+            preload="metadata"
+            muted={muted || !audioAudible}
+            playsInline
+            aria-label={episode?.name}
+            className="size-full object-contain"
+            style={{ visibility: pictureVisible ? "visible" : "hidden" }}
+            onLoadedMetadata={(event) => {
+              const video = event.currentTarget;
+              if (!Number.isFinite(video.duration) || video.duration <= 0) {
+                setMediaError(true);
+                setNotice("This media has no valid duration. Import a finite video file.");
+                return;
+              }
+              setMediaError(false);
+              setNotice(null);
+              onMetadata({
+                durationSeconds: video.duration,
+                width: video.videoWidth,
+                height: video.videoHeight,
+              });
+            }}
+            onTimeUpdate={(event) => onTimeChange(event.currentTarget.currentTime)}
+            onSeeked={(event) => onTimeChange(event.currentTarget.currentTime)}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
+            onError={() => {
+              setMediaError(true);
+              setPlaying(false);
+              setNotice(
+                "This video could not be loaded. Check the file or try MP4 (H.264) or WebM.",
+              );
+            }}
+          />
+        ) : (
+          <div className="max-w-xs text-center">
+            <div className="mx-auto mb-4 grid size-14 place-items-center rounded-xl border bg-card">
+              <Film className="size-6 text-muted-foreground" strokeWidth={1.3} />
             </div>
-          )}
-        </div>
+            <h2 className="text-sm font-medium">Your story starts here</h2>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Import an episode to preview the source video and build your Khmer dubbing timeline.
+            </p>
+            <Button className="mt-5" size="sm" onClick={onImport} disabled={importing}>
+              <Upload />
+              Import episode
+            </Button>
+            <p className="mt-3 text-[10px] text-muted-foreground">MP4, MOV, MKV, WebM, M4V, AVI</p>
+          </div>
+        )}
+        <PreviewLayers document={document} currentTime={currentTime} episode={episode} />
+        {notice && (
+          <div
+            role="alert"
+            className="absolute right-4 bottom-4 left-4 flex items-start gap-2 rounded-lg border bg-popover p-3 text-xs shadow-lg"
+          >
+            <AlertTriangle className="size-4 shrink-0 text-primary" />
+            <span className="flex-1">{notice}</span>
+            {mediaError ? (
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => {
+                  setNotice(null);
+                  setMediaError(false);
+                  videoRef.current?.load();
+                }}
+              >
+                Retry
+              </Button>
+            ) : (
+              <Button size="xs" variant="ghost" onClick={() => setNotice(null)}>
+                Dismiss
+              </Button>
+            )}
+          </div>
+        )}
       </div>
-
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-t border-catty-border px-2.5">
+      <div className="flex h-11 shrink-0 items-center justify-center gap-2 border-t bg-card px-2">
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label="Back 5 seconds"
-          disabled={!episode}
-          onClick={() => seekRelative(-5)}
+          disabled={!ready}
+          onClick={() => onSeek(currentTime - 5)}
         >
-          <SkipBack size={13} />
+          <SkipBack />
         </Button>
         <Button
-          variant="ghost"
-          size="icon"
+          variant={playing ? "secondary" : "ghost"}
+          size="icon-sm"
           aria-label={playing ? "Pause" : "Play"}
-          disabled={!episode}
-          onClick={togglePlayback}
+          title="Play / pause (Space)"
+          disabled={!ready}
+          onClick={() => void togglePlayback()}
         >
-          {playing ? <Pause size={13} /> : <Play size={13} />}
+          {playing ? <Pause /> : <Play />}
         </Button>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label="Forward 5 seconds"
-          disabled={!episode}
-          onClick={() => seekRelative(5)}
+          disabled={!ready}
+          onClick={() => onSeek(currentTime + 5)}
         >
-          <SkipForward size={13} />
+          <SkipForward />
         </Button>
-        <span className="ml-1 font-mono text-[9px] text-catty-text-soft">
-          {formatTime(currentTime)}
+        <span className="mx-2 whitespace-nowrap font-mono text-[10px] tabular-nums">
+          {formatTime(currentTime, true)}
+          <span className="ml-2 text-muted-foreground">/ {formatTime(duration)}</span>
         </span>
-        <span className="text-[9px] text-catty-muted-2">/ {formatTime(duration)}</span>
-        <button
-          className="mx-2 h-1 flex-1 overflow-hidden rounded-full bg-catty-surface"
-          disabled={!episode || duration <= 0}
-          aria-label="Seek video"
-          onClick={(event) => {
-            const video = videoRef.current;
-            if (!video || duration <= 0) return;
-            const rect = event.currentTarget.getBoundingClientRect();
-            video.currentTime = ((event.clientX - rect.left) / rect.width) * duration;
-            onTimeChange(video.currentTime);
-          }}
-        >
-          <div className="h-full bg-catty-accent" style={{ width: `${progress}%` }} />
-        </button>
-        <Volume2 size={13} className="text-catty-muted" />
         <Button
           variant="ghost"
-          size="icon"
-          aria-label="Fullscreen"
+          size="icon-sm"
+          aria-label={muted ? "Unmute preview" : "Mute preview"}
+          aria-pressed={muted}
           disabled={!episode}
-          onClick={() => videoRef.current?.requestFullscreen()}
+          onClick={() => onMuteChange(!muted)}
         >
-          <Maximize2 size={13} />
+          {muted ? <VolumeX /> : <Volume2 />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Fullscreen preview"
+          disabled={!ready}
+          onClick={() => void fullscreen()}
+        >
+          <Maximize2 />
         </Button>
       </div>
     </section>
