@@ -1,5 +1,5 @@
 import { FolderOpen, Library, Mic2, Settings, Sparkles, WandSparkles } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { DialoguePanel } from "../components/workspace/dialogue-panel";
 import { Timeline } from "../components/workspace/timeline";
@@ -20,6 +20,8 @@ function NavItem({ active = false, children }: { active?: boolean; children: Rea
 export function App() {
   const [episode, setEpisode] = useState<EpisodeMedia | null>(null);
   const [importing, setImporting] = useState(false);
+  const [timelineHeight, setTimelineHeight] = useState(280);
+  const editorRef = useRef<HTMLElement>(null);
   const playback = usePlayback();
 
   async function handleImport() {
@@ -35,6 +37,26 @@ export function App() {
     } finally {
       setImporting(false);
     }
+  }
+
+  function startTimelineResize(event: React.PointerEvent<HTMLDivElement>) {
+    const editor = editorRef.current;
+    if (!editor) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const startY = event.clientY;
+    const startHeight = timelineHeight;
+    const maxHeight = Math.max(220, editor.clientHeight - 180);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const next = startHeight + (startY - moveEvent.clientY);
+      setTimelineHeight(Math.max(180, Math.min(maxHeight, next)));
+    };
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
   }
 
   return (
@@ -53,7 +75,7 @@ export function App() {
         <div className="mt-auto border-t border-catty-border-subtle px-1.5 pb-0.5 pt-2.5"><div className="flex items-center gap-1.5 text-[9px] text-catty-muted"><span className="size-1.5 rounded-full bg-catty-success" />Desktop shell ready</div></div>
       </aside>
 
-      <main className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+      <main ref={editorRef} className="flex min-h-0 min-w-0 flex-col overflow-hidden">
         <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-catty-border px-3.5">
           <div className="min-w-0"><div className="flex items-center gap-2"><h1 className="truncate text-[13px] font-semibold">{episode?.name ?? "Untitled project"}</h1><Badge>{episode ? "Imported" : "Draft"}</Badge></div><p className="mt-0.5 text-[9px] text-catty-muted">Dubbing workspace · Chinese/English → Khmer</p></div>
           <div className="flex items-center gap-1.5"><Button size="sm" disabled={!episode}><WandSparkles size={13} /> Auto dub</Button><Button variant="primary" size="sm" disabled={importing} onClick={handleImport}><FolderOpen size={13} /> {importing ? "Opening…" : episode ? "Replace episode" : "Import episode"}</Button></div>
@@ -61,21 +83,15 @@ export function App() {
 
         <section className="flex h-9 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-catty-border bg-catty-panel px-3">{workflow.map((item, index) => <div className={cn("flex h-6 shrink-0 items-center gap-1.5 rounded-catty px-1.5 text-[9px] text-catty-muted-2", index === 0 && "bg-catty-accent-soft text-catty-accent-text")} key={item}><span className={cn("grid size-3.5 place-items-center rounded-full border border-catty-border text-[7px]", index === 0 && "border-catty-accent/60")}>{index + 1}</span>{item}</div>)}</section>
 
-        <section className="grid min-h-[220px] min-w-0 flex-1 grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)] overflow-hidden">
-          <VideoPreview
-            episode={episode}
-            currentTime={playback.currentTime}
-            seekRequest={playback.seekRequest}
-            onTimeChange={playback.setCurrentTime}
-            onMetadata={(metadata) => {
-              playback.setDuration(metadata.durationSeconds ?? 0);
-              setEpisode((current) => current ? { ...current, ...metadata } : current);
-            }}
-          />
+        <section className="grid min-h-[160px] min-w-0 flex-1 grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)] overflow-hidden">
+          <VideoPreview episode={episode} currentTime={playback.currentTime} seekRequest={playback.seekRequest} onTimeChange={playback.setCurrentTime} onMetadata={(metadata) => { playback.setDuration(metadata.durationSeconds ?? 0); setEpisode((current) => current ? { ...current, ...metadata } : current); }} />
           <DialoguePanel />
         </section>
 
-        <div className="h-[250px] min-h-[190px] shrink-0 overflow-hidden border-t border-catty-border">
+        <div className="group relative h-1.5 shrink-0 cursor-row-resize border-y border-catty-border bg-[#171512] hover:bg-catty-accent/25" onPointerDown={startTimelineResize}>
+          <div className="absolute left-1/2 top-1/2 h-px w-8 -translate-x-1/2 -translate-y-1/2 bg-catty-muted-2/50 group-hover:bg-catty-accent" />
+        </div>
+        <div className="min-h-[180px] shrink-0 overflow-hidden" style={{ height: timelineHeight }}>
           <Timeline episode={episode} currentTime={playback.currentTime} onSeek={playback.seek} />
         </div>
       </main>
