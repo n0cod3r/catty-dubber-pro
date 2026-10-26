@@ -43,7 +43,7 @@ fn request_with_control(
         "method": method,
         "params": params,
     });
-    let timeout = if method == "audio.prepare" {
+    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe") {
         Duration::from_secs(3605)
     } else {
         Duration::from_secs(35)
@@ -176,7 +176,10 @@ pub async fn engine_request(
     params: Value,
     jobs: tauri::State<'_, EngineJobs>,
 ) -> Result<Value, EngineError> {
-    if !matches!(method.as_str(), "health" | "system.hello" | "media.probe") {
+    if !matches!(
+        method.as_str(),
+        "health" | "system.hello" | "media.probe" | "speech.transcribe"
+    ) {
         return Err(EngineError::new(
             "UNKNOWN_METHOD",
             "This engine operation is not available",
