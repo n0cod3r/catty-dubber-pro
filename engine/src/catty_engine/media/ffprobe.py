@@ -45,7 +45,10 @@ class FFprobeRunner:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=30,
             )
+        except subprocess.TimeoutExpired as exc:
+            raise MediaProbeError(f"ffprobe timed out for {source}") from exc
         except FileNotFoundError as exc:
             raise FFprobeNotFoundError(
                 f"ffprobe executable not found: {self._executable}"

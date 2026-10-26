@@ -8,6 +8,10 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, model_validator
 
 from catty_engine.media.models import MediaInfo
+from catty_engine.media.audio import (
+    AudioAsset,
+    AudioAssetKind,
+)
 
 SCHEMA_VERSION = 1
 
@@ -163,6 +167,10 @@ class Episode(BaseModel):
 
     media: MediaInfo
 
+    audio_assets: list[AudioAsset] = Field(
+        default_factory=list
+    )
+
     speakers: list[EpisodeSpeaker] = Field(default_factory=list)
     dialogue_segments: list[DialogueSegment] = Field(default_factory=list)
     dub_segments: list[DubSegment] = Field(default_factory=list)
@@ -173,6 +181,33 @@ class Episode(BaseModel):
 
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
+
+    def audio_asset(
+        self,
+        kind: AudioAssetKind,
+    ) -> AudioAsset | None:
+        return next(
+            (
+                asset
+                for asset in self.audio_assets
+                if asset.kind == kind
+            ),
+            None,
+        )
+
+
+    def set_audio_asset(
+        self,
+        asset: AudioAsset,
+    ) -> None:
+        self.audio_assets = [
+            current
+            for current in self.audio_assets
+            if current.kind != asset.kind
+        ]
+
+        self.audio_assets.append(asset)
+        self.updated_at = utc_now()
 
 
 class GlossaryEntry(BaseModel):

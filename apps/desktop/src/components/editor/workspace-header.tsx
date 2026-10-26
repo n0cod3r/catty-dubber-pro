@@ -1,5 +1,6 @@
 import { FolderOpen, LoaderCircle } from "lucide-react";
 
+import { EngineConnection } from "@/components/editor/engine-connection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -27,6 +28,7 @@ export function WorkspaceHeader({
           Dubbing workspace <span className="px-1">/</span> Source → Khmer
         </p>
       </div>
+      <EngineConnection />
       <span className="hidden text-[10px] text-muted-foreground lg:block">
         Session changes · not saved
       </span>

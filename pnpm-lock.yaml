@@ -44,6 +44,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.0.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@catty/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@fontsource-variable/inter':
         specifier: ^5.3.0
         version: 5.3.0
@@ -120,6 +123,8 @@ importers:
       vite:
         specifier: ^7.1.9
         version: 7.3.7(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.32.0)
+
+  packages/contracts: {}
 
 packages:
 

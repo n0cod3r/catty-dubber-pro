@@ -83,6 +83,10 @@ export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
                   : "Reading…",
               ],
               ["Target language", "Khmer"],
+              ...(episode.fps ? [["Frame rate", `${episode.fps.toFixed(3)} fps`]] : []),
+              ...(episode.videoCodec ? [["Video codec", episode.videoCodec]] : []),
+              ...(episode.audioCodec ? [["Audio codec", episode.audioCodec]] : []),
+              ...(episode.sampleRate ? [["Audio sample rate", `${episode.sampleRate} Hz`]] : []),
             ].map(([label, value]) => (
               <div key={label}>
                 <dt className="mb-1 text-[10px] text-muted-foreground">{label}</dt>

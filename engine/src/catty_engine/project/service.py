@@ -6,15 +6,24 @@ from uuid import UUID
 from .models import Episode, Project
 from .store import ProjectStore
 from catty_engine.media.probe import MediaProbeService
+from catty_engine.media.audio import AudioAssetKind
+from catty_engine.media.audio_preparation import (
+    AudioPreparationService,
+)
 
 class ProjectService:
     def __init__(
         self,
         store: ProjectStore | None = None,
-        media_probe: MediaProbeService | None = None
+        media_probe: MediaProbeService | None = None,
+        audio_preparation: AudioPreparationService | None = None,
     ) -> None:
         self._store = store or ProjectStore()
         self._media_probe = media_probe or MediaProbeService()
+        self._audio_preparation = (
+            audio_preparation
+            or AudioPreparationService()
+        )
 
     def create_project(
             self,
@@ -63,11 +72,6 @@ class ProjectService:
             if not path.is_file():
                 raise FileNotFoundError(
                     f"Episode does not exist: {path}"
-                )
-
-            if not path.is_file():
-                raise ValueError(
-                    f"Episode source is not a file: {path}"
                 )
 
             if path in existing_paths:
@@ -158,3 +162,36 @@ class ProjectService:
         )
 
         return probed
+
+    def prepare_episode_audio(
+        self,
+        directory: Path,
+        project: Project,
+        episode_id: UUID,
+    ) -> Episode:
+        episode = project.episode(episode_id)
+
+        if episode is None:
+            raise ValueError(
+                f"Episode does not exist: {episode_id}"
+            )
+
+        existing = episode.audio_asset(
+            AudioAssetKind.SPEECH
+        )
+
+        asset = self._audio_preparation.prepare_speech_audio(
+            project_directory=directory,
+            episode_id=episode.id,
+            source=episode.media.source_path,
+            existing_asset=existing,
+        )
+
+        episode.set_audio_asset(asset)
+
+        self._store.save(
+            directory=directory,
+            project=project,
+        )
+
+        return episode

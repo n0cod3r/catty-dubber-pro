@@ -112,7 +112,16 @@ export function VideoPreview({
       }
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
         event.preventDefault();
-        onSeek(currentTime + (event.key === "ArrowRight" ? 1 : -1) * (event.shiftKey ? 5 : 1 / 30));
+        onSeek(
+          currentTime +
+            (event.key === "ArrowRight" ? 1 : -1) *
+              (event.shiftKey
+                ? 5
+                : 1 /
+                  (episode?.fps && Number.isFinite(episode.fps) && episode.fps > 0
+                    ? episode.fps
+                    : 30)),
+        );
       }
       if (event.key === "Home" || event.key === "End") {
         event.preventDefault();
@@ -121,7 +130,7 @@ export function VideoPreview({
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [currentTime, duration, onSeek, ready, togglePlayback]);
+  }, [currentTime, duration, episode?.fps, onSeek, ready, togglePlayback]);
 
   async function fullscreen() {
     try {
