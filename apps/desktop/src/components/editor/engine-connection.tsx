@@ -8,9 +8,9 @@ import { requestEngine } from "@/features/engine/client";
 import { cn } from "@/lib/utils";
 
 export function EngineConnection() {
-  const [state, setState] = useState<"checking" | "ready" | "missing-ffprobe" | "offline" | "web">(
-    "checking",
-  );
+  const [state, setState] = useState<
+    "checking" | "ready" | "missing-ffprobe" | "missing-ffmpeg" | "offline" | "web"
+  >("checking");
   const [message, setMessage] = useState("");
   const check = useCallback(async (active: () => boolean = () => true) => {
     if (!isTauri()) {
@@ -21,11 +21,17 @@ export function EngineConnection() {
     try {
       const status = await requestEngine("health", {});
       if (!active()) return;
-      setState(status.ffprobe_available ? "ready" : "missing-ffprobe");
+      setState(
+        !status.ffprobe_available
+          ? "missing-ffprobe"
+          : !status.ffmpeg_available
+            ? "missing-ffmpeg"
+            : "ready",
+      );
       setMessage(
-        status.ffprobe_available
+        status.ffprobe_available && status.ffmpeg_available
           ? `${status.name} ${status.version}`
-          : "Engine is running, but FFprobe is missing from PATH. Install FFmpeg and restart Catty.",
+          : "Engine is running, but FFmpeg or FFprobe is missing from PATH. Install FFmpeg and restart Catty.",
       );
     } catch (cause) {
       if (active()) {
@@ -74,7 +80,9 @@ export function EngineConnection() {
             ? "Engine offline · retry"
             : state === "web"
               ? "Engine · desktop only"
-              : "FFprobe missing · retry"}
+              : state === "missing-ffmpeg"
+                ? "FFmpeg missing · retry"
+                : "FFprobe missing · retry"}
     </Button>
   );
 }

@@ -4,6 +4,7 @@ export type EngineStatus = {
   version: string;
   capabilities: string[];
   ffprobe_available: boolean;
+  ffmpeg_available: boolean;
 };
 export type MediaInfo = {
   source_path: string;
@@ -19,4 +20,19 @@ export type MediaInfo = {
 export type EngineMethods = {
   health: { params: Record<string, never>; result: EngineStatus };
   "media.probe": { params: { path: string }; result: MediaInfo };
+};
+
+export type AudioAsset = {
+  path: string;
+  kind: "speech" | "master" | "background" | "dialogue" | "dub";
+  sample_rate: number;
+  channels: number;
+  source_fingerprint: string;
+  created_at: string;
+};
+export type AudioPrepareParams = {
+  source: string;
+  episode_id: string;
+  project_directory: string;
+  existing_asset?: AudioAsset | null;
 };

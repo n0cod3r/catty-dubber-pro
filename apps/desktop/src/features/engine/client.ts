@@ -20,3 +20,20 @@ export async function requestEngine<M extends keyof EngineMethods>(
     throw new Error(message, { cause });
   }
 }
+
+export async function prepareAudio(
+  jobId: string,
+  params: import("@catty/contracts").AudioPrepareParams,
+) {
+  return invoke<import("@catty/contracts").AudioAsset>("prepare_audio", {
+    jobId,
+    source: params.source,
+    episodeId: params.episode_id,
+    projectDirectory: params.project_directory,
+    existingAsset: params.existing_asset ?? null,
+  });
+}
+
+export async function cancelAudio(jobId: string) {
+  return invoke<void>("cancel_audio", { jobId });
+}

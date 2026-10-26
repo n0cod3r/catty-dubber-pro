@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Film, Languages, MessageSquareText } from "lucide-react";
 
+import { AudioPreparationPanel } from "@/components/workspace/audio-preparation-panel";
 import type { EpisodeMedia } from "@/features/episodes/types";
 import { formatTime } from "@/features/timeline/geometry";
 import { cn } from "@/lib/utils";
@@ -71,29 +72,31 @@ export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
         className="flex min-h-0 flex-1 flex-col overflow-auto p-4 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
       >
         {tab === "properties" && episode ? (
-          <dl className="space-y-4 text-[11px]">
-            {[
-              ["File", episode.name],
-              ["Container", episode.extension.toUpperCase()],
-              ["Duration", formatTime(episode.durationSeconds ?? 0, true)],
-              [
-                "Resolution",
-                episode.width && episode.height
-                  ? `${episode.width} × ${episode.height}`
-                  : "Reading…",
-              ],
-              ["Target language", "Khmer"],
-              ...(episode.fps ? [["Frame rate", `${episode.fps.toFixed(3)} fps`]] : []),
-              ...(episode.videoCodec ? [["Video codec", episode.videoCodec]] : []),
-              ...(episode.audioCodec ? [["Audio codec", episode.audioCodec]] : []),
-              ...(episode.sampleRate ? [["Audio sample rate", `${episode.sampleRate} Hz`]] : []),
-            ].map(([label, value]) => (
-              <div key={label}>
-                <dt className="mb-1 text-[10px] text-muted-foreground">{label}</dt>
-                <dd className="break-words">{value}</dd>
-              </div>
-            ))}
-          </dl>
+          <div>
+            <dl className="space-y-4 text-[11px]">
+              {[
+                ["File", episode.name],
+                ["Container", episode.extension.toUpperCase()],
+                ["Duration", formatTime(episode.durationSeconds ?? 0, true)],
+                [
+                  "Resolution",
+                  episode.width && episode.height
+                    ? `${episode.width} × ${episode.height}`
+                    : "Reading…",
+                ],
+                ["Target language", "Khmer"],
+                ...(episode.fps ? [["Frame rate", `${episode.fps.toFixed(3)} fps`]] : []),
+                ...(episode.videoCodec ? [["Video codec", episode.videoCodec]] : []),
+                ...(episode.audioCodec ? [["Audio codec", episode.audioCodec]] : []),
+                ...(episode.sampleRate ? [["Audio sample rate", `${episode.sampleRate} Hz`]] : []),
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="mb-1 text-[10px] text-muted-foreground">{label}</dt>
+                  <dd className="break-words">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         ) : (
           <div className="m-auto text-center">
             <MessageSquareText
@@ -114,6 +117,11 @@ export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
                   ? "Import an episode to inspect its duration and resolution."
                   : "The transcription engine is not connected yet. Imported video and source audio are available on the timeline."}
             </p>
+          </div>
+        )}
+        {episode && (
+          <div hidden={tab !== "properties"}>
+            <AudioPreparationPanel key={episode.id} episode={episode} />
           </div>
         )}
       </div>

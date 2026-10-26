@@ -1,6 +1,6 @@
 # Engine ↔ UI connection
 
-The desktop transport is now connected for engine health and media probing:
+The desktop transport is now connected for engine health, media probing, and speech-audio preparation:
 
 ```text
 React: requestEngine("media.probe", { path })
@@ -13,7 +13,7 @@ React: requestEngine("media.probe", { path })
 The engine runs locally; no HTTP server or port is required. Requests are passed
 as JSON on stdin, never interpolated into shell commands. Rust runs the process
 on a blocking worker so the UI remains responsive, checks the response ID and
-protocol version, and kills requests after 35 seconds. FFprobe has a 30-second
+protocol version, and limits short requests to 35 seconds. FFprobe has a 30-second
 timeout. The process exits after each short request.
 
 ## Run in development
@@ -50,8 +50,10 @@ if using a different engine checkout or Python environment.
 `@catty/contracts`. `engine/src/catty_engine/ipc.py` validates incoming requests
 with Pydantic and dispatches the implemented operations:
 
-- `health`: engine version, supported operations, FFprobe availability.
+- `health`: engine version, supported operations, FFmpeg/FFprobe availability.
 - `media.probe`: source metadata from `MediaProbeService`.
+- `audio.prepare`: 16 kHz mono speech WAV from `AudioPreparationService`, invoked
+  through the dedicated cancellable Tauri `prepare_audio` command.
 
 Example protocol request:
 
@@ -78,7 +80,8 @@ Speech, translation, TTS, separation, and workers currently have no implemented
 operations. When they are added, expose them as background jobs with job IDs,
 progress events, cancellation, and structured results. Use a persistent engine
 worker for model-heavy work so models are not reloaded per request. The current
-one-request process transport is for short health/probe calls.
+one-request transport handles health/probe calls and bounded audio extraction;
+model-heavy AI work should still use a persistent worker.
 
 Release packaging is a separate step: ship a Python engine executable as a Tauri
 sidecar and include/configure FFprobe. This development bridge relies on the
@@ -97,3 +100,33 @@ pnpm build:web
 
 The Rust tests execute the actual Python engine, including probing a generated
 WAV through FFprobe. They require the engine environment and FFprobe installed.
+
+## Audio Preparation in the UI
+
+1. Import a video in the desktop app.
+2. Open **Inspector → Media → Audio preparation**.
+3. Click **Prepare speech audio** and choose an output folder.
+4. The UI shows an indeterminate running indicator and a Cancel button; no
+   estimated percentage is fabricated. On completion it shows the WAV path,
+   sample rate, and channels.
+
+The file is written under
+`<chosen folder>/assets/episodes/<episode UUID>/audio/speech-16k-mono.wav`.
+This prepares the full source episode, independently of timeline edits. Original
+source video/audio are not replaced. Repeating preparation in the same session
+passes the existing AudioAsset to the engine for fingerprint/cache validation.
+Changing tabs keeps the job and result alive; replacing the episode cancels its
+active job. Project manifest persistence of the asset is not wired yet.
+
+Audio extraction runs off the UI thread with its own job ID and a one-hour
+limit. `cancel_audio` signals a private cancellation file, which the engine
+checks while FFmpeg runs. Cancellation stops the FFmpeg child and removes its
+staged output. Successful extraction atomically publishes a complete WAV, so
+failed/cancelled retries preserve any previous valid cached file.
+
+The engine reports CANCELLED, FFMPEG_NOT_FOUND, AUDIO_PREPARATION_FAILED, and
+validation errors as structured errors. Browser-only imports cannot prepare
+audio through the desktop bridge and show an explanatory disabled control.
+
+Tests include real Rust → Python → FFmpeg extraction, probing the resulting
+16 kHz mono WAV, cache reuse, cancellation, and failure cleanup.

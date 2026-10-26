@@ -12,7 +12,7 @@ def test_health_lists_only_available_operations() -> None:
         {"version": 1, "id": "health-1", "method": "health", "params": {}}
     )
     assert response["id"] == "health-1"
-    assert response["result"]["capabilities"] == ["media.probe"]
+    assert response["result"]["capabilities"] == ["media.probe", "audio.prepare"]
     assert isinstance(response["result"]["ffprobe_available"], bool)
 
 
