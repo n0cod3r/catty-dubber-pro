@@ -23,6 +23,8 @@ from catty_engine.media.errors import (
 )
 from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
+from catty_engine.speech.runtime import create_asr_registry, create_vad
+from catty_engine.speech.transcription import TranscriptionService
 
 PROTOCOL_VERSION = 1
 
@@ -37,6 +39,7 @@ class Request(BaseModel):
         "system.shutdown",
         "media.probe",
         "audio.prepare",
+        "speech.transcribe",
     ]
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -55,6 +58,21 @@ class AudioPrepareParams(BaseModel):
     cancel_file: Path | None = None
 
 
+class SpeechTranscribeParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project_directory: Path
+    episode_id: UUID
+    source: str = Field(min_length=1)
+    source_start: float = Field(ge=0)
+    duration: float = Field(gt=0)
+    language: str = Field(default="zh", min_length=1)
+    asr_backend: str = Field(default="paraformer", min_length=1)
+    asr_config: dict[str, Any]
+    vad_backend: str = Field(default="silero", min_length=1)
+    vad_config: dict[str, Any]
+    existing_asset: AudioAsset | None = None
+
+
 def _hello() -> dict[str, Any]:
     return {
         "name": "catty-engine",
@@ -63,6 +81,9 @@ def _hello() -> dict[str, Any]:
         "capabilities": [
             "media.probe",
             "audio.prepare",
+            "speech.transcribe",
+            "asr.paraformer",
+            "vad.silero",
             "system.shutdown",
         ],
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
@@ -106,6 +127,27 @@ def handle_request(payload: Any) -> dict[str, Any]:
                 existing_asset=audio_params.existing_asset,
             )
             result = asset.model_dump(mode="json")
+        elif request.method == "speech.transcribe":
+            speech_params = SpeechTranscribeParams.model_validate(request.params)
+            registry = create_asr_registry(
+                speech_params.asr_backend,
+                speech_params.asr_config,
+            )
+            vad = create_vad(speech_params.vad_backend, speech_params.vad_config)
+            transcription = TranscriptionService(
+                asr_backends=registry,
+                vad=vad,
+            ).transcribe(
+                project_directory=speech_params.project_directory,
+                episode_id=speech_params.episode_id,
+                source=speech_params.source,
+                backend_id=speech_params.asr_backend,
+                language=speech_params.language,
+                source_start=speech_params.source_start,
+                duration=speech_params.duration,
+                existing_asset=speech_params.existing_asset,
+            )
+            result = transcription.model_dump(mode="json")
         else:
             params = ProbeParams.model_validate(request.params)
             result = MediaProbeService().probe(params.path).model_dump(mode="json")
@@ -122,7 +164,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
         response["error"] = {"code": "MEDIA_PROBE_FAILED", "message": str(exc)}
     except MediaError as exc:
         response["error"] = {"code": "MEDIA_ERROR", "message": str(exc)}
-    except (ValidationError, ValueError) as exc:
+    except (ValidationError, ValueError, FileNotFoundError) as exc:
         response["error"] = {"code": "INVALID_REQUEST", "message": str(exc)}
     except Exception:
         response["error"] = {
