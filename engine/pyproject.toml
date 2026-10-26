@@ -1,0 +1,20 @@
+[project]
+name = "catty-engine"
+version = "0.1.0"
+description = "Python AI and media engine for Catty Dubber Pro"
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[project.scripts]
+catty-engine = "catty_engine:main"
+
+[build-system]
+requires = ["uv_build>=0.8,<0.9"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.14,<0.15",
+  "mypy>=1.18,<2"
+]
