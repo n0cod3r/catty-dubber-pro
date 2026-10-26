@@ -53,15 +53,15 @@ export function App() {
         <div className="mt-auto border-t border-catty-border-subtle px-1.5 pb-0.5 pt-2.5"><div className="flex items-center gap-1.5 text-[9px] text-catty-muted"><span className="size-1.5 rounded-full bg-catty-success" />Desktop shell ready</div></div>
       </aside>
 
-      <main className="grid min-w-0 grid-rows-[52px_36px_minmax(250px,1fr)_minmax(190px,34vh)]">
-        <header className="flex items-center justify-between border-b border-catty-border px-3.5">
+      <main className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-catty-border px-3.5">
           <div className="min-w-0"><div className="flex items-center gap-2"><h1 className="truncate text-[13px] font-semibold">{episode?.name ?? "Untitled project"}</h1><Badge>{episode ? "Imported" : "Draft"}</Badge></div><p className="mt-0.5 text-[9px] text-catty-muted">Dubbing workspace · Chinese/English → Khmer</p></div>
           <div className="flex items-center gap-1.5"><Button size="sm" disabled={!episode}><WandSparkles size={13} /> Auto dub</Button><Button variant="primary" size="sm" disabled={importing} onClick={handleImport}><FolderOpen size={13} /> {importing ? "Opening…" : episode ? "Replace episode" : "Import episode"}</Button></div>
         </header>
 
-        <section className="flex items-center gap-0.5 overflow-x-auto border-b border-catty-border bg-catty-panel px-3">{workflow.map((item, index) => <div className={cn("flex h-6 shrink-0 items-center gap-1.5 rounded-catty px-1.5 text-[9px] text-catty-muted-2", index === 0 && "bg-catty-accent-soft text-catty-accent-text")} key={item}><span className={cn("grid size-3.5 place-items-center rounded-full border border-catty-border text-[7px]", index === 0 && "border-catty-accent/60")}>{index + 1}</span>{item}</div>)}</section>
+        <section className="flex h-9 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-catty-border bg-catty-panel px-3">{workflow.map((item, index) => <div className={cn("flex h-6 shrink-0 items-center gap-1.5 rounded-catty px-1.5 text-[9px] text-catty-muted-2", index === 0 && "bg-catty-accent-soft text-catty-accent-text")} key={item}><span className={cn("grid size-3.5 place-items-center rounded-full border border-catty-border text-[7px]", index === 0 && "border-catty-accent/60")}>{index + 1}</span>{item}</div>)}</section>
 
-        <section className="grid min-h-0 grid-cols-[minmax(420px,1.45fr)_minmax(300px,0.75fr)]">
+        <section className="grid min-h-[220px] min-w-0 flex-1 grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)] overflow-hidden">
           <VideoPreview
             episode={episode}
             currentTime={playback.currentTime}
@@ -75,7 +75,9 @@ export function App() {
           <DialoguePanel />
         </section>
 
-        <Timeline episode={episode} currentTime={playback.currentTime} onSeek={playback.seek} />
+        <div className="h-[250px] min-h-[190px] shrink-0 overflow-hidden border-t border-catty-border">
+          <Timeline episode={episode} currentTime={playback.currentTime} onSeek={playback.seek} />
+        </div>
       </main>
     </div>
   );
