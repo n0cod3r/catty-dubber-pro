@@ -152,7 +152,7 @@ fn prune_jobs(active: &mut HashMap<String, JobToken>) {
     active.retain(|_, token| {
         token
             .pending_until
-            .map_or(true, |until| until > Instant::now())
+            .is_none_or(|until| until > Instant::now())
     });
 }
 
