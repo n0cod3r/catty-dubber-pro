@@ -30,9 +30,7 @@ class AudioPreparationService:
         self,
         runner: AudioExtractor | None = None,
     ) -> None:
-        self._runner: AudioExtractor = (
-            runner or FFmpegRunner()
-        )
+        self._runner: AudioExtractor = runner or FFmpegRunner()
 
     def prepare_speech_audio(
         self,
@@ -43,16 +41,18 @@ class AudioPreparationService:
         existing_asset: AudioAsset | None = None,
     ) -> AudioAsset:
         source_path = Path(source).expanduser().resolve()
+        fingerprint = source_fingerprint(source_path)
 
-        fingerprint = source_fingerprint(
-            source_path
-        )
-
+        # Prepared media is source-derived, not episode-derived. A UI session may
+        # assign a fresh episode UUID after restart, but the same source should
+        # still reuse the same expensive derived audio. Keeping the cache under
+        # the source fingerprint also lets multiple episodes reference one asset
+        # without duplicating it on disk.
         destination = (
             project_directory
             / "assets"
-            / "episodes"
-            / str(episode_id)
+            / "media"
+            / fingerprint
             / "audio"
             / SPEECH_FILE_NAME
         ).resolve()
@@ -65,6 +65,11 @@ class AudioPreparationService:
             assert existing_asset is not None
             return existing_asset
 
+        # The persisted UI/project state may not have restored its AudioAsset yet.
+        # The content-addressed file is sufficient to reconstruct that state.
+        if self._prepared_file_valid(destination):
+            return self._asset(destination, fingerprint)
+
         self._runner.extract_speech_audio(
             source_path,
             destination,
@@ -72,6 +77,10 @@ class AudioPreparationService:
             channels=SPEECH_CHANNELS,
         )
 
+        return self._asset(destination, fingerprint)
+
+    @staticmethod
+    def _asset(destination: Path, fingerprint: str) -> AudioAsset:
         return AudioAsset(
             path=str(destination),
             kind=AudioAssetKind.SPEECH,
@@ -81,7 +90,12 @@ class AudioPreparationService:
         )
 
     @staticmethod
+    def _prepared_file_valid(destination: Path) -> bool:
+        return destination.is_file() and destination.stat().st_size > 0
+
+    @classmethod
     def _cache_valid(
+        cls,
         *,
         existing_asset: AudioAsset | None,
         destination: Path,
@@ -93,10 +107,7 @@ class AudioPreparationService:
         if existing_asset.kind != AudioAssetKind.SPEECH:
             return False
 
-        if (
-            existing_asset.source_fingerprint
-            != fingerprint
-        ):
+        if existing_asset.source_fingerprint != fingerprint:
             return False
 
         if existing_asset.sample_rate != SPEECH_SAMPLE_RATE:
@@ -105,14 +116,8 @@ class AudioPreparationService:
         if existing_asset.channels != SPEECH_CHANNELS:
             return False
 
-        asset_path = Path(
-            existing_asset.path
-        ).expanduser().resolve()
-
+        asset_path = Path(existing_asset.path).expanduser().resolve()
         if asset_path != destination:
             return False
 
-        if not destination.is_file():
-            return False
-
-        return destination.stat().st_size > 0
+        return cls._prepared_file_valid(destination)
