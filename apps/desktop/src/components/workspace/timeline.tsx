@@ -1,4 +1,4 @@
-import { Fit, Minus, Plus, Scissors } from "lucide-react";
+import { Minus, Plus, Scan, Scissors } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import type { EpisodeMedia } from "../../features/episodes/types";
@@ -59,7 +59,7 @@ export function Timeline({ episode, currentTime, onSeek }: TimelineProps) {
   const playheadLeft = `${(currentTime / duration) * 100}%`;
 
   return (
-    <section className="flex min-h-[190px] flex-col border-t border-catty-border bg-[#11100e]">
+    <section className="flex h-full min-h-0 flex-col bg-[#11100e]">
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-catty-border px-2.5">
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] font-semibold text-catty-text-soft">Timeline</span>
@@ -72,11 +72,11 @@ export function Timeline({ episode, currentTime, onSeek }: TimelineProps) {
           <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(1, value / 1.35))}><Minus size={11} /></Button>
           <span className="w-9 text-center text-[8px] tabular-nums text-catty-muted">{Math.round(zoom * 100)}%</span>
           <Button variant="ghost" size="icon" aria-label="Zoom in" onClick={() => setZoom((value) => Math.min(12, value * 1.35))}><Plus size={11} /></Button>
-          <Button variant="ghost" size="icon" aria-label="Fit timeline" onClick={() => setZoom(1)}><Fit size={11} /></Button>
+          <Button variant="ghost" size="icon" aria-label="Fit timeline" onClick={() => setZoom(1)}><Scan size={11} /></Button>
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[108px_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-[108px_minmax(0,1fr)] overflow-hidden">
         <div className="border-r border-catty-border-subtle bg-catty-panel/45">
           <div className="h-6 border-b border-catty-border-subtle" />
           {tracks.map((track) => (
@@ -87,12 +87,12 @@ export function Timeline({ episode, currentTime, onSeek }: TimelineProps) {
           ))}
         </div>
 
-        <div ref={viewportRef} className="min-w-0 overflow-x-auto overflow-y-hidden" onWheel={(event) => {
+        <div ref={viewportRef} className="min-h-0 min-w-0 overflow-x-auto overflow-y-auto" onWheel={(event) => {
           if (!event.ctrlKey && !event.metaKey) return;
           event.preventDefault();
           setZoom((value) => Math.max(1, Math.min(12, value * (event.deltaY > 0 ? 0.9 : 1.1))));
         }}>
-          <div className="relative min-w-full" style={{ width: `${contentWidth}%` }}>
+          <div className="relative min-h-full min-w-full" style={{ width: `${contentWidth}%` }}>
             <div className="relative h-6 cursor-pointer border-b border-catty-border-subtle bg-[#0f0e0d]" onPointerDown={(event) => seekFromPointer(event.clientX)}>
               {ticks.map((tick) => (
                 <div className="absolute inset-y-0 border-l border-catty-border-subtle" key={tick} style={{ left: `${(tick / duration) * 100}%` }}>
