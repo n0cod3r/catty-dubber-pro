@@ -1,4 +1,5 @@
 mod engine;
+mod persistent_engine;
 mod processes;
 
 use tauri::{Emitter, Manager};
