@@ -175,7 +175,11 @@ pub fn request(
         .expect("engine was initialized")
         .send(payload, cancelled, cancel_file, timeout);
 
-    if matches!(result.as_deref(), Err("CANCELLED" | "ENGINE_TIMEOUT")) {
+    let restart_engine = matches!(
+        result.as_ref().err().map(String::as_str),
+        Some("CANCELLED" | "ENGINE_TIMEOUT")
+    );
+    if restart_engine {
         if let Some(mut engine) = guard.take() {
             processes::terminate(&mut engine.child);
         }
