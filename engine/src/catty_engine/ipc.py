@@ -160,6 +160,7 @@ def run_server() -> None:
         line = raw_line.strip()
         if not line:
             continue
+        payload: Any = None
         try:
             payload = json.loads(line)
             response = handle_request(payload)
