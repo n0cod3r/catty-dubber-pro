@@ -5,13 +5,16 @@ from uuid import UUID
 
 from .models import Episode, Project
 from .store import ProjectStore
+from catty_engine.media.probe import MediaProbeService
 
 class ProjectService:
     def __init__(
         self,
         store: ProjectStore | None = None,
+        media_probe: MediaProbeService | None = None
     ) -> None:
         self._store = store or ProjectStore()
+        self._media_probe = media_probe or MediaProbeService()
 
     def create_project(
             self,
@@ -110,3 +113,48 @@ class ProjectService:
         )
 
         return True
+
+    def probe_episode_media(
+        self,
+        directory: Path,
+        project: Project,
+        episode_id: UUID,
+    ) -> Episode:
+        episode = project.episode(episode_id)
+
+        if episode is None:
+            raise ValueError(
+                f"Episode does not exist: {episode_id}"
+            )
+
+        episode.media = self._media_probe.probe(
+            episode.media.source_path
+        )
+
+        self._store.save(
+            directory=directory,
+            project=project,
+        )
+
+        return episode
+
+
+    def probe_all_episode_media(
+        self,
+        directory: Path,
+        project: Project,
+    ) -> list[Episode]:
+        probed: list[Episode] = []
+
+        for episode in project.episodes:
+            episode.media = self._media_probe.probe(
+                episode.media.source_path
+            )
+            probed.append(episode)
+
+        self._store.save(
+            directory=directory,
+            project=project,
+        )
+
+        return probed

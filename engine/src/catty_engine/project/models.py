@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
+from catty_engine.media.models import MediaInfo
 
 SCHEMA_VERSION = 1
 
@@ -41,23 +42,6 @@ class TranslationStatus(StrEnum):
 class VoiceEngine(StrEnum):
     EDGE = "edge"
     VOXCPM2 = "voxcpm2"
-
-
-class MediaInfo(BaseModel):
-    source_path: str
-
-    duration: float | None = None
-
-    width: int | None = None
-    height: int | None = None
-    fps: float | None = None
-
-    video_codec: str | None = None
-    audio_codec: str | None = None
-
-    sample_rate: int | None = None
-    channels: int | None = None
-
 
 class Translation(BaseModel):
     language: str = "km"
