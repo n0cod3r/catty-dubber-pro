@@ -1,34 +1,43 @@
-"""Versioned, one-request JSON transport for short desktop engine operations."""
+"""Versioned JSON protocol for the Catty desktop engine."""
 
 from __future__ import annotations
 
 import json
 import shutil
+import sys
 from pathlib import Path
-from uuid import UUID
 from typing import Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from catty_engine.media.errors import (
-    AudioPreparationCancelled,
-    FFmpegNotFoundError,
-    FFmpegError,
-    FFprobeNotFoundError,
-    MediaProbeError,
-    MediaError,
-)
 from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
+from catty_engine.media.errors import (
+    AudioPreparationCancelled,
+    FFmpegError,
+    FFmpegNotFoundError,
+    FFprobeNotFoundError,
+    MediaError,
+    MediaProbeError,
+)
 from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
+
+PROTOCOL_VERSION = 1
 
 
 class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
     version: Literal[1]
     id: str = Field(min_length=1, max_length=128)
-    method: Literal["health", "media.probe", "audio.prepare"]
+    method: Literal[
+        "health",
+        "system.hello",
+        "system.shutdown",
+        "media.probe",
+        "audio.prepare",
+    ]
     params: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -46,21 +55,37 @@ class AudioPrepareParams(BaseModel):
     cancel_file: Path | None = None
 
 
+def _hello() -> dict[str, Any]:
+    return {
+        "name": "catty-engine",
+        "version": "0.1.0",
+        "protocol_version": PROTOCOL_VERSION,
+        "capabilities": [
+            "media.probe",
+            "audio.prepare",
+            "system.shutdown",
+        ],
+        "ffmpeg_available": shutil.which("ffmpeg") is not None,
+        "ffprobe_available": shutil.which("ffprobe") is not None,
+    }
+
+
 def handle_request(payload: Any) -> dict[str, Any]:
     request_id = payload.get("id") if isinstance(payload, dict) else None
-    response: dict[str, Any] = {"version": 1, "id": request_id}
+    response: dict[str, Any] = {
+        "version": PROTOCOL_VERSION,
+        "id": request_id,
+    }
     try:
         request = Request.model_validate(payload)
-        if request.method == "health":
+        if request.method in {"health", "system.hello"}:
             if request.params:
-                raise ValueError("health does not accept parameters")
-            result = {
-                "name": "catty-engine",
-                "version": "0.1.0",
-                "capabilities": ["media.probe", "audio.prepare"],
-                "ffmpeg_available": shutil.which("ffmpeg") is not None,
-                "ffprobe_available": shutil.which("ffprobe") is not None,
-            }
+                raise ValueError(f"{request.method} does not accept parameters")
+            result = _hello()
+        elif request.method == "system.shutdown":
+            if request.params:
+                raise ValueError("system.shutdown does not accept parameters")
+            result = {"shutting_down": True}
         elif request.method == "audio.prepare":
             audio_params = AudioPrepareParams.model_validate(request.params)
 
@@ -107,20 +132,50 @@ def handle_request(payload: Any) -> dict[str, Any]:
     return response
 
 
-def run_rpc() -> None:
-    import sys
+def _write_response(response: dict[str, Any]) -> None:
+    # stdout is exclusively protocol data. Diagnostics belong on stderr.
+    print(json.dumps(response, ensure_ascii=False, allow_nan=False), flush=True)
 
+
+def run_rpc() -> None:
+    """Compatibility mode: handle exactly one JSON document then exit."""
     try:
         payload = json.load(sys.stdin)
         response = handle_request(payload)
     except (json.JSONDecodeError, UnicodeDecodeError):
         response = {
-            "version": 1,
+            "version": PROTOCOL_VERSION,
             "id": None,
             "error": {
                 "code": "INVALID_JSON",
                 "message": "Expected a JSON request on stdin.",
             },
         }
-    # stdout is exclusively protocol data. Diagnostics belong on stderr.
-    print(json.dumps(response, ensure_ascii=False, allow_nan=False), flush=True)
+    _write_response(response)
+
+
+def run_server() -> None:
+    """Long-lived NDJSON server. One request line produces one response line."""
+    for raw_line in sys.stdin:
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            payload = json.loads(line)
+            response = handle_request(payload)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            response = {
+                "version": PROTOCOL_VERSION,
+                "id": None,
+                "error": {
+                    "code": "INVALID_JSON",
+                    "message": "Expected one JSON request per line.",
+                },
+            }
+        _write_response(response)
+        if (
+            isinstance(payload, dict)
+            and payload.get("method") == "system.shutdown"
+            and "error" not in response
+        ):
+            break
