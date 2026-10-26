@@ -1,0 +1,13 @@
+{
+  "name": "catty-dubber-pro",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.18.3",
+  "scripts": {
+    "dev": "pnpm --dir apps/desktop tauri dev",
+    "dev:web": "pnpm --dir apps/desktop dev",
+    "build": "pnpm --dir apps/desktop tauri build",
+    "build:web": "pnpm --dir apps/desktop build",
+    "typecheck": "pnpm --dir apps/desktop typecheck"
+  }
+}
