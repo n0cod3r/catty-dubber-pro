@@ -59,7 +59,8 @@ def test_prepare_speech_audio(
 
     assert output.exists()
     assert output.name == "speech-16k-mono.wav"
-    assert output.parent.parent.parent.name == asset.source_fingerprint
+    assert output.parent.parent.name == asset.source_fingerprint
+    assert output.parent.parent.parent.name == "media"
 
 
 def test_reuses_valid_cached_audio(
@@ -121,6 +122,37 @@ def test_reuses_prepared_audio_after_restart_with_new_episode_id(
     assert runner.calls == 1
     assert second == first
     assert Path(second.path).exists()
+
+
+def test_reuses_legacy_prepared_audio_without_metadata(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "EP01.mp4"
+    source.write_bytes(b"video")
+    project_directory = tmp_path / "project"
+    runner = FakeAudioExtractor()
+    service = AudioPreparationService(runner=runner)
+
+    first = service.prepare_speech_audio(
+        project_directory=project_directory,
+        episode_id=uuid4(),
+        source=source,
+    )
+
+    metadata = Path(first.path).with_name("speech-16k-mono.json")
+    metadata.unlink()
+
+    second = service.prepare_speech_audio(
+        project_directory=project_directory,
+        episode_id=uuid4(),
+        source=source,
+        existing_asset=None,
+    )
+
+    assert runner.calls == 1
+    assert second.path == first.path
+    assert second.source_fingerprint == first.source_fingerprint
+    assert metadata.exists()
 
 
 def test_source_change_invalidates_cache(
