@@ -17,9 +17,35 @@ export type MediaInfo = {
   sample_rate: number | null;
   channels: number | null;
 };
+export type TranscriptSegment = {
+  start: number;
+  end: number;
+  text: string;
+  confidence: number | null;
+};
+export type TranscriptionResult = {
+  backend: string;
+  model: string;
+  language: string;
+  segments: TranscriptSegment[];
+};
+export type SpeechTranscribeParams = {
+  project_directory: string;
+  episode_id: string;
+  source: string;
+  source_start: number;
+  duration: number;
+  language?: string;
+  asr_backend: string;
+  asr_config: Record<string, unknown>;
+  vad_backend: string;
+  vad_config: Record<string, unknown>;
+  existing_asset?: AudioAsset | null;
+};
 export type EngineMethods = {
   health: { params: Record<string, never>; result: EngineStatus };
   "media.probe": { params: { path: string }; result: MediaInfo };
+  "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
 };
 
 export type AudioAsset = {
