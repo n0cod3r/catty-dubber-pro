@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Catty Dubber Pro",
+  "version": "0.1.0",
+  "identifier": "com.catty.dubber.pro",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Catty Dubber Pro",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}
