@@ -32,7 +32,7 @@ cancel pending work. Ruler tick generation is limited to the visible time range.
 
 The sidebar collapses with its header control or Ctrl/Cmd + B. Project, Episodes,
 Voice library, and Editor settings switch sidebar content. Settings includes the
-follow-playhead toggle. The inspector has keyboard-accessible Dialogue, Khmer,
+follow-playhead toggle. The inspector has keyboard-accessible Audio, Dialogue, Khmer,
 and Media tabs.
 
 ## Current limits

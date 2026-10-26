@@ -39,7 +39,7 @@ class ProjectService:
             self,
             directory: Path,
     ) -> Project:
-        return self._store.laod(
+        return self._store.load(
             directory=directory,
         )
 

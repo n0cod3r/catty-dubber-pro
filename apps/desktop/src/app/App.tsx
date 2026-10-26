@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, LoaderCircle, X } from "lucide-react";
 
 import { AppSidebar } from "@/components/editor/app-sidebar";
 import { EditorErrorBoundary } from "@/components/editor/editor-error-boundary";
@@ -10,13 +10,31 @@ import { Button } from "@/components/ui/button";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEpisode } from "@/features/editor/use-episode";
+import { useDesktopShutdown } from "@/features/engine/use-desktop-shutdown";
 
 export function App() {
   const source = useEpisode();
+  const closing = useDesktopShutdown();
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const onImport = () => {
     void source.openEpisode();
   };
+
+  if (closing)
+    return (
+      <div
+        role="status"
+        className="flex h-svh items-center justify-center gap-3 bg-background text-foreground"
+      >
+        <LoaderCircle className="size-5 animate-spin text-primary" />
+        <div>
+          <p className="text-sm font-medium">Closing Catty…</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Stopping audio preparation and background work.
+          </p>
+        </div>
+      </div>
+    );
 
   return (
     <EditorErrorBoundary>

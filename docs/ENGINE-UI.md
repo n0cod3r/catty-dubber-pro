@@ -104,7 +104,7 @@ WAV through FFprobe. They require the engine environment and FFprobe installed.
 ## Audio Preparation in the UI
 
 1. Import a video in the desktop app.
-2. Open **Inspector → Media → Audio preparation**.
+2. Open **Inspector → Audio** (selected automatically after import).
 3. Click **Prepare speech audio** and choose an output folder.
 4. The UI shows an indeterminate running indicator and a Cancel button; no
    estimated percentage is fabricated. On completion it shows the WAV path,
@@ -130,3 +130,18 @@ audio through the desktop bridge and show an explanatory disabled control.
 
 Tests include real Rust → Python → FFmpeg extraction, probing the resulting
 16 kHz mono WAV, cache reuse, cancellation, and failure cleanup.
+
+## Closing the desktop window
+
+Closing the main Catty window or choosing Quit now shuts down the application
+instead of leaving a hidden macOS app and its engine work running. The native
+host rejects new requests, cancels active audio preparation, and terminates
+active metadata/probe processes. Engine requests run in isolated process groups
+on Unix; forced cancellation and timeout terminate Python and descendants such
+as FFprobe/FFmpeg together. Windows uses process-tree termination.
+
+The UI shows **Closing Catty…** while playback, decoder workers, and preparation
+controls unmount. Audio extraction first gets a cooperative cancellation signal
+so FFmpeg can stop and remove staged output. The host force-stops an unresponsive
+request after two seconds and drains tracked jobs before exiting. Shutdown tests
+cover cancellation, rejection of late work, and descendant-process termination.

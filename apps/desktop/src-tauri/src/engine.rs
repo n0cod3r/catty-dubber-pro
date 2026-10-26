@@ -1,3 +1,4 @@
+use crate::processes;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -24,6 +25,7 @@ impl EngineError {
     }
 }
 
+#[cfg(test)]
 fn request(method: &str, params: Value) -> Result<Value, EngineError> {
     request_with_control(method, params, None)
 }
@@ -58,7 +60,9 @@ fn request_with_control(
         REQUEST_ID.fetch_add(1, Ordering::Relaxed)
     );
     let payload = json!({ "version": 1, "id": id, "method": method, "params": params });
-    let mut child = Command::new(python)
+    let mut command = Command::new(python);
+    processes::isolate(&mut command);
+    let mut child = command
         .args(["-m", "catty_engine", "--rpc"])
         .current_dir(&directory)
         .env("PYTHONPATH", directory.join("src"))
@@ -77,15 +81,22 @@ fn request_with_control(
                 .map_err(|error| EngineError::new("ENGINE_IO_ERROR", error.to_string()))
         });
     if let Err(error) = written {
-        let _ = child.kill();
-        let _ = child.wait();
+        processes::terminate(&mut child);
         return Err(error);
     }
     let started = Instant::now();
+    let mut cancellation_started = None;
     loop {
         if let Some((cancelled, path)) = control {
             if cancelled.load(Ordering::Relaxed) {
-                let _ = std::fs::write(path, b"cancel");
+                if method == "audio.prepare" {
+                    let _ = std::fs::write(path, b"cancel");
+                }
+                let since = cancellation_started.get_or_insert_with(Instant::now);
+                if method != "audio.prepare" || since.elapsed() > Duration::from_secs(2) {
+                    processes::terminate(&mut child);
+                    return Err(EngineError::new("CANCELLED", "Engine request cancelled"));
+                }
             }
         }
         match child.try_wait() {
@@ -94,16 +105,14 @@ fn request_with_control(
                 std::thread::sleep(Duration::from_millis(20))
             }
             Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
+                processes::terminate(&mut child);
                 return Err(EngineError::new(
                     "ENGINE_TIMEOUT",
                     "The engine request timed out.",
                 ));
             }
             Err(error) => {
-                let _ = child.kill();
-                let _ = child.wait();
+                processes::terminate(&mut child);
                 return Err(EngineError::new("ENGINE_IO_ERROR", error.to_string()));
             }
         }
@@ -140,20 +149,90 @@ fn request_with_control(
 }
 
 #[tauri::command]
-pub async fn engine_request(method: String, params: Value) -> Result<Value, EngineError> {
+pub async fn engine_request(
+    method: String,
+    params: Value,
+    jobs: tauri::State<'_, EngineJobs>,
+) -> Result<Value, EngineError> {
     if !matches!(method.as_str(), "health" | "media.probe") {
         return Err(EngineError::new(
             "UNKNOWN_METHOD",
             "This engine operation is not available",
         ));
     }
-    tauri::async_runtime::spawn_blocking(move || request(&method, params))
-        .await
-        .map_err(|error| EngineError::new("ENGINE_TASK_FAILED", error.to_string()))?
+    let id = format!("rpc-{}", REQUEST_ID.fetch_add(1, Ordering::Relaxed));
+    let cancelled = Arc::new(AtomicBool::new(false));
+    jobs.register(&id, cancelled.clone())?;
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        request_with_control(
+            &method,
+            params,
+            Some((
+                &cancelled,
+                &std::env::temp_dir().join("catty-unused-cancel"),
+            )),
+        )
+    })
+    .await;
+    if let Ok(mut active) = jobs.0.lock() {
+        active.remove(&id);
+    }
+    result.map_err(|error| EngineError::new("ENGINE_TASK_FAILED", error.to_string()))?
 }
 
 #[derive(Default)]
-pub struct EngineJobs(Mutex<HashMap<String, JobToken>>);
+pub struct EngineJobs(Mutex<HashMap<String, JobToken>>, AtomicBool, AtomicBool);
+impl EngineJobs {
+    fn register(&self, id: &str, cancelled: Arc<AtomicBool>) -> Result<(), EngineError> {
+        let mut active = self
+            .0
+            .lock()
+            .map_err(|_| EngineError::new("JOB_STATE_ERROR", "Could not access engine jobs"))?;
+        if self.1.load(Ordering::SeqCst) {
+            return Err(EngineError::new("APP_CLOSING", "Catty is closing"));
+        }
+        active.insert(
+            id.into(),
+            JobToken {
+                cancelled,
+                pending_until: None,
+            },
+        );
+        Ok(())
+    }
+    pub fn begin_shutdown(&self) -> bool {
+        if self.1.swap(true, Ordering::SeqCst) {
+            return false;
+        }
+        if let Ok(active) = self.0.lock() {
+            for token in active.values() {
+                token.cancelled.store(true, Ordering::Relaxed);
+            }
+        }
+        true
+    }
+    pub fn drain(&self) {
+        let start = Instant::now();
+        loop {
+            let running = self
+                .0
+                .lock()
+                .map(|active| active.values().any(|token| token.pending_until.is_none()))
+                .unwrap_or(false);
+            if !running {
+                break;
+            }
+            if start.elapsed() > Duration::from_secs(4) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        self.2.store(true, Ordering::SeqCst);
+    }
+    pub fn shutdown_finished(&self) -> bool {
+        self.2.load(Ordering::SeqCst)
+    }
+}
 struct JobToken {
     cancelled: Arc<AtomicBool>,
     pending_until: Option<Instant>,
@@ -196,6 +275,9 @@ pub async fn prepare_audio(
             .0
             .lock()
             .map_err(|_| EngineError::new("JOB_STATE_ERROR", "Could not access engine jobs"))?;
+        if jobs.1.load(Ordering::SeqCst) {
+            return Err(EngineError::new("APP_CLOSING", "Catty is closing"));
+        }
         prune_jobs(&mut active);
         if let Some(previous) = active.get(&job_id) {
             if previous.pending_until.is_some() {
@@ -263,6 +345,27 @@ pub fn cancel_audio(job_id: String, jobs: tauri::State<'_, EngineJobs>) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shutdown_cancels_registered_jobs_and_rejects_new_work() {
+        let jobs = EngineJobs::default();
+        let probe = Arc::new(AtomicBool::new(false));
+        let audio = Arc::new(AtomicBool::new(false));
+        jobs.register("probe", probe.clone()).unwrap();
+        jobs.register("audio", audio.clone()).unwrap();
+        assert!(jobs.begin_shutdown());
+        assert!(probe.load(Ordering::Relaxed));
+        assert!(audio.load(Ordering::Relaxed));
+        assert!(!jobs.begin_shutdown(), "shutdown is idempotent");
+        assert_eq!(
+            jobs.register("late", Arc::new(AtomicBool::new(false)))
+                .unwrap_err()
+                .code,
+            "APP_CLOSING"
+        );
+        jobs.0.lock().unwrap().clear();
+        jobs.drain();
+        assert!(jobs.shutdown_finished());
+    }
     #[test]
     fn engine_health_round_trip() {
         let result = request("health", json!({})).expect("engine health");

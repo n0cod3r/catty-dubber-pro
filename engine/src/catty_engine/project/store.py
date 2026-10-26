@@ -21,7 +21,7 @@ class ProjectStore:
 
         return project
 
-    def laod(
+    def load(
             self,
             directory: Path,
     ) -> Project:
