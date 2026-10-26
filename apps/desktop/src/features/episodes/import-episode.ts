@@ -24,7 +24,7 @@ export async function importEpisode(): Promise<EpisodeMedia | null> {
   if (!selected || Array.isArray(selected)) return null;
 
   const name = basename(selected);
-  const extension = name.includes(".") ? name.split(".").pop()?.toLowerCase() ?? "" : "";
+  const extension = name.includes(".") ? (name.split(".").pop()?.toLowerCase() ?? "") : "";
 
   return {
     id: crypto.randomUUID(),

@@ -25,6 +25,29 @@ To run only the web UI:
 pnpm dev:web
 ```
 
+## TypeScript, linting, and formatting
+
+```bash
+pnpm typecheck     # Browser code and Vite configuration
+pnpm lint         # ESLint, TypeScript, React Hooks, and Fast Refresh rules
+pnpm lint:fix     # Apply automatic lint fixes
+pnpm format       # Prettier formatting and import sorting
+pnpm check        # Typecheck, lint, and formatting checks
+pnpm build:web    # Typecheck and build the web UI
+```
+
+In VS Code or Cursor, install the workspace's recommended ESLint and Prettier
+extensions. Saving formats files and sorts imports with Prettier; ESLint also
+applies automatic fixes. Imports are grouped by Node built-ins, React, other
+packages, `@/` aliases, and relative paths. Side-effect imports (including CSS)
+keep their execution order.
+
+The browser TypeScript configuration includes `vite/client` for CSS and asset
+imports. Vite's configuration is checked separately with Node types. Reference
+`*.test.ts` and `*.test.tsx` files are excluded from the browser build; Freecut
+tests using `vite-plus/test` need a Catty test runner and fixture migration before
+they can run here.
+
 ## Run the Python engine shell
 
 ```bash

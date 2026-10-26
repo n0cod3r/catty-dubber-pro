@@ -13,8 +13,12 @@ export function DialoguePanel() {
           <Badge>0 lines</Badge>
         </div>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" aria-label="Search"><Search size={12} /></Button>
-          <Button variant="ghost" size="icon" aria-label="Filters"><SlidersHorizontal size={12} /></Button>
+          <Button variant="ghost" size="icon" aria-label="Search">
+            <Search size={12} />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Filters">
+            <SlidersHorizontal size={12} />
+          </Button>
         </div>
       </div>
 
@@ -31,7 +35,8 @@ export function DialoguePanel() {
         <MessageSquareText size={22} strokeWidth={1.4} className="mb-2 text-catty-muted-2" />
         <p className="text-[10px] font-medium text-catty-text-soft">No dialogue yet</p>
         <p className="mt-1 max-w-[250px] text-[9px] leading-4 text-catty-muted-2">
-          Transcribed dialogue and Khmer translations will appear here with timestamps and speaker assignments.
+          Transcribed dialogue and Khmer translations will appear here with timestamps and speaker
+          assignments.
         </p>
       </div>
 

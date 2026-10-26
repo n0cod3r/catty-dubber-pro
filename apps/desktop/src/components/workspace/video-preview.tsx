@@ -1,6 +1,7 @@
+import { useEffect, useRef, useState } from "react";
+
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Maximize2, Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 
 import type { EpisodeMedia } from "../../features/episodes/types";
 import { Button } from "../ui/button";
@@ -22,7 +23,13 @@ type VideoPreviewProps = {
   onMetadata: (metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => void;
 };
 
-export function VideoPreview({ episode, currentTime, seekRequest, onTimeChange, onMetadata }: VideoPreviewProps) {
+export function VideoPreview({
+  episode,
+  currentTime,
+  seekRequest,
+  onTimeChange,
+  onMetadata,
+}: VideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -58,7 +65,9 @@ export function VideoPreview({ episode, currentTime, seekRequest, onTimeChange, 
     <section className="flex min-h-0 flex-col border-r border-catty-border bg-[#0d0c0b]">
       <div className="flex h-8 shrink-0 items-center justify-between border-b border-catty-border px-2.5">
         <span className="text-[9px] font-medium text-catty-text-soft">Preview</span>
-        <span className="max-w-[55%] truncate text-[8px] text-catty-muted-2">{episode?.name ?? "No media loaded"}</span>
+        <span className="max-w-[55%] truncate text-[8px] text-catty-muted-2">
+          {episode?.name ?? "No media loaded"}
+        </span>
       </div>
 
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black/40 p-3">
@@ -70,7 +79,11 @@ export function VideoPreview({ episode, currentTime, seekRequest, onTimeChange, 
               src={src}
               onLoadedMetadata={(event) => {
                 const video = event.currentTarget;
-                onMetadata({ durationSeconds: video.duration, width: video.videoWidth, height: video.videoHeight });
+                onMetadata({
+                  durationSeconds: video.duration,
+                  width: video.videoWidth,
+                  height: video.videoHeight,
+                });
               }}
               onTimeUpdate={(event) => onTimeChange(event.currentTarget.currentTime)}
               onSeeked={(event) => onTimeChange(event.currentTarget.currentTime)}
@@ -80,7 +93,9 @@ export function VideoPreview({ episode, currentTime, seekRequest, onTimeChange, 
             />
           ) : (
             <div className="text-center">
-              <div className="mx-auto mb-2 grid size-9 place-items-center rounded-full border border-catty-border bg-catty-panel text-catty-muted"><Play size={15} fill="currentColor" /></div>
+              <div className="mx-auto mb-2 grid size-9 place-items-center rounded-full border border-catty-border bg-catty-panel text-catty-muted">
+                <Play size={15} fill="currentColor" />
+              </div>
               <p className="text-[10px] text-catty-muted">Import an episode to preview video</p>
             </div>
           )}
@@ -88,10 +103,36 @@ export function VideoPreview({ episode, currentTime, seekRequest, onTimeChange, 
       </div>
 
       <div className="flex h-10 shrink-0 items-center gap-1.5 border-t border-catty-border px-2.5">
-        <Button variant="ghost" size="icon" aria-label="Back 5 seconds" disabled={!episode} onClick={() => seekRelative(-5)}><SkipBack size={13} /></Button>
-        <Button variant="ghost" size="icon" aria-label={playing ? "Pause" : "Play"} disabled={!episode} onClick={togglePlayback}>{playing ? <Pause size={13} /> : <Play size={13} />}</Button>
-        <Button variant="ghost" size="icon" aria-label="Forward 5 seconds" disabled={!episode} onClick={() => seekRelative(5)}><SkipForward size={13} /></Button>
-        <span className="ml-1 font-mono text-[9px] text-catty-text-soft">{formatTime(currentTime)}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Back 5 seconds"
+          disabled={!episode}
+          onClick={() => seekRelative(-5)}
+        >
+          <SkipBack size={13} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={playing ? "Pause" : "Play"}
+          disabled={!episode}
+          onClick={togglePlayback}
+        >
+          {playing ? <Pause size={13} /> : <Play size={13} />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Forward 5 seconds"
+          disabled={!episode}
+          onClick={() => seekRelative(5)}
+        >
+          <SkipForward size={13} />
+        </Button>
+        <span className="ml-1 font-mono text-[9px] text-catty-text-soft">
+          {formatTime(currentTime)}
+        </span>
         <span className="text-[9px] text-catty-muted-2">/ {formatTime(duration)}</span>
         <button
           className="mx-2 h-1 flex-1 overflow-hidden rounded-full bg-catty-surface"
@@ -108,7 +149,15 @@ export function VideoPreview({ episode, currentTime, seekRequest, onTimeChange, 
           <div className="h-full bg-catty-accent" style={{ width: `${progress}%` }} />
         </button>
         <Volume2 size={13} className="text-catty-muted" />
-        <Button variant="ghost" size="icon" aria-label="Fullscreen" disabled={!episode} onClick={() => videoRef.current?.requestFullscreen()}><Maximize2 size={13} /></Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Fullscreen"
+          disabled={!episode}
+          onClick={() => videoRef.current?.requestFullscreen()}
+        >
+          <Maximize2 size={13} />
+        </Button>
       </div>
     </section>
   );

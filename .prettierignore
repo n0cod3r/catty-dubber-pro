@@ -1,0 +1,8 @@
+node_modules/
+dist/
+target/
+.venv/
+.cache/
+pnpm-lock.yaml
+**/Cargo.lock
+apps/desktop/src-tauri/gen/
