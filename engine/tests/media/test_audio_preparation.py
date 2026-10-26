@@ -2,7 +2,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from catty_engine.media import (
-    # AudioAsset,
     AudioAssetKind,
     AudioPreparationService,
 )
@@ -60,6 +59,7 @@ def test_prepare_speech_audio(
 
     assert output.exists()
     assert output.name == "speech-16k-mono.wav"
+    assert output.parent.parent.parent.name == asset.source_fingerprint
 
 
 def test_reuses_valid_cached_audio(
@@ -92,6 +92,35 @@ def test_reuses_valid_cached_audio(
 
     assert runner.calls == 1
     assert second == first
+
+
+def test_reuses_prepared_audio_after_restart_with_new_episode_id(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "EP01.mp4"
+    source.write_bytes(b"video")
+    project_directory = tmp_path / "project"
+    runner = FakeAudioExtractor()
+    service = AudioPreparationService(runner=runner)
+
+    first = service.prepare_speech_audio(
+        project_directory=project_directory,
+        episode_id=uuid4(),
+        source=source,
+    )
+
+    # Simulate reopening Catty: frontend state has no previous AudioAsset and
+    # currently creates a fresh episode UUID for the imported source.
+    second = service.prepare_speech_audio(
+        project_directory=project_directory,
+        episode_id=uuid4(),
+        source=source,
+        existing_asset=None,
+    )
+
+    assert runner.calls == 1
+    assert second == first
+    assert Path(second.path).exists()
 
 
 def test_source_change_invalidates_cache(
@@ -132,6 +161,7 @@ def test_source_change_invalidates_cache(
         second.source_fingerprint
         != first.source_fingerprint
     )
+    assert second.path != first.path
 
 
 def test_missing_cached_file_regenerates_audio(
