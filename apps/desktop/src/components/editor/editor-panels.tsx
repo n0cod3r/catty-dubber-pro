@@ -1,43 +1,57 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { PanelResizeHandle } from "@/components/editor/panel-resize-handle";
 import { clamp } from "@/features/timeline/geometry";
 
-const STORAGE_KEY = "catty:timeline-height";
-function loadHeight() {
+function loadSize(key: string, fallback: number) {
   try {
-    const value = Number(localStorage.getItem(STORAGE_KEY));
-    return value > 0 && Number.isFinite(value) ? value : 300;
+    const value = Number(localStorage.getItem(key));
+    return value > 0 && Number.isFinite(value) ? value : fallback;
   } catch {
-    return 300;
+    return fallback;
+  }
+}
+function saveSize(key: string, value: number) {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    /* Storage is optional. */
   }
 }
 
-export function EditorPanels({ children, timeline }: { children: ReactNode; timeline: ReactNode }) {
+export function EditorPanels({
+  preview,
+  inspector,
+  timeline,
+}: {
+  preview: ReactNode;
+  inspector: ReactNode;
+  timeline: ReactNode;
+}) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<number | null>(null);
-  const [height, setHeight] = useState(loadHeight);
-  const [available, setAvailable] = useState(700);
-  const min = Math.min(180, available * 0.4);
-  const max = Math.max(min, available - 166);
-  const actualHeight = clamp(height, min, max);
+  const [height, setHeight] = useState(() => loadSize("catty:timeline-height", 300));
+  const [inspectorWidth, setInspectorWidth] = useState(() =>
+    loadSize("catty:inspector-width", 320),
+  );
+  const [available, setAvailable] = useState({ width: 1000, height: 700 });
+  const minHeight = Math.min(180, available.height * 0.4);
+  const maxHeight = Math.max(minHeight, available.height - 166);
+  const actualHeight = clamp(height, minHeight, maxHeight);
+  const minWidth = Math.min(240, Math.max(0, (available.width - 6) / 2));
+  const maxWidth = Math.max(minWidth, available.width - 6 - Math.min(280, available.width / 2));
+  const actualWidth = clamp(inspectorWidth, minWidth, maxWidth);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setAvailable(entry.contentRect.height);
+      if (entry) setAvailable({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     observer.observe(root);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, String(height));
-    } catch {
-      /* Storage is optional. */
-    }
-  }, [height]);
+  useEffect(() => saveSize("catty:timeline-height", height), [height]);
+  useEffect(() => saveSize("catty:inspector-width", inspectorWidth), [inspectorWidth]);
 
   return (
     <div
@@ -45,61 +59,39 @@ export function EditorPanels({ children, timeline }: { children: ReactNode; time
       className="grid min-h-0 flex-1 overflow-hidden"
       style={{ gridTemplateRows: `minmax(0, 1fr) 6px ${actualHeight}px` }}
     >
-      <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)_minmax(240px,28%)] overflow-hidden">
-        {children}
-      </div>
       <div
-        role="separator"
-        tabIndex={0}
-        aria-label="Resize timeline"
-        aria-orientation="horizontal"
-        aria-controls="editor-timeline"
-        aria-valuemin={Math.round(min)}
-        aria-valuemax={Math.round(max)}
-        aria-valuenow={Math.round(actualHeight)}
-        className="group relative z-10 cursor-row-resize touch-none border-y bg-card outline-none hover:bg-primary/30 focus-visible:bg-primary/40"
-        onDoubleClick={() => setHeight(300)}
-        onKeyDown={(event) => {
-          const next =
-            event.key === "ArrowUp"
-              ? actualHeight + 16
-              : event.key === "ArrowDown"
-                ? actualHeight - 16
-                : event.key === "Home"
-                  ? min
-                  : event.key === "End"
-                    ? max
-                    : null;
-          if (next !== null) {
-            event.preventDefault();
-            setHeight(clamp(next, min, max));
-          }
-        }}
-        onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          event.preventDefault();
-          dragRef.current = event.pointerId;
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          if (dragRef.current !== event.pointerId) return;
-          const rect = rootRef.current?.getBoundingClientRect();
-          if (rect) setHeight(clamp(rect.bottom - event.clientY, min, max));
-        }}
-        onPointerUp={(event) => {
-          dragRef.current = null;
-          if (event.currentTarget.hasPointerCapture(event.pointerId))
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        }}
-        onPointerCancel={() => {
-          dragRef.current = null;
-        }}
-        onLostPointerCapture={() => {
-          dragRef.current = null;
-        }}
+        className="grid min-h-0 min-w-0 overflow-hidden"
+        style={{ gridTemplateColumns: `minmax(0, 1fr) 6px ${actualWidth}px` }}
       >
-        <span className="absolute inset-x-0 top-1/2 mx-auto h-px w-8 bg-muted-foreground/50" />
+        <div id="editor-preview" className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          {preview}
+        </div>
+        <PanelResizeHandle
+          orientation="vertical"
+          label="Resize preview and inspector"
+          controls="editor-preview editor-inspector"
+          value={actualWidth}
+          min={minWidth}
+          max={maxWidth}
+          reset={320}
+          onChange={setInspectorWidth}
+          valueAt={(x) => (rootRef.current?.getBoundingClientRect().right ?? x) - x}
+        />
+        <div id="editor-inspector" className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          {inspector}
+        </div>
       </div>
+      <PanelResizeHandle
+        orientation="horizontal"
+        label="Resize timeline"
+        controls="editor-timeline"
+        value={actualHeight}
+        min={minHeight}
+        max={maxHeight}
+        reset={300}
+        onChange={setHeight}
+        valueAt={(_, y) => (rootRef.current?.getBoundingClientRect().bottom ?? y) - y}
+      />
       <div id="editor-timeline" className="min-h-0 overflow-hidden">
         {timeline}
       </div>

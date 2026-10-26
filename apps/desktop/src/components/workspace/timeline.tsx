@@ -16,6 +16,7 @@ import { clipRenderWindow, thumbnailTiles } from "@/features/media-visuals/rende
 import type { MediaVisuals } from "@/features/media-visuals/use-media-visuals";
 import { clamp, formatTime, snapTime, TIMELINE, visibleTicks } from "@/features/timeline/geometry";
 import {
+  clipEditGroup,
   splitCandidates,
   type Layer,
   type TimelineAction,
@@ -24,6 +25,7 @@ import {
   type TrackKind,
 } from "@/features/timeline/model";
 import { trackStyles } from "@/features/timeline/tracks";
+import { useClipDrag } from "@/features/timeline/use-clip-drag";
 import { useTimelineScrub } from "@/features/timeline/use-timeline-scrub";
 import { useTimelineViewport } from "@/features/timeline/use-timeline-viewport";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,7 @@ type TimelineProps = {
   history: TimelineHistory;
   dispatch: Dispatch<TimelineAction>;
   visuals: MediaVisuals;
+  duration: number;
 };
 
 export function Timeline({
@@ -50,13 +53,14 @@ export function Timeline({
   history,
   dispatch,
   visuals,
+  duration: projectDuration,
 }: TimelineProps) {
   const mediaDuration = episode?.durationSeconds ?? 0;
-  const duration = Math.max(mediaDuration, 30);
+  const duration = Math.max(projectDuration, 30);
   // A loaded short video fits its actual duration; empty media has a 30s ruler.
-  const timelineDuration = mediaDuration > 0 ? mediaDuration : duration;
+  const timelineDuration = projectDuration > 0 ? projectDuration : duration;
   const viewport = useTimelineViewport(timelineDuration, currentTime, followPlayhead);
-  const document = history.present;
+  const committedDocument = history.present;
   const playheadRef = useRef(currentTime);
   useEffect(() => {
     playheadRef.current = currentTime;
@@ -64,7 +68,17 @@ export function Timeline({
   const [snap, setSnap] = useState(true);
   const [markers, setMarkers] = useState<number[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const enabled = mediaDuration > 0;
+  const enabled = projectDuration > 0;
+  const clipDrag = useClipDrag(
+    committedDocument,
+    viewport.viewportRef,
+    viewport.width / timelineDuration,
+    snap,
+    [0, currentTime, ...markers],
+    setSelected,
+    dispatch,
+  );
+  const document = clipDrag.draft?.document ?? committedDocument;
   const ticks = useMemo(
     () =>
       visibleTicks(timelineDuration, viewport.width, viewport.scrollLeft, viewport.viewportWidth),
@@ -163,7 +177,18 @@ export function Timeline({
     const timer = setTimeout(() => requestFrames(frameTimes), 60);
     return () => clearTimeout(timer);
   }, [frameTimes, available, requestFrames]);
+  const canEditClip = useCallback(
+    (id: string) => clipEditGroup(committedDocument, id).length > 0,
+    [committedDocument],
+  );
   const selectedClip = document.clips.find((clip) => clip.id === selected);
+  const canDelete = !!selected && clipEditGroup(committedDocument, selected).length > 0;
+  function removeSelected() {
+    if (selected && canDelete) {
+      dispatch({ type: "remove-clip", id: selected });
+      setSelected(null);
+    }
+  }
 
   function addMarker() {
     if (enabled)
@@ -186,7 +211,7 @@ export function Timeline({
         ],
         viewport.width / timelineDuration,
       );
-    onSeek(clamp(time, 0, mediaDuration));
+    onSeek(clamp(time, 0, projectDuration));
   }
   const scrubHandlers = useTimelineScrub(
     viewport.viewportRef,
@@ -204,6 +229,16 @@ export function Timeline({
           (event.target as HTMLElement).closest("input, textarea, select, [contenteditable=true]")
         )
           return;
+        if (event.key === "Escape") {
+          clipDrag.cancel();
+          return;
+        }
+        if (clipDrag.draft) return;
+        if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          removeSelected();
+          return;
+        }
         const command = event.metaKey || event.ctrlKey;
         if (command && event.key.toLowerCase() === "z") {
           event.preventDefault();
@@ -226,13 +261,15 @@ export function Timeline({
     >
       <TimelineToolbar
         currentTime={currentTime}
-        duration={mediaDuration}
+        duration={projectDuration}
         zoom={viewport.zoom}
         snap={snap}
         enabled={enabled}
         canSplit={canSplit}
         canUndo={history.past.length > 0 && canEdit}
         canRedo={history.future.length > 0 && canEdit}
+        canDelete={canDelete}
+        onDelete={removeSelected}
         onSplit={split}
         onUndo={() => dispatch({ type: "undo" })}
         onRedo={() => dispatch({ type: "redo" })}
@@ -264,7 +301,25 @@ export function Timeline({
         aria-label="Timeline tracks. Drag to scrub; S to split, M for marker, N for snapping."
         className="relative min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
         onScroll={(event) => viewport.setScrollLeft(event.currentTarget.scrollLeft)}
-        {...scrubHandlers}
+        onPointerDown={(event) => {
+          if (!clipDrag.begin(event)) scrubHandlers.onPointerDown(event);
+        }}
+        onPointerMove={(event) => {
+          clipDrag.move(event);
+          scrubHandlers.onPointerMove(event);
+        }}
+        onPointerUp={(event) => {
+          clipDrag.finish(event, true);
+          scrubHandlers.onPointerUp(event);
+        }}
+        onPointerCancel={(event) => {
+          clipDrag.finish(event, false);
+          scrubHandlers.onPointerCancel(event);
+        }}
+        onLostPointerCapture={(event) => {
+          clipDrag.finish(event, false);
+          scrubHandlers.onLostPointerCapture(event);
+        }}
       >
         <div
           className="relative grid min-h-full"
@@ -327,6 +382,7 @@ export function Timeline({
               muted={muted}
               visuals={visuals}
               dispatch={dispatch}
+              canEditClip={canEditClip}
               onMuteChange={onMuteChange}
               onSelect={setSelected}
               onSeek={onSeek}
@@ -383,6 +439,17 @@ export function Timeline({
             : "No media"}
         </span>
         <span>{markers.length} markers</span>
+        {clipDrag.draft && (
+          <span
+            role="status"
+            className={clipDrag.draft.valid ? "text-primary" : "text-destructive"}
+          >
+            {clipDrag.draft.valid
+              ? `Move to ${formatTime(clipDrag.draft.start, true)}`
+              : "Cannot drop: locked, incompatible, or occupied layer"}{" "}
+            · Esc to cancel
+          </span>
+        )}
         <span className="ml-auto">
           {Math.round(viewport.zoom * 100)}%{" "}
           <span className="ml-3 hidden md:inline">

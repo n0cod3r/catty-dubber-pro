@@ -16,7 +16,7 @@ export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("source");
   return (
     <section
-      className="flex min-h-0 min-w-0 flex-col bg-card"
+      className="flex min-h-0 min-w-0 flex-1 flex-col bg-card"
       aria-label="Dialogue and media inspector"
     >
       <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-[11px] font-medium">

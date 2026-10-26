@@ -6,8 +6,8 @@ export function clipRenderWindow(
   scrollLeft: number,
   viewportWidth: number,
 ) {
-  const clipLeft = start * pixelsPerSecond + 2;
-  const clipWidth = Math.max(1, duration * pixelsPerSecond - 4);
+  const clipLeft = start * pixelsPerSecond;
+  const clipWidth = Math.max(1, duration * pixelsPerSecond);
   const left = Math.max(0, Math.floor(scrollLeft - clipLeft - THUMB_WIDTH));
   const right = Math.min(clipWidth, Math.ceil(scrollLeft + viewportWidth - clipLeft + THUMB_WIDTH));
   return { left, width: Math.max(0, right - left), clipWidth };

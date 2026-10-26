@@ -38,7 +38,7 @@ and Media tabs.
 ## Current limits
 
 Video and source audio play from the original media file. Splits create contiguous
-linked segment boundaries; trimming, moving, offline rendering, and exporting edits are
+linked segment boundaries; trimming, offline rendering, and exporting edits are
 not implemented. Changes are session-only; only the timeline panel height persists.
 Transcript, translation, and voice generation require the dubbing engine and show
 explicit empty states until connected. Frame stepping uses 1/30 second because
@@ -69,7 +69,7 @@ caption or title at the playhead. Select it to edit **Layer text** and press Ent
 to apply. These text overlays render immediately in the preview, within the
 source video's fitted frame. Visible layers above the source video composite in
 layer order. The graphic renderer currently supports text titles; image assets,
-transforms, clip dragging/trimming, and independent media sources are future work.
+transforms, clip trimming, and independent media sources are future work.
 
 `features/media-visuals/media-visuals.worker.ts` decodes source media with
 Mediabunny in a module worker. Video thumbnails are genuine sampled video frames,
@@ -92,3 +92,42 @@ metadata initialization, timestamped stereo peaks, and bounded canvas windows.
 Browser checks verify painted canvas pixels, live Khmer captions and title
 layers, visibility, reordering, zoom/scroll redraws, and source replacement, using
 both Vite development mode and the production build's module worker.
+
+## Preview and inspector sizing
+
+Drag the vertical divider between Preview and Inspector to resize the panels.
+The inspector width persists across reloads and source changes and is clamped to
+the current window size. Arrow Left/Right resize a focused divider, Home/End use
+its limits, and double-click restores the default width. The timeline divider
+continues to support vertical resizing independently.
+
+The preview resolves the front visible video clip at the playhead and reads its
+source dimensions. Video and text overlays occupy one fitted frame, with no
+assumed 16:9 ratio while metadata loads. Both portrait and landscape footage
+retain their source aspect ratio as either divider or the window changes size.
+The last video frame remains visible at the end of playback.
+
+## Move and remove clips
+
+Drag the body of a clip to change its timeline start, or drop it on an unlocked
+layer of the same type. Linked source video and audio segments move together;
+the audio keeps its audio layer when video is transferred between video layers.
+Splits retain the link only to the corresponding segment for move/delete edits.
+Snapping aligns clip edges to other clips, markers, and the playhead; hold Shift
+to bypass it. When a drag overlaps another clip, placement stops at the nearest
+valid contact boundary, even with snapping off. Small positive gaps remain exactly
+as placed; collision contact does not magnetically pull nearby clips together.
+Locked, incompatible, and outside-lane drops are rejected.
+Escape, pointer cancellation, and lost capture discard the drag. A completed move
+creates one undo entry.
+
+Select a clip and press Delete/Backspace, use the toolbar trash button, or
+right-click **Remove clip**. This also works for original and added source clips.
+A corresponding linked video/audio segment is removed together unless either
+layer is locked. The source asset remains in the project for re-adding, and
+undo/redo restores the timeline edit. Deleting the last clips leaves an empty
+timeline rather than re-inserting the original source.
+
+Playback now uses the timeline clock, including gaps and clips moved past the
+original media duration. Video and each active audio clip seek to their source
+offsets independently. Removing an audio clip stops its media element immediately.

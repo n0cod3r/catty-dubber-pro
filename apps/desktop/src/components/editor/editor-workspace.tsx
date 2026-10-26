@@ -7,7 +7,7 @@ import { VideoPreview } from "@/components/workspace/video-preview";
 import type { EpisodeMedia } from "@/features/episodes/types";
 import { useMediaVisuals } from "@/features/media-visuals/use-media-visuals";
 import { usePlayback } from "@/features/playback/use-playback";
-import { createTimeline, timelineReducer } from "@/features/timeline/model";
+import { createTimeline, documentDuration, timelineReducer } from "@/features/timeline/model";
 
 type EditorWorkspaceProps = {
   episode: EpisodeMedia | null;
@@ -29,9 +29,10 @@ export function EditorWorkspace({
   followPlayhead,
   onMetadata,
 }: EditorWorkspaceProps) {
-  const playback = usePlayback();
   const [muted, setMuted] = useState(false);
   const [history, dispatch] = useReducer(timelineReducer, undefined, createTimeline);
+  const duration = documentDuration(history.present);
+  const playback = usePlayback(duration);
   const visuals = useMediaVisuals(episode);
   const sourceId = episode?.id;
   const sourceName = episode?.name;
@@ -54,28 +55,30 @@ export function EditorWorkspace({
           history={history}
           dispatch={dispatch}
           visuals={visuals}
+          duration={duration}
         />
       }
-    >
-      <VideoPreview
-        episode={episode}
-        document={history.present}
-        currentTime={playback.currentTime}
-        seekRequest={playback.seekRequest}
-        onSeek={playback.seek}
-        onTimeChange={playback.setCurrentTime}
-        muted={muted}
-        onMuteChange={setMuted}
-        onImport={onImport}
-        importing={importing}
-        onMetadata={(metadata) => {
-          if (episode) {
-            playback.setDuration(metadata.durationSeconds ?? 0);
-            onMetadata(episode.id, metadata);
-          }
-        }}
-      />
-      <DialoguePanel episode={episode} />
-    </EditorPanels>
+      preview={
+        <VideoPreview
+          episode={episode}
+          document={history.present}
+          currentTime={playback.currentTime}
+          duration={duration}
+          playing={playback.playing}
+          onPlayingChange={playback.setPlaying}
+          onSeek={playback.seek}
+          muted={muted}
+          onMuteChange={setMuted}
+          onImport={onImport}
+          importing={importing}
+          onMetadata={(metadata) => {
+            if (episode) {
+              onMetadata(episode.id, metadata);
+            }
+          }}
+        />
+      }
+      inspector={<DialoguePanel episode={episode} />}
+    />
   );
 }

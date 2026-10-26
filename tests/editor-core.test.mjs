@@ -39,3 +39,14 @@ test("time displays hours correctly and guards invalid media values", () => {
   assert.equal(formatTime(Infinity), "00:00:00");
   assert.equal(clamp(NaN, 0, 10), 0);
 });
+
+test("a split clip snaps flush when returning despite trailing-edge rounding", async () => {
+  const { snapClipStart } = await import("../apps/desktop/src/features/timeline/geometry.ts");
+  const firstEnd = 4.803;
+  const duration = 12.008 - firstEnd;
+  for (const candidate of [firstEnd - 0.05, firstEnd + 0.05, firstEnd + 0.000000000000001]) {
+    assert.equal(snapClipStart(candidate, duration, [0, firstEnd], 80), firstEnd);
+  }
+  assert.equal(snapClipStart(3.95, 2, [6], 80), 4, "trailing edge can snap to a real target");
+  assert.equal(snapClipStart(3.5, 2, [6], 80), 3.5, "do not snap outside eight pixels");
+});

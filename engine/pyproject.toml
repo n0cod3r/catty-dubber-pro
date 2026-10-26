@@ -3,7 +3,9 @@ name = "catty-engine"
 version = "0.1.0"
 description = "Python AI and media engine for Catty Dubber Pro"
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+  "pydantic>=2.12,<3",
+]
 
 [project.scripts]
 catty-engine = "catty_engine:main"

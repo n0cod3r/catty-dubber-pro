@@ -9,6 +9,7 @@ import {
   Redo2,
   Scan,
   Scissors,
+  Trash2,
   Undo2,
 } from "lucide-react";
 
@@ -22,6 +23,8 @@ type TimelineToolbarProps = {
   zoom: number;
   snap: boolean;
   canSplit: boolean;
+  canDelete: boolean;
+  onDelete: () => void;
   canUndo: boolean;
   canRedo: boolean;
   enabled: boolean;
@@ -72,6 +75,16 @@ export function TimelineToolbar(props: TimelineToolbarProps) {
         onClick={props.onSplit}
       >
         <Scissors />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Delete selected clip"
+        title="Delete selected clip and linked audio/video (Delete / Backspace)"
+        disabled={!props.canDelete}
+        onClick={props.onDelete}
+      >
+        <Trash2 />
       </Button>
       <Button
         variant={props.snap ? "secondary" : "ghost"}

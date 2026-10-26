@@ -24,6 +24,7 @@ export function App() {
         <SidebarProvider
           className="h-svh min-h-0 overflow-hidden bg-background text-foreground"
           style={{ "--sidebar-width": "14rem" } as CSSProperties}
+          defaultOpen={false}
         >
           <AppSidebar
             episode={source.episode}

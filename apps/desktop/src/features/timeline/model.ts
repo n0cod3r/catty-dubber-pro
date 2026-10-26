@@ -34,6 +34,8 @@ export type TimelineAction =
   | { type: "move-layer"; id: string; direction: -1 | 1 }
   | { type: "toggle-layer"; id: string; property: "locked" | "muted" | "hidden" }
   | { type: "add-clip"; clip: TimelineClip }
+  | { type: "move-clip"; id: string; start: number; trackId: string }
+  | { type: "remove-clip"; id: string }
   | { type: "update-text"; id: string; text: string }
   | { type: "split"; time: number; selectedId: string | null }
   | { type: "undo" }
@@ -91,6 +93,120 @@ export function splitCandidates(
   )
     ? []
     : candidates;
+}
+
+export function clipEditGroup(document: TimelineDocument, id: string) {
+  const selected = document.clips.find((clip) => clip.id === id);
+  if (!selected) return [];
+  const clips = document.clips.filter(
+    (clip) =>
+      clip.id === id ||
+      (selected.linkId &&
+        clip.linkId === selected.linkId &&
+        Math.abs(clip.start - selected.start) < 0.000001 &&
+        Math.abs(clip.duration - selected.duration) < 0.000001 &&
+        Math.abs(clip.sourceStart - selected.sourceStart) < 0.000001),
+  );
+  return clips.some((clip) => document.layers.find((layer) => layer.id === clip.trackId)?.locked)
+    ? []
+    : clips;
+}
+
+export function moveClip(
+  document: TimelineDocument,
+  id: string,
+  start: number,
+  trackId: string,
+): TimelineDocument | null {
+  const clip = document.clips.find((item) => item.id === id);
+  const target = document.layers.find((layer) => layer.id === trackId);
+  const group = clipEditGroup(document, id);
+  if (
+    !clip ||
+    !target ||
+    target.locked ||
+    target.kind !== clip.kind ||
+    !group.length ||
+    !Number.isFinite(start) ||
+    start < 0
+  )
+    return null;
+  const delta = start - clip.start;
+  const ids = new Set(group.map((item) => item.id));
+  const moved = group.map((item) => ({
+    ...item,
+    start: item.start + delta,
+    trackId: item.id === id ? trackId : item.trackId,
+  }));
+  if (
+    moved.some(
+      (item) =>
+        item.start < 0 ||
+        document.clips.some(
+          (other) =>
+            !ids.has(other.id) &&
+            other.trackId === item.trackId &&
+            item.start < other.start + other.duration - 0.000001 &&
+            item.start + item.duration > other.start + 0.000001,
+        ),
+    )
+  )
+    return null;
+  if (Math.abs(delta) < 0.000001 && trackId === clip.trackId) return document;
+  return {
+    ...document,
+    clips: document.clips.map(
+      (item) => moved.find((candidate) => candidate.id === item.id) ?? item,
+    ),
+  };
+}
+
+// Magnetic snapping is optional; solid clip boundaries are not. A pointer that
+// crosses an occupied edge should stop at contact instead of losing the move.
+export function resolveClipDrag(
+  document: TimelineDocument,
+  id: string,
+  start: number,
+  trackId: string,
+) {
+  const direct = moveClip(document, id, start, trackId);
+  if (direct) return { document: direct, start };
+  const clip = document.clips.find((item) => item.id === id);
+  const target = document.layers.find((item) => item.id === trackId);
+  const group = clipEditGroup(document, id);
+  if (
+    !clip ||
+    !target ||
+    target.locked ||
+    target.kind !== clip.kind ||
+    !group.length ||
+    !Number.isFinite(start) ||
+    start < 0
+  )
+    return null;
+  const ids = new Set(group.map((item) => item.id));
+  const boundaries = new Set<number>([0]);
+  for (const item of group) {
+    const destination = item.id === id ? trackId : item.trackId;
+    const offset = item.start - clip.start;
+    for (const other of document.clips) {
+      if (ids.has(other.id) || other.trackId !== destination) continue;
+      boundaries.add(other.start + other.duration - offset);
+      boundaries.add(other.start - item.duration - offset);
+    }
+  }
+  const ordered = [...boundaries]
+    .filter((value) => value >= 0)
+    .sort((a, b) => Math.abs(a - start) - Math.abs(b - start));
+  for (const boundary of ordered) {
+    const next = moveClip(document, id, boundary, trackId);
+    if (next) return { document: next, start: boundary };
+  }
+  return null;
+}
+
+export function documentDuration(document: TimelineDocument) {
+  return document.clips.reduce((end, clip) => Math.max(end, clip.start + clip.duration), 0);
 }
 
 function change(
@@ -165,6 +281,14 @@ function change(
     )
       return document;
     return { ...document, clips: [...document.clips, action.clip] };
+  }
+  if (action.type === "move-clip")
+    return moveClip(document, action.id, action.start, action.trackId) ?? document;
+  if (action.type === "remove-clip") {
+    const ids = new Set(clipEditGroup(document, action.id).map((clip) => clip.id));
+    return ids.size
+      ? { ...document, clips: document.clips.filter((clip) => !ids.has(clip.id)) }
+      : document;
   }
   if (action.type === "update-text") {
     const clip = document.clips.find((item) => item.id === action.id);

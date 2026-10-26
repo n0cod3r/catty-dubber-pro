@@ -44,6 +44,31 @@ export function snapTime(time: number, points: readonly number[], pixelsPerSecon
   return closest;
 }
 
+// Compare only real edge targets. Computing an unsnapped trailing edge as
+// (start + duration) - duration introduces rounding errors that can beat a
+// valid leading-edge snap by a few ulps.
+export function snapClipStart(
+  start: number,
+  duration: number,
+  points: readonly number[],
+  pixelsPerSecond: number,
+) {
+  if (!Number.isFinite(start) || !Number.isFinite(duration) || pixelsPerSecond <= 0) return start;
+  let closest = start;
+  let distance = 8 / pixelsPerSecond;
+  for (const point of points) {
+    for (const candidate of [point, point - duration]) {
+      if (!Number.isFinite(candidate) || candidate < 0) continue;
+      const nextDistance = Math.abs(candidate - start);
+      if (nextDistance < distance) {
+        closest = candidate;
+        distance = nextDistance;
+      }
+    }
+  }
+  return closest;
+}
+
 export function rulerInterval(pixelsPerSecond: number) {
   // Labels stay at least 80px apart, including for feature-length episodes.
   const target = 80 / Math.max(pixelsPerSecond, 0.000001);

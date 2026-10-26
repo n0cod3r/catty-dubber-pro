@@ -16,6 +16,12 @@ import {
 
 import { Button } from "@/components/ui/button";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -41,6 +47,7 @@ type Props = {
   muted: boolean;
   visuals: MediaVisuals;
   dispatch: Dispatch<TimelineAction>;
+  canEditClip: (id: string) => boolean;
   onMuteChange: (value: boolean) => void;
   onSelect: (id: string) => void;
   onSeek: (time: number) => void;
@@ -60,6 +67,7 @@ export const TimelineTrack = memo(function TimelineTrack({
   muted,
   visuals,
   dispatch,
+  canEditClip,
   onMuteChange,
   onSelect,
   onSeek,
@@ -162,6 +170,7 @@ export const TimelineTrack = memo(function TimelineTrack({
       </div>
       <div
         data-timeline-surface
+        data-track-drop={layer.id}
         className="relative touch-none overflow-hidden border-b bg-muted/10"
         style={{ height: TIMELINE.trackHeight }}
       >
@@ -174,7 +183,7 @@ export const TimelineTrack = memo(function TimelineTrack({
         ))}
         {clips.map((clip) => {
           const clipLeft = (clip.start / timelineDuration) * width;
-          const clipWidth = Math.max(1, (clip.duration / timelineDuration) * width - 4);
+          const clipWidth = Math.max(1, (clip.duration / timelineDuration) * width);
           if (clipLeft + clipWidth < scrollLeft - 96 || clipLeft > scrollLeft + viewportWidth + 96)
             return null;
           const visualMessage =
@@ -196,57 +205,75 @@ export const TimelineTrack = memo(function TimelineTrack({
                     : null
                 : null;
           return (
-            <button
-              key={clip.id}
-              data-clip-id={clip.id}
-              disabled={layer.locked}
-              aria-label={`${layer.name}: ${clip.name}, ${formatTime(clip.start, true)} to ${formatTime(clip.start + clip.duration, true)}`}
-              aria-pressed={selected === clip.id}
-              className={cn(
-                "absolute inset-y-1 overflow-hidden rounded border text-left text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                style.color,
-                selected === clip.id && "ring-1 ring-primary",
-                (isMuted || layer.hidden) && "opacity-35",
-                layer.locked && "opacity-60",
-              )}
-              style={{ left: clipLeft + 2, width: clipWidth }}
-              onPointerDown={() => onSelect(clip.id)}
-              onClick={(event) => {
-                if (event.detail === 0) {
-                  onSelect(clip.id);
-                  onSeek(clip.start);
-                }
-              }}
-            >
-              <span className="absolute inset-x-0 top-0 z-10 flex h-5 items-center gap-1 bg-black/30 px-1.5">
-                <Icon className="size-2.5 shrink-0" />
-                <span className="truncate">{clip.name}</span>
-                <span className="ml-auto shrink-0 text-[8px] opacity-60">
-                  {formatTime(clip.duration)}
+            <ContextMenu key={clip.id}>
+              <ContextMenuTrigger
+                render={<button type="button" disabled={layer.locked} />}
+                onContextMenu={() => onSelect(clip.id)}
+                data-clip-id={clip.id}
+                aria-disabled={layer.locked}
+                data-clip-start={clip.start}
+                data-source-start={clip.sourceStart}
+                aria-label={`${layer.name}: ${clip.name}, ${formatTime(clip.start, true)} to ${formatTime(clip.start + clip.duration, true)}`}
+                aria-pressed={selected === clip.id}
+                title="Drag to move. Right-click or press Delete to remove."
+                className={cn(
+                  "absolute inset-y-1 cursor-grab touch-none overflow-hidden rounded border text-left text-[10px] active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  style.color,
+                  selected === clip.id && "ring-1 ring-primary",
+                  (isMuted || layer.hidden) && "opacity-35",
+                  layer.locked && "opacity-60",
+                )}
+                style={{ left: clipLeft, width: clipWidth }}
+                onPointerDown={() => onSelect(clip.id)}
+                onClick={(event) => {
+                  if (event.detail === 0) {
+                    onSelect(clip.id);
+                    onSeek(clip.start);
+                  }
+                }}
+              >
+                <span className="absolute inset-x-0 top-0 z-10 flex h-5 items-center gap-1 bg-black/30 px-1.5">
+                  <Icon className="size-2.5 shrink-0" />
+                  <span className="truncate">{clip.name}</span>
+                  <span className="ml-auto shrink-0 text-[8px] opacity-60">
+                    {formatTime(clip.duration)}
+                  </span>
                 </span>
-              </span>
-              {(clip.kind === "video" || clip.kind === "audio") && (
-                <ClipMediaCanvas
-                  clip={clip}
-                  pixelsPerSecond={width / timelineDuration}
-                  scrollLeft={scrollLeft}
-                  viewportWidth={viewportWidth}
-                  sourceDuration={sourceDuration}
-                  visuals={visuals}
-                />
-              )}
-              {(clip.kind === "subtitle" || clip.kind === "graphic") && (
-                <span className="absolute inset-x-0 top-6 truncate px-2 text-xs">{clip.text}</span>
-              )}
-              {visualMessage && (
-                <span
-                  className="absolute right-1 bottom-0.5 rounded bg-black/60 px-1 text-[8px]"
-                  title={wave?.error ?? visuals.videoError ?? undefined}
+                {(clip.kind === "video" || clip.kind === "audio") && (
+                  <ClipMediaCanvas
+                    clip={clip}
+                    pixelsPerSecond={width / timelineDuration}
+                    scrollLeft={scrollLeft}
+                    viewportWidth={viewportWidth}
+                    sourceDuration={sourceDuration}
+                    visuals={visuals}
+                  />
+                )}
+                {(clip.kind === "subtitle" || clip.kind === "graphic") && (
+                  <span className="absolute inset-x-0 top-6 truncate px-2 text-xs">
+                    {clip.text}
+                  </span>
+                )}
+                {visualMessage && (
+                  <span
+                    className="absolute right-1 bottom-0.5 rounded bg-black/60 px-1 text-[8px]"
+                    title={wave?.error ?? visuals.videoError ?? undefined}
+                  >
+                    {visualMessage}
+                  </span>
+                )}
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem
+                  disabled={!canEditClip(clip.id)}
+                  variant="destructive"
+                  onClick={() => dispatch({ type: "remove-clip", id: clip.id })}
                 >
-                  {visualMessage}
-                </span>
-              )}
-            </button>
+                  <Trash2 />
+                  Remove clip
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           );
         })}
         {!clips.length && (
