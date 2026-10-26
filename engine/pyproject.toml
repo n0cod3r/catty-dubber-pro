@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Python AI and media engine for Catty Dubber Pro"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+  "numpy>=2.2,<3",
   "pydantic>=2.12,<3",
+  "sherpa-onnx>=2.0,<3",
 ]
 
 [project.scripts]
