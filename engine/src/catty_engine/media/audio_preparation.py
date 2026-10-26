@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Protocol
 from uuid import UUID
+
+from pydantic import ValidationError
 
 from .audio import AudioAsset, AudioAssetKind
 from .ffmpeg import FFmpegRunner
@@ -12,6 +15,7 @@ from .fingerprint import source_fingerprint
 SPEECH_SAMPLE_RATE = 16_000
 SPEECH_CHANNELS = 1
 SPEECH_FILE_NAME = "speech-16k-mono.wav"
+SPEECH_METADATA_FILE_NAME = "speech-16k-mono.json"
 
 
 class AudioExtractor(Protocol):
@@ -40,14 +44,13 @@ class AudioPreparationService:
         source: str | Path,
         existing_asset: AudioAsset | None = None,
     ) -> AudioAsset:
+        # episode_id intentionally remains part of the public contract even though
+        # prepared source audio is content-addressed and shared across episode IDs.
+        del episode_id
+
         source_path = Path(source).expanduser().resolve()
         fingerprint = source_fingerprint(source_path)
 
-        # Prepared media is source-derived, not episode-derived. A UI session may
-        # assign a fresh episode UUID after restart, but the same source should
-        # still reuse the same expensive derived audio. Keeping the cache under
-        # the source fingerprint also lets multiple episodes reference one asset
-        # without duplicating it on disk.
         destination = (
             project_directory
             / "assets"
@@ -65,10 +68,20 @@ class AudioPreparationService:
             assert existing_asset is not None
             return existing_asset
 
-        # The persisted UI/project state may not have restored its AudioAsset yet.
-        # The content-addressed file is sufficient to reconstruct that state.
+        # On restart the frontend may not have restored its AudioAsset yet. Keep a
+        # tiny sidecar manifest next to the WAV so we can reconstruct the exact
+        # persisted asset (including created_at) instead of manufacturing a new
+        # logical asset for an already prepared file.
+        cached_asset = self._load_cached_asset(destination, fingerprint)
+        if cached_asset is not None:
+            return cached_asset
+
+        # Backward compatibility for cache entries created before the metadata
+        # sidecar existed. Reconstruct once and persist the manifest for next time.
         if self._prepared_file_valid(destination):
-            return self._asset(destination, fingerprint)
+            asset = self._asset(destination, fingerprint)
+            self._save_cached_asset(asset)
+            return asset
 
         self._runner.extract_speech_audio(
             source_path,
@@ -77,7 +90,9 @@ class AudioPreparationService:
             channels=SPEECH_CHANNELS,
         )
 
-        return self._asset(destination, fingerprint)
+        asset = self._asset(destination, fingerprint)
+        self._save_cached_asset(asset)
+        return asset
 
     @staticmethod
     def _asset(destination: Path, fingerprint: str) -> AudioAsset:
@@ -88,6 +103,48 @@ class AudioPreparationService:
             channels=SPEECH_CHANNELS,
             source_fingerprint=fingerprint,
         )
+
+    @staticmethod
+    def _metadata_path(destination: Path) -> Path:
+        return destination.with_name(SPEECH_METADATA_FILE_NAME)
+
+    @classmethod
+    def _save_cached_asset(cls, asset: AudioAsset) -> None:
+        destination = Path(asset.path).expanduser().resolve()
+        metadata = cls._metadata_path(destination)
+        metadata.parent.mkdir(parents=True, exist_ok=True)
+        temporary = metadata.with_suffix(metadata.suffix + ".tmp")
+        temporary.write_text(
+            json.dumps(asset.model_dump(mode="json"), ensure_ascii=False),
+            encoding="utf-8",
+        )
+        temporary.replace(metadata)
+
+    @classmethod
+    def _load_cached_asset(
+        cls,
+        destination: Path,
+        fingerprint: str,
+    ) -> AudioAsset | None:
+        if not cls._prepared_file_valid(destination):
+            return None
+
+        metadata = cls._metadata_path(destination)
+        if not metadata.is_file():
+            return None
+
+        try:
+            asset = AudioAsset.model_validate_json(metadata.read_text(encoding="utf-8"))
+        except (OSError, ValidationError, ValueError):
+            return None
+
+        if cls._cache_valid(
+            existing_asset=asset,
+            destination=destination,
+            fingerprint=fingerprint,
+        ):
+            return asset
+        return None
 
     @staticmethod
     def _prepared_file_valid(destination: Path) -> bool:
