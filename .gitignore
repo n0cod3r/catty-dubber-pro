@@ -1,0 +1,32 @@
+# Node
+node_modules/
+dist/
+.vite/
+
+# Tauri / Rust
+target/
+apps/desktop/src-tauri/target/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Catty local data
+*.cattyproj/
+.cache/
+models/
