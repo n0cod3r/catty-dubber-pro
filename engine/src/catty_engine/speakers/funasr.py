@@ -11,6 +11,7 @@ import contextlib
 import math
 import os
 import sys
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -163,10 +164,18 @@ def _load_pipeline(
     )
 
 
+def _has_spoken_text(text: str) -> bool:
+    """Return true when text contains something other than punctuation/symbols."""
+    return any(
+        not unicodedata.category(character).startswith(("P", "S", "Z", "C"))
+        for character in text
+    )
+
+
 def parse_sentences(
     result: list[dict[str, Any]], *, start: float, duration: float
 ) -> list[TranscriptSegment]:
-    """Convert FunASR range-relative milliseconds to source-relative seconds."""
+    """Convert FunASR range-relative milliseconds to clean dialogue segments."""
     segments: list[TranscriptSegment] = []
     labels: dict[int, str] = {}
     for sentence in result[0].get("sentence_info", []) if result else []:
@@ -176,7 +185,7 @@ def parse_sentences(
             raise ValueError("FunASR returned invalid sentence timestamps")
         left, right = max(0, left), min(duration, right)
         text = str(sentence.get("text", "")).strip()
-        if right <= left or not text:
+        if right <= left or not text or not _has_spoken_text(text):
             continue
         cluster = sentence.get("spk")
         if cluster is None:
@@ -193,7 +202,7 @@ def parse_sentences(
             )
         )
     if result and str(result[0].get("text", "")).strip() and not segments:
-        raise ValueError("FunASR returned text without timed speaker sentences")
+        raise ValueError("FunASR returned text without timed speaker dialogue")
     return sorted(segments, key=lambda segment: (segment.start, segment.end))
 
 
