@@ -13,6 +13,7 @@ import {
 } from "@/features/editor/deps/timeline";
 
 import { useDialogueEditing } from "../hooks/use-dialogue-editing";
+import { useTranslation } from "../hooks/use-translation";
 import { EditorPanels } from "./editor-panels";
 import { Inspector } from "./inspector";
 
@@ -46,6 +47,7 @@ function WorkspaceContent({
   onEpisodePersisted,
 }: EditorWorkspaceProps) {
   const dialogue = useDialogueEditing(episode, projectDirectory, onEpisodePersisted);
+  const translation = useTranslation(episode, projectDirectory, onEpisodePersisted);
   const [muted, setMuted] = useState(false);
   const history = useTimelineStore((state) => state.history);
   const initialize = useTimelineStore((state) => state.initialize);
@@ -112,6 +114,7 @@ function WorkspaceContent({
           followTimeline={followPlayhead}
           onSeek={playback.seek}
           dialogue={dialogue}
+          translation={translation}
         />
       }
     />
