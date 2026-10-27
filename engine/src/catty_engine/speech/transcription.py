@@ -7,8 +7,38 @@ from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
 
 from .backends import AsrBackendRegistry
-from .models import TranscriptionResult
+from .models import SpeechRegion, TranscriptionResult
 from .vad import VadBackend
+
+# Dialogue is the editing unit for subtitles, translation, and dubbing. Keep long
+# uninterrupted VAD regions bounded so one fast narrator does not become a
+# single 15-30 second subtitle/TTS job. Natural VAD pauses remain the preferred
+# boundary; this is only the hard safety limit.
+MAX_DIALOGUE_REGION_SECONDS = 6.0
+
+
+def split_long_speech_regions(
+    regions: list[SpeechRegion],
+    *,
+    max_duration: float = MAX_DIALOGUE_REGION_SECONDS,
+) -> list[SpeechRegion]:
+    if max_duration <= 0:
+        raise ValueError("max_duration must be > 0")
+
+    result: list[SpeechRegion] = []
+    for region in regions:
+        start = region.start
+        while region.end - start > max_duration + 0.001:
+            end = start + max_duration
+            result.append(
+                SpeechRegion(start=start, end=end, confidence=region.confidence)
+            )
+            start = end
+        if region.end - start > 0.001:
+            result.append(
+                SpeechRegion(start=start, end=region.end, confidence=region.confidence)
+            )
+    return result
 
 
 class TranscriptionService:
@@ -54,6 +84,7 @@ class TranscriptionService:
             start=source_start,
             duration=duration,
         )
+        regions = split_long_speech_regions(regions)
         backend = self._asr_backends.get(backend_id)
         segments = backend.transcribe(audio, regions, language=language)
         return TranscriptionResult(

@@ -9,6 +9,7 @@ from catty_engine.speech import (
     TranscriptionService,
     WholeClipVad,
 )
+from catty_engine.speech.transcription import split_long_speech_regions
 
 
 class PreparedAudio:
@@ -65,6 +66,28 @@ def test_transcribe_selection_uses_selected_backend_and_source_range(tmp_path: P
     assert result.segments[0].start == 12.5
     assert result.segments[0].end == 15.5
     assert result.segments[0].text == "你好"
+
+
+def test_long_speech_regions_are_split_into_dubbing_sized_chunks() -> None:
+    regions = [SpeechRegion(start=2.0, end=16.5, confidence=0.9)]
+
+    split = split_long_speech_regions(regions, max_duration=6.0)
+
+    assert [(item.start, item.end) for item in split] == [
+        (2.0, 8.0),
+        (8.0, 14.0),
+        (14.0, 16.5),
+    ]
+    assert all(item.confidence == 0.9 for item in split)
+
+
+def test_short_vad_regions_keep_their_natural_boundaries() -> None:
+    regions = [
+        SpeechRegion(start=1.0, end=3.4),
+        SpeechRegion(start=4.1, end=8.2),
+    ]
+
+    assert split_long_speech_regions(regions) == regions
 
 
 def test_registry_allows_multiple_models() -> None:
