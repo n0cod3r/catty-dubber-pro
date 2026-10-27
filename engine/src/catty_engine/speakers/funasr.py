@@ -1,7 +1,8 @@
-"""Local FunASR pipeline, pinned to the models used in Catty's review benchmark.
+"""Local FunASR smart-transcription pipeline used by Catty.
 
-No gender inference: cluster labels describe acoustic groups, not voice profiles.
-Imports and diagnostics are redirected because stdout belongs to the JSON IPC.
+The pipeline owns Chinese VAD, ASR, punctuation and speaker diarization so one
+Transcribe action returns speaker-aware dialogue. Speaker labels are acoustic
+clusters, not character identities or gender labels.
 """
 from __future__ import annotations
 
@@ -26,11 +27,13 @@ MODEL_REVISIONS = {
 
 
 def resolve_models() -> dict[str, str]:
+    """Resolve pinned FunASR models, preferring a complete local cache."""
     from huggingface_hub import snapshot_download
 
     override = os.environ.get("CATTY_FUNASR_MODEL_DIR")
     cache = ModelManager().root / "funasr"
-    resolved = {}
+    cache.mkdir(parents=True, exist_ok=True)
+    resolved: dict[str, str] = {}
     for name, revision in MODEL_REVISIONS.items():
         weight = "campplus_cn_common.bin" if name == "campplus" else "model.pt"
         required = [weight, "configuration.json", "config.yaml"]
@@ -38,53 +41,127 @@ def resolve_models() -> dict[str, str]:
             required.append("tokens.json")
         if name in {"paraformer-zh", "fsmn-vad"}:
             required.append("am.mvn")
+
         def complete(directory: Path) -> bool:
-            return all((directory / file).is_file() and (directory / file).stat().st_size > 0 for file in required)
+            return all(
+                (directory / file).is_file() and (directory / file).stat().st_size > 0
+                for file in required
+            )
+
         if override:
             directory = Path(override).expanduser().resolve() / name
+            if not complete(directory):
+                raise ValueError(
+                    f"Incomplete FunASR model {name} in CATTY_FUNASR_MODEL_DIR"
+                )
         else:
             from huggingface_hub.errors import LocalEntryNotFoundError
-            options = dict(repo_id=f"funasr/{name}", revision=revision, cache_dir=str(cache))
+
+            options = {
+                "repo_id": f"funasr/{name}",
+                "revision": revision,
+                "cache_dir": str(cache),
+            }
             try:
                 directory = Path(snapshot_download(**options, local_files_only=True))
             except LocalEntryNotFoundError:
                 directory = cache / ".missing"
             if not complete(directory):
-                directory = Path(snapshot_download(
-                    **options,
-                    allow_patterns=["*.json", "*.yaml", "*.mvn", "*.pt", "*.bin", "*.txt"],
-                ))
+                try:
+                    directory = Path(
+                        snapshot_download(
+                            **options,
+                            allow_patterns=[
+                                "*.json",
+                                "*.yaml",
+                                "*.mvn",
+                                "*.pt",
+                                "*.bin",
+                                "*.txt",
+                            ],
+                        )
+                    )
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Could not download FunASR model {name}. Check the internet connection and retry."
+                    ) from exc
         if not complete(directory):
-            raise ValueError(f"Incomplete FunASR model {name}; check model downloads or CATTY_FUNASR_MODEL_DIR")
+            raise ValueError(f"Incomplete FunASR model {name}; retry the model download")
         resolved[name] = str(directory)
     return resolved
 
 
-@lru_cache(maxsize=1)
-def _load_pipeline(model_paths: tuple[tuple[str, str], ...]) -> Any:
-    # CPU is the portable baseline tested on Apple Silicon. Avoid MPS-only ops.
+def _cpu_threads() -> int:
+    override = os.environ.get("CATTY_FUNASR_CPU_THREADS")
+    if override:
+        try:
+            value = int(override)
+        except ValueError as exc:
+            raise ValueError("CATTY_FUNASR_CPU_THREADS must be an integer") from exc
+        if value < 1 or value > 32:
+            raise ValueError("CATTY_FUNASR_CPU_THREADS must be between 1 and 32")
+        return value
+    count = os.cpu_count() or 4
+    return max(2, min(8, count // 2 or 1))
+
+
+def resolve_device(torch: Any) -> str:
+    """Choose a production-safe FunASR device.
+
+    Windows/NVIDIA automatically uses CUDA. CPU is the portable baseline and
+    remains the automatic Apple Silicon path because the complete FunASR stack
+    contains operations that are not consistently MPS-safe. Developers may
+    explicitly test MPS with CATTY_FUNASR_DEVICE=mps.
+    """
+    requested = os.environ.get("CATTY_FUNASR_DEVICE", "auto").strip().lower()
+    allowed = {"auto", "cpu", "cuda", "mps"}
+    if requested not in allowed:
+        raise ValueError("CATTY_FUNASR_DEVICE must be auto, cpu, cuda, or mps")
+    if requested == "auto":
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    if requested == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested for FunASR but is not available")
+    if requested == "mps":
+        mps = getattr(torch.backends, "mps", None)
+        if mps is None or not mps.is_available():
+            raise RuntimeError("MPS was requested for FunASR but is not available")
+    return requested
+
+
+@lru_cache(maxsize=2)
+def _load_pipeline(model_paths: tuple[tuple[str, str], ...], device: str, ncpu: int) -> Any:
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     import torch
     from funasr import AutoModel
 
-    torch.set_num_threads(2)
+    torch.set_num_threads(ncpu)
     models = dict(model_paths)
     return AutoModel(
-        model=models["paraformer-zh"], vad_model=models["fsmn-vad"],
-        punc_model=models["ct-punc"], spk_model=models["campplus"],
-        device="cpu", ncpu=2, disable_update=True, disable_pbar=True,
-        trust_remote_code=False, log_level="ERROR", spk_mode="punc_segment",
+        model=models["paraformer-zh"],
+        vad_model=models["fsmn-vad"],
+        punc_model=models["ct-punc"],
+        spk_model=models["campplus"],
+        device=device,
+        ncpu=ncpu,
+        disable_update=True,
+        disable_pbar=True,
+        trust_remote_code=False,
+        log_level="ERROR",
+        spk_mode="punc_segment",
         vad_kwargs={"max_single_segment_time": 30000},
         spk_kwargs={"cb_kwargs": {"merge_thr": 0.78}},
     )
 
 
-def parse_sentences(result: list[dict[str, Any]], *, start: float, duration: float) -> list[TranscriptSegment]:
-    """FunASR milliseconds are relative to the requested audio range."""
-    segments = []
+def parse_sentences(
+    result: list[dict[str, Any]], *, start: float, duration: float
+) -> list[TranscriptSegment]:
+    """Convert FunASR range-relative milliseconds to source-relative seconds."""
+    segments: list[TranscriptSegment] = []
     labels: dict[int, str] = {}
     for sentence in result[0].get("sentence_info", []) if result else []:
-        left, right = float(sentence["start"]) / 1000, float(sentence["end"]) / 1000
+        left = float(sentence["start"]) / 1000
+        right = float(sentence["end"]) / 1000
         if not math.isfinite(left) or not math.isfinite(right):
             raise ValueError("FunASR returned invalid sentence timestamps")
         left, right = max(0, left), min(duration, right)
@@ -93,21 +170,35 @@ def parse_sentences(result: list[dict[str, Any]], *, start: float, duration: flo
             continue
         cluster = sentence.get("spk")
         if cluster is None:
-            raise ValueError("FunASR did not return speaker labels; saved dialogue was not changed")
+            raise ValueError(
+                "FunASR did not return speaker labels; saved dialogue was not changed"
+            )
         label = labels.setdefault(int(cluster), f"S{len(labels) + 1}")
-        segments.append(TranscriptSegment(start=start + left, end=start + right, text=text, speaker=label))
+        segments.append(
+            TranscriptSegment(
+                start=start + left,
+                end=start + right,
+                text=text,
+                speaker=label,
+            )
+        )
     if result and str(result[0].get("text", "")).strip() and not segments:
         raise ValueError("FunASR returned text without timed speaker sentences")
     return sorted(segments, key=lambda segment: (segment.start, segment.end))
 
 
-def match_speakers(segments: list[TranscriptSegment], turns: list[TranscriptSegment]) -> list[TranscriptSegment]:
-    """Sum overlap per cluster; gaps remain unassigned rather than guessed."""
-    matched = []
+def match_speakers(
+    segments: list[TranscriptSegment], turns: list[TranscriptSegment]
+) -> list[TranscriptSegment]:
+    """Assign the cluster with greatest overlap; gaps remain unassigned."""
+    matched: list[TranscriptSegment] = []
     for segment in segments:
         overlaps: dict[str, float] = {}
         for turn in turns:
-            overlap = max(0.0, min(segment.end, turn.end) - max(segment.start, turn.start))
+            overlap = max(
+                0.0,
+                min(segment.end, turn.end) - max(segment.start, turn.start),
+            )
             if overlap > 0 and turn.speaker is not None:
                 overlaps[turn.speaker] = overlaps.get(turn.speaker, 0) + overlap
         label = max(overlaps, key=lambda key: overlaps[key]) if overlaps else None
@@ -116,17 +207,57 @@ def match_speakers(segments: list[TranscriptSegment], turns: list[TranscriptSegm
 
 
 class FunASRSpeakerPipeline:
-    def transcribe(self, audio: Path, *, start: float, duration: float, language: str) -> TranscriptionResult:
+    def transcribe(
+        self,
+        audio: Path,
+        *,
+        start: float,
+        duration: float,
+        language: str,
+    ) -> TranscriptionResult:
         if language not in {"zh", "zh-CN", "zh-cn"}:
-            raise ValueError("The approved FunASR Paraformer pipeline supports Chinese dialogue")
+            raise ValueError("The FunASR smart transcription pipeline supports Chinese dialogue")
         rate, samples = read_mono_pcm16(audio, start=start, duration=duration)
         if rate != 16000:
             raise ValueError("FunASR requires prepared 16 kHz analysis audio")
         if samples.size == 0:
-            return TranscriptionResult(backend="paraformer", model="funasr-paraformer-campplus", language=language, segments=[])
+            return TranscriptionResult(
+                backend="paraformer",
+                model="funasr-paraformer-campplus",
+                language=language,
+                segments=[],
+            )
+
         with contextlib.redirect_stdout(sys.stderr):
             models = resolve_models()
-            pipeline = _load_pipeline(tuple(models.items()))
-            result = pipeline.generate(input=samples, fs=rate, batch_size_s=30, disable_pbar=True, return_spk_res=True)
-        segments = parse_sentences(result, start=start, duration=min(duration, len(samples) / rate))
-        return TranscriptionResult(backend="paraformer", model="funasr-paraformer-campplus", language=language, segments=segments)
+            import torch
+
+            device = resolve_device(torch)
+            ncpu = _cpu_threads()
+            pipeline = _load_pipeline(tuple(models.items()), device, ncpu)
+            try:
+                result = pipeline.generate(
+                    input=samples,
+                    fs=rate,
+                    batch_size_s=30,
+                    disable_pbar=True,
+                    return_spk_res=True,
+                )
+            except RuntimeError as exc:
+                if device == "cuda" and "out of memory" in str(exc).lower():
+                    raise RuntimeError(
+                        "FunASR ran out of GPU memory. Set CATTY_FUNASR_DEVICE=cpu and retry."
+                    ) from exc
+                raise
+
+        segments = parse_sentences(
+            result,
+            start=start,
+            duration=min(duration, len(samples) / rate),
+        )
+        return TranscriptionResult(
+            backend="paraformer",
+            model=f"funasr-paraformer-campplus:{device}",
+            language=language,
+            segments=segments,
+        )

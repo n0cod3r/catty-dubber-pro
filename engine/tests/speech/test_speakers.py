@@ -1,8 +1,14 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from catty_engine.speakers.funasr import match_speakers, parse_sentences
+from catty_engine.speakers.funasr import (
+    _cpu_threads,
+    match_speakers,
+    parse_sentences,
+    resolve_device,
+)
 from catty_engine.speech.models import TranscriptSegment
 
 
@@ -25,6 +31,38 @@ def test_overlap_matching_sums_each_speaker_and_leaves_gaps_unassigned():
     result = match_speakers(segments, turns)
     assert [s.speaker for s in result] == ["S1", None]
     assert segments[0].speaker is None
+
+
+def test_auto_device_prefers_cuda_and_uses_cpu_without_it(monkeypatch):
+    monkeypatch.delenv("CATTY_FUNASR_DEVICE", raising=False)
+    cuda = SimpleNamespace(is_available=lambda: True)
+    backends = SimpleNamespace(mps=SimpleNamespace(is_available=lambda: True))
+    assert resolve_device(SimpleNamespace(cuda=cuda, backends=backends)) == "cuda"
+    cuda.is_available = lambda: False
+    assert resolve_device(SimpleNamespace(cuda=cuda, backends=backends)) == "cpu"
+
+
+def test_explicit_device_is_validated(monkeypatch):
+    cuda = SimpleNamespace(is_available=lambda: False)
+    backends = SimpleNamespace(mps=SimpleNamespace(is_available=lambda: False))
+    torch = SimpleNamespace(cuda=cuda, backends=backends)
+    monkeypatch.setenv("CATTY_FUNASR_DEVICE", "cuda")
+    with pytest.raises(RuntimeError, match="CUDA"):
+        resolve_device(torch)
+    monkeypatch.setenv("CATTY_FUNASR_DEVICE", "mps")
+    with pytest.raises(RuntimeError, match="MPS"):
+        resolve_device(torch)
+    monkeypatch.setenv("CATTY_FUNASR_DEVICE", "bad")
+    with pytest.raises(ValueError, match="auto, cpu, cuda, or mps"):
+        resolve_device(torch)
+
+
+def test_cpu_thread_override(monkeypatch):
+    monkeypatch.setenv("CATTY_FUNASR_CPU_THREADS", "6")
+    assert _cpu_threads() == 6
+    monkeypatch.setenv("CATTY_FUNASR_CPU_THREADS", "0")
+    with pytest.raises(ValueError, match="between 1 and 32"):
+        _cpu_threads()
 
 
 def test_pipeline_uses_prepared_audio_and_preserves_sense_backend(tmp_path: Path):

@@ -1,56 +1,47 @@
 # Smart Speaker Detection
 
-Transcribe remains one action. The Paraformer button now uses the reviewed local
-FunASR 1.4.16 pipeline: prepared 16 kHz mono audio → FSMN VAD → Paraformer-large →
-CT punctuation/sentence timing → CAM++ embeddings/native clustering → persistence.
-The native clustering merge threshold is 0.78, matching the approved benchmark.
-No fixed speaker count is supplied. CPU inference with two Torch threads is the
-portable baseline; macOS Apple Silicon was tested, Windows runtime is not yet tested.
+Transcribe remains one action. The default Paraformer path is Catty's Smart Chinese pipeline:
 
-SenseSmall retains its existing Sherpa ASR and Silero segmentation. It obtains
-speaker turns from the same FunASR pipeline and assigns each dialogue segment to
-the cluster with the greatest total timestamp overlap. This runs both recognition
-pipelines and costs more than Paraformer. Gaps remain unassigned. Selection timestamps
-are converted from range-relative milliseconds to source-relative seconds.
+`16 kHz mono analysis audio → FSMN-VAD → Paraformer-large → CT-Punc → CAM++ → speaker-aware dialogue → project.json`
 
-Python ProjectService creates EpisodeSpeaker records and DialogueSegment.speaker_id
-in one project.json save. Re-transcription replaces old dialogue/speakers and clears
-obsolete dub references. It resets the existing editor dialogue undo history.
-Speaker IDs are episode/run-local, with badges S1, S2, etc.; they are not stable
-character identities across episodes. Saved projects restore badges without inference.
-Zustand remains editor/session state and does not become a database.
+The native CAM++ clustering merge threshold is 0.78. Catty does not require a fixed speaker count. Speaker IDs are episode/run-local acoustic clusters (`S1`, `S2`, ...), not stable character identities or gender labels.
 
-Select a dialogue row to correct its speaker using the compact Speaker dropdown.
-Choose an existing speaker, Unassigned, or New speaker. The command validates episode
-ownership and expected speaker identity, updates both ownership directions, removes
-obsolete generated audio for the edited segment, and persists. The existing guarded
-snapshot history supports correction Undo/Redo, including newly created speakers.
-Split inherits speaker; a merge across different speakers becomes unassigned.
+## Runtime policy
 
-## Installation and models
+Catty is Windows-first for production while remaining fully developable on macOS Apple Silicon.
 
-Run `uv sync --directory engine` after updating dependencies and restart Catty to
-restart its persistent Python process. The engine still uses Python 3.13. First
-transcription downloads approximately 2.1 GB of model weights/configuration from
-public funasr Hugging Face repositories; subsequent runs use the local cache,
-including offline operation after the full download completes. No audio is uploaded.
-Pinned model revisions are in `engine/src/catty_engine/speakers/funasr.py`.
-Models load lazily; health, import and project open do not import Torch/FunASR.
-One pipeline instance is cached in the persistent process. Diagnostics use stderr,
-keeping stdout reserved for JSON IPC.
+- Windows + NVIDIA CUDA: automatically use CUDA when PyTorch reports it available.
+- Windows without CUDA: use CPU.
+- macOS Apple Silicon: automatic mode uses CPU for the full FunASR stack because this is the portable baseline. MPS can be explicitly tested with `CATTY_FUNASR_DEVICE=mps`.
+- `CATTY_FUNASR_DEVICE=cpu|cuda|mps|auto` overrides device selection. An unavailable explicitly requested accelerator fails clearly instead of silently changing behavior.
+- CPU inference uses half of logical cores, bounded to 2-8 threads. `CATTY_FUNASR_CPU_THREADS=1..32` overrides this.
+- CUDA out-of-memory errors recommend the explicit CPU fallback without modifying persisted dialogue.
 
-Model cache uses the existing CATTY_MODEL_DIR OS-specific root, under `funasr`.
-For an existing local model bundle, CATTY_FUNASR_MODEL_DIR may point to a directory
-containing paraformer-zh, fsmn-vad, ct-punc and campplus subdirectories. Such an
-explicit override is trusted operator configuration; use the pinned weights.
-Interrupted/incomplete model caches are checked and downloads retried on next use.
-A failed inference does not replace persisted dialogue. A successful empty/silent
-transcription replaces dialogue with an empty result.
+SenseSmall keeps its existing Sherpa ASR + Silero VAD path and uses the FunASR result only for speaker-turn matching. Paraformer uses the integrated FunASR pipeline directly, avoiding duplicate VAD/ASR work.
 
-CAM++ clusters are acoustic groups, not gender labels. They can combine different
-actors, especially brief or similar voices; the reviewed episode produced two
-clusters across multiple characters, which the operator accepted for this workflow.
-Automatic gender classification, Piseth/Sreymom voice mapping, translation and TTS
-are separate future work. The UI does not infer gender from S1/S2 or introduce an
-Assign Speakers workflow step. Reliable overlapping speech and per-character identity
-still require human review and broader benchmark annotation.
+## Persistence and editing
+
+Python `ProjectService` and `project.json` remain the source of truth. Successful transcription persists `EpisodeSpeaker` records, `DialogueSegment.speaker_id`, and speaker `segment_ids` together. A failed transcription does not replace saved dialogue. A successful silent transcription may replace dialogue with an empty result.
+
+The editor shows compact speaker badges. Selecting a dialogue allows correction to an existing speaker, Unassigned, or New speaker. Corrections persist through the Python domain and participate in the existing guarded dialogue Undo/Redo history. Split inherits the speaker; merging different speakers becomes unassigned.
+
+There is no required Assign Speakers workflow step. User flow remains:
+
+`Import → Transcribe → review/correct only if needed → Translate → Generate Dubbing → Export`
+
+## Models and cache
+
+Pinned revisions live in `engine/src/catty_engine/speakers/funasr.py` for:
+
+- `funasr/paraformer-zh`
+- `funasr/fsmn-vad`
+- `funasr/ct-punc`
+- `funasr/campplus`
+
+Models use the existing OS-specific `CATTY_MODEL_DIR` root under `funasr`. `CATTY_FUNASR_MODEL_DIR` can point to a preinstalled bundle containing `paraformer-zh`, `fsmn-vad`, `ct-punc`, and `campplus` subdirectories. The override is validated before inference. Normal downloads first reuse a complete local Hugging Face cache and only access the network when required files are missing. Download failures produce a retryable error; incomplete model sets are never loaded.
+
+Models load lazily so health, project open and media import do not import Torch/FunASR. The persistent Python process caches loaded pipelines. Diagnostics are redirected to stderr because stdout is reserved for JSON IPC.
+
+## Known limits
+
+CAM++ clusters speakers acoustically. Brief, similar, noisy or overlapping voices can be merged or misassigned. Manual correction is intentionally the fallback. Word-timestamp splitting, cross-episode character identity, gender classification, translation and TTS are separate work and are not inferred from `S1/S2` labels.
