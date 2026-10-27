@@ -1,5 +1,3 @@
-"""Versioned JSON protocol for the Catty desktop engine."""
-
 from __future__ import annotations
 
 import json
@@ -42,6 +40,7 @@ class Request(BaseModel):
         "audio.prepare",
         "project.create",
         "project.open",
+        "project.prepare_episode",
         "project.import_episode",
         "speech.transcribe",
     ]
@@ -62,6 +61,12 @@ class ProjectCreateParams(BaseModel):
 class ProjectOpenParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
+
+
+class ProjectPrepareEpisodeParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project_directory: Path
+    episode_id: UUID
 
 
 class ProjectImportEpisodeParams(BaseModel):
@@ -105,6 +110,7 @@ def _hello() -> dict[str, Any]:
             "audio.prepare",
             "project.create",
             "project.open",
+            "project.prepare_episode",
             "project.import_episode",
             "speech.transcribe",
             "asr.paraformer",
@@ -145,31 +151,28 @@ def handle_request(payload: Any) -> dict[str, Any]:
             if (create_params.project_directory / "project.json").exists():
                 raise ValueError("A Catty project already exists in this folder")
             result = ProjectService().create_project(
-                create_params.project_directory,
-                create_params.name,
+                create_params.project_directory, create_params.name
             ).model_dump(mode="json")
         elif request.method == "project.open":
             open_params = ProjectOpenParams.model_validate(request.params)
+            result = ProjectService().open_project(open_params.project_directory).model_dump(
+                mode="json"
+            )
+        elif request.method == "project.prepare_episode":
+            prepare_params = ProjectPrepareEpisodeParams.model_validate(request.params)
             service = ProjectService()
-            project = service.open_project(open_params.project_directory)
-            # Older projects predate playback proxies. Build the active/first episode
-            # proxy during open so reopening a project never silently falls back to
-            # the heavy original video forever.
-            if project.episodes:
-                first = project.episodes[0]
-                proxy = Path(first.playback_proxy_path).expanduser() if first.playback_proxy_path else None
-                if proxy is None or not proxy.is_file() or proxy.stat().st_size == 0:
-                    service.prepare_episode_proxy(
-                        open_params.project_directory,
-                        project,
-                        first.id,
-                    )
-            result = project.model_dump(mode="json")
+            project = service.open_project(prepare_params.project_directory)
+            episode = service.prepare_episode_audio(
+                prepare_params.project_directory, project, prepare_params.episode_id
+            )
+            episode = service.prepare_episode_proxy(
+                prepare_params.project_directory, project, episode.id
+            )
+            result = episode.model_dump(mode="json")
         elif request.method == "project.import_episode":
             import_params = ProjectImportEpisodeParams.model_validate(request.params)
             service, project = _open_or_create_project(
-                import_params.project_directory,
-                import_params.project_name,
+                import_params.project_directory, import_params.project_name
             )
             episode = service.import_episode(
                 directory=import_params.project_directory,
@@ -182,16 +185,11 @@ def handle_request(payload: Any) -> dict[str, Any]:
             audio_params = AudioPrepareParams.model_validate(request.params)
 
             def cancelled() -> bool:
-                return (
-                    audio_params.cancel_file is not None
-                    and audio_params.cancel_file.exists()
-                )
+                return audio_params.cancel_file is not None and audio_params.cancel_file.exists()
 
             if cancelled():
                 raise AudioPreparationCancelled("Audio preparation cancelled")
-            asset = AudioPreparationService(
-                runner=FFmpegRunner(cancelled=cancelled)
-            ).prepare_speech_audio(
+            asset = AudioPreparationService(runner=FFmpegRunner(cancelled=cancelled)).prepare_speech_audio(
                 project_directory=audio_params.project_directory,
                 episode_id=audio_params.episode_id,
                 source=audio_params.source,
@@ -200,15 +198,9 @@ def handle_request(payload: Any) -> dict[str, Any]:
             result = asset.model_dump(mode="json")
         elif request.method == "speech.transcribe":
             speech_params = SpeechTranscribeParams.model_validate(request.params)
-            registry = create_asr_registry(
-                speech_params.asr_backend,
-                speech_params.asr_config,
-            )
+            registry = create_asr_registry(speech_params.asr_backend, speech_params.asr_config)
             vad = create_vad(speech_params.vad_backend, speech_params.vad_config)
-            transcription = TranscriptionService(
-                asr_backends=registry,
-                vad=vad,
-            ).transcribe(
+            transcription = TranscriptionService(asr_backends=registry, vad=vad).transcribe(
                 project_directory=speech_params.project_directory,
                 episode_id=speech_params.episode_id,
                 source=speech_params.source,
@@ -257,10 +249,7 @@ def run_rpc() -> None:
         response = {
             "version": PROTOCOL_VERSION,
             "id": None,
-            "error": {
-                "code": "INVALID_JSON",
-                "message": "Expected a JSON request on stdin.",
-            },
+            "error": {"code": "INVALID_JSON", "message": "Expected a JSON request on stdin."},
         }
     _write_response(response)
 

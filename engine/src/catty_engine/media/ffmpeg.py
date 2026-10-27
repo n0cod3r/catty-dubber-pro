@@ -64,14 +64,34 @@ class FFmpegRunner:
         if self._cancelled():
             raise AudioPreparationCancelled("Audio preparation cancelled")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(prefix=".speech-", suffix=".wav", dir=destination.parent, delete=False) as staged:
+        with tempfile.NamedTemporaryFile(
+            prefix=".speech-", suffix=".wav", dir=destination.parent, delete=False
+        ) as staged:
             temporary = Path(staged.name)
         try:
-            self._run([
-                self._executable, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-                "-i", str(source), "-vn", "-map", "0:a:0", "-ac", str(channels),
-                "-ar", str(sample_rate), "-c:a", "pcm_s16le", str(temporary),
-            ], operation="Audio preparation")
+            self._run(
+                [
+                    self._executable,
+                    "-nostdin",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-i",
+                    str(source),
+                    "-vn",
+                    "-map",
+                    "0:a:0",
+                    "-ac",
+                    str(channels),
+                    "-ar",
+                    str(sample_rate),
+                    "-c:a",
+                    "pcm_s16le",
+                    str(temporary),
+                ],
+                operation="Audio preparation",
+            )
             if temporary.stat().st_size == 0:
                 raise FFmpegError("FFmpeg created an empty audio file")
             temporary.replace(destination)
@@ -86,20 +106,58 @@ class FFmpegRunner:
         if not source.is_file():
             raise FFmpegError(f"Media source is not a file: {source}")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(prefix=".proxy-", suffix=".mp4", dir=destination.parent, delete=False) as staged:
+        with tempfile.NamedTemporaryFile(
+            prefix=".proxy-", suffix=".mp4", dir=destination.parent, delete=False
+        ) as staged:
             temporary = Path(staged.name)
         try:
-            # 720p H.264 with frequent keyframes is intentionally optimized for smooth
-            # editor scrubbing rather than archival quality. Audio is omitted because
-            # Catty's timeline owns audio playback separately.
-            self._run([
-                self._executable, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-                "-i", str(source), "-map", "0:v:0", "-an",
-                "-vf", "scale='min(1280,iw)':-2",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
-                "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30", "-sc_threshold", "0",
-                "-movflags", "+faststart", str(temporary),
-            ], operation="Playback proxy generation")
+            # Preview proxy owns both picture and monitoring audio. Keeping them in
+            # one media element avoids drift caused by separately clocked video/audio
+            # elements while editing. Original media remains untouched for export.
+            self._run(
+                [
+                    self._executable,
+                    "-nostdin",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-i",
+                    str(source),
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "0:a:0?",
+                    "-vf",
+                    "scale='min(1280,iw)':-2",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-crf",
+                    "24",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-g",
+                    "30",
+                    "-keyint_min",
+                    "30",
+                    "-sc_threshold",
+                    "0",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "128k",
+                    "-ar",
+                    "48000",
+                    "-ac",
+                    "2",
+                    "-movflags",
+                    "+faststart",
+                    str(temporary),
+                ],
+                operation="Playback proxy generation",
+            )
             if temporary.stat().st_size == 0:
                 raise FFmpegError("FFmpeg created an empty playback proxy")
             temporary.replace(destination)
