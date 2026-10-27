@@ -253,7 +253,10 @@ def match_speakers(
             candidate = max(overlaps, key=lambda key: overlaps[key])
             best = overlaps[candidate]
             duration = max(0.001, segment.end - segment.start)
-            required = min(duration, max(MIN_SPEAKER_OVERLAP_SECONDS, MIN_SPEAKER_COVERAGE * duration))
+            required = min(
+                duration,
+                max(MIN_SPEAKER_OVERLAP_SECONDS, MIN_SPEAKER_COVERAGE * duration),
+            )
             if best >= required:
                 label = candidate
         matched.append(segment.model_copy(update={"speaker": label}))
@@ -276,6 +279,7 @@ class FunASRParaformerBackend:
 
     id = "paraformer"
     model = "funasr-paraformer-ct-punc-campplus"
+    integrated_speakers = True
 
     def __init__(self) -> None:
         self.speaker_error: str | None = None
@@ -318,9 +322,6 @@ class FunASRParaformerBackend:
                 self.speaker_error = None
                 return segments
             except Exception as exc:
-                # CAM++/speaker post-processing is optional metadata. Retry with
-                # the same large Paraformer + FSMN-VAD + CT-Punc stack but no
-                # speaker model so recognized dialogue is still returned.
                 self.speaker_error = str(exc)
                 fallback = _load_asr_fallback(model_paths, device, ncpu)
                 result = fallback.generate(
