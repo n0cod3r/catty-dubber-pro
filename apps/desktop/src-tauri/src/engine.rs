@@ -16,7 +16,7 @@ fn request_with_control(method: &str, params: Value, control: Option<(&AtomicBoo
     if control.is_some_and(|(cancelled, _)| cancelled.load(Ordering::Relaxed)) { return Err(EngineError::new("CANCELLED", "Engine request cancelled")); }
     let id = format!("{}-{}", std::process::id(), REQUEST_ID.fetch_add(1, Ordering::Relaxed));
     let payload = json!({"version": 1, "id": id, "method": method, "params": params});
-    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode" | "project.prepare_episode") { Duration::from_secs(3605) } else { Duration::from_secs(35) };
+    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode" | "project.prepare_episode" | "project.rebuild_proxy") { Duration::from_secs(3605) } else { Duration::from_secs(35) };
     let (cancelled, cancel_file) = control.map(|(flag, path)| (Some(flag), Some(path))).unwrap_or((None, None));
     let response = persistent_engine::request(&payload, cancelled, if method == "audio.prepare" { cancel_file } else { None }, timeout).map_err(|message| match message.as_str() { "CANCELLED" => EngineError::new("CANCELLED", "Engine request cancelled"), "ENGINE_TIMEOUT" => EngineError::new("ENGINE_TIMEOUT", "The engine request timed out"), _ if message.contains("not installed") => EngineError::new("ENGINE_NOT_INSTALLED", message), _ => EngineError::new("ENGINE_IO_ERROR", message) })?;
     if response.get("version") != Some(&json!(1)) || response.get("id") != Some(&json!(id)) { return Err(EngineError::new("ENGINE_PROTOCOL_ERROR", "Engine response version or request ID does not match")); }
@@ -38,7 +38,7 @@ fn validate_job_id(id: &str) -> Result<(), EngineError> { if id.len() != 36 || !
 
 #[tauri::command]
 pub async fn engine_request(method: String, params: Value, jobs: tauri::State<'_, EngineJobs>) -> Result<Value, EngineError> {
-    if !matches!(method.as_str(), "health" | "system.hello" | "media.probe" | "project.create" | "project.open" | "project.prepare_episode" | "project.import_episode" | "speech.transcribe") { return Err(EngineError::new("UNKNOWN_METHOD", "This engine operation is not available")); }
+    if !matches!(method.as_str(), "health" | "system.hello" | "media.probe" | "project.create" | "project.open" | "project.prepare_episode" | "project.rebuild_proxy" | "project.import_episode" | "speech.transcribe") { return Err(EngineError::new("UNKNOWN_METHOD", "This engine operation is not available")); }
     let id = format!("rpc-{}", REQUEST_ID.fetch_add(1, Ordering::Relaxed)); let cancelled = Arc::new(AtomicBool::new(false)); jobs.register(&id, cancelled.clone())?;
     let result = tauri::async_runtime::spawn_blocking(move || request_with_control(&method, params, Some((&cancelled, &std::env::temp_dir().join("catty-unused-cancel"))))).await;
     if let Ok(mut active) = jobs.0.lock() { active.remove(&id); }
