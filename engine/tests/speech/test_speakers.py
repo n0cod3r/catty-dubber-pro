@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -9,7 +10,7 @@ from catty_engine.speakers.funasr import (
     parse_sentences,
     resolve_device,
 )
-from catty_engine.speech.models import TranscriptSegment
+from catty_engine.speech.models import TranscriptSegment, TranscriptionResult
 
 
 def test_fun_asr_offsets_clamps_and_normalizes_cluster_labels():
@@ -17,8 +18,8 @@ def test_fun_asr_offsets_clamps_and_normalizes_cluster_labels():
         [
             {
                 "sentence_info": [
-                    {"start": 100, "end": 1400, "spk": 7, "text": "你好"},
-                    {"start": 1400, "end": 4000, "spk": 2, "text": "世界"},
+                    {"start": 100, "end": 1400, "spk": 7, "text": "你好。"},
+                    {"start": 1400, "end": 4000, "spk": 2, "text": "世界！"},
                 ]
             }
         ],
@@ -29,29 +30,59 @@ def test_fun_asr_offsets_clamps_and_normalizes_cluster_labels():
         (12.1, 13.4, "S1"),
         (13.4, 15, "S2"),
     ]
+    assert [s.text for s in result] == ["你好。", "世界！"]
 
 
-def test_missing_speaker_output_fails_instead_of_saving_unassigned_dialogue():
-    with pytest.raises(ValueError, match="speaker labels"):
-        parse_sentences(
-            [{"sentence_info": [{"start": 0, "end": 1000, "text": "你好"}]}],
-            start=0,
-            duration=1,
-        )
+def test_missing_speaker_output_keeps_canonical_dialogue_unassigned():
+    result = parse_sentences(
+        [{"sentence_info": [{"start": 0, "end": 1000, "text": "你好。"}]}],
+        start=0,
+        duration=1,
+    )
+    assert len(result) == 1
+    assert result[0].text == "你好。"
+    assert result[0].speaker is None
 
 
-def test_overlap_matching_sums_each_speaker_and_leaves_gaps_unassigned():
+def test_punctuation_only_sentence_is_discarded():
+    result = parse_sentences(
+        [
+            {
+                "sentence_info": [
+                    {"start": 0, "end": 100, "spk": 0, "text": "，"},
+                    {"start": 100, "end": 900, "spk": 0, "text": "你好。"},
+                ]
+            }
+        ],
+        start=0,
+        duration=1,
+    )
+    assert [(s.start, s.end, s.text) for s in result] == [(0.1, 0.9, "你好。")]
+
+
+def test_sentence_text_list_is_normalized():
+    result = parse_sentences(
+        [{"sentence_info": [{"start": 0, "end": 1000, "spk": 0, "text": ["你", "好", "。"]}]}],
+        start=0,
+        duration=1,
+    )
+    assert result[0].text == "你好。"
+
+
+def test_overlap_matching_requires_meaningful_coverage():
     segments = [
         TranscriptSegment(start=0, end=4, text="你好"),
         TranscriptSegment(start=8, end=9, text="世界"),
+        TranscriptSegment(start=10, end=16, text="很长"),
     ]
     turns = [
-        TranscriptSegment(start=a, end=b, text="x", speaker=s)
-        for a, b, s in [(0, 1, "S1"), (1, 2.5, "S2"), (2.5, 4, "S1")]
+        TranscriptSegment(start=0, end=2.2, text="x", speaker="S1"),
+        TranscriptSegment(start=8.0, end=8.01, text="x", speaker="S2"),
+        TranscriptSegment(start=10.0, end=12.0, text="x", speaker="S3"),
     ]
     result = match_speakers(segments, turns)
-    assert [s.speaker for s in result] == ["S1", None]
-    assert [s.text for s in result] == ["你好", "世界"]
+    assert [s.speaker for s in result] == ["S1", None, None]
+    assert [s.text for s in result] == ["你好", "世界", "很长"]
     assert segments[0].speaker is None
 
 
@@ -87,65 +118,82 @@ def test_cpu_thread_override(monkeypatch):
         _cpu_threads()
 
 
-def test_pipeline_keeps_asr_canonical_and_uses_fun_asr_only_for_speakers(
-    tmp_path: Path,
-):
+def test_speaker_pipeline_exception_keeps_asr_dialogue(tmp_path: Path):
     from test_transcription import FakeAsr, PreparedAudio
-    from catty_engine.speech import (
-        AsrBackendRegistry,
-        TranscriptionService,
-        WholeClipVad,
+    from catty_engine.speech import AsrBackendRegistry, TranscriptionService, WholeClipVad
+
+    class RaisingSpeakers:
+        def transcribe(self, audio, *, start, duration, language):
+            raise RuntimeError("CAM++ failed")
+
+    registry = AsrBackendRegistry()
+    registry.register(FakeAsr())
+    service = TranscriptionService(
+        asr_backends=registry,
+        vad=WholeClipVad(),
+        audio_preparation=PreparedAudio(),
+        speaker_pipeline=RaisingSpeakers(),
     )
-    from catty_engine.speech.models import TranscriptionResult
-    from uuid import uuid4
+    result = service.transcribe(
+        project_directory=tmp_path,
+        episode_id=uuid4(),
+        source="video.mp4",
+        backend_id="paraformer",
+        language="zh",
+        source_start=2,
+        duration=8,
+    )
+    assert [segment.text for segment in result.segments] == ["你好"]
+    assert result.segments[0].speaker is None
+    assert result.speaker_error == "CAM++ failed"
+
+
+def test_partial_speaker_coverage_never_deletes_asr_dialogue(tmp_path: Path):
+    from test_transcription import FakeAsr, PreparedAudio
+    from catty_engine.speech import AsrBackendRegistry, SpeechRegion, TranscriptionService
+
+    class TwoRegionsVad:
+        id = "test"
+
+        def detect(self, audio, *, start=0, duration=None):
+            return [
+                SpeechRegion(start=start, end=start + 2),
+                SpeechRegion(start=start + 6, end=start + 8),
+            ]
 
     class Speakers:
         def transcribe(self, audio, *, start, duration, language):
-            assert audio.name == "speech.wav"
-            # Deliberately cover only the first half. ASR dialogue outside this
-            # range must survive and remain unassigned rather than disappearing.
             return TranscriptionResult(
-                backend="paraformer",
-                model="funasr-speakers",
+                backend="speaker",
+                model="campplus",
                 language=language,
                 segments=[
                     TranscriptSegment(
                         start=start,
-                        end=start + duration / 2,
-                        text="speaker turn",
+                        end=start + 2,
+                        text="turn",
                         speaker="S1",
                     )
                 ],
             )
 
-    class Sense(FakeAsr):
-        id = "sense-small"
-
     registry = AsrBackendRegistry()
     registry.register(FakeAsr())
-    registry.register(Sense())
     service = TranscriptionService(
         asr_backends=registry,
-        vad=WholeClipVad(),
+        vad=TwoRegionsVad(),
         audio_preparation=PreparedAudio(),
         speaker_pipeline=Speakers(),
     )
-    params = dict(
+    result = service.transcribe(
         project_directory=tmp_path,
         episode_id=uuid4(),
         source="video.mp4",
+        backend_id="paraformer",
         language="zh",
         source_start=2,
         duration=8,
     )
-
-    paraformer = service.transcribe(**params, backend_id="paraformer")
-    assert paraformer.backend == "paraformer"
-    assert [segment.text for segment in paraformer.segments] == ["你好", "你好"]
-    assert [segment.speaker for segment in paraformer.segments] == ["S1", None]
-    assert paraformer.segments[-1].end == 10
-
-    sense = service.transcribe(**params, backend_id="sense-small")
-    assert sense.backend == "sense-small"
-    assert [segment.text for segment in sense.segments] == ["你好", "你好"]
-    assert [segment.speaker for segment in sense.segments] == ["S1", None]
+    assert [segment.text for segment in result.segments] == ["你好", "你好"]
+    assert [segment.speaker for segment in result.segments] == ["S1", None]
+    assert result.segments[-1].end == 10
