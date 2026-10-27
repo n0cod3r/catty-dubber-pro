@@ -8,7 +8,9 @@ export function useClipMediaSync(
   playing: boolean,
   clipId: string | undefined,
   onError: (message: string) => void,
+  seekRevision = 0,
 ) {
+  const seekRef = useRef(-1);
   const pendingRef = useRef(false);
   const clipRef = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -25,11 +27,17 @@ export function useClipMediaSync(
         Number.isFinite(media.duration) ? Math.max(0, media.duration - 0.001) : 0,
       );
       if (
-        clipRef.current !== clipId ||
-        Math.abs(media.currentTime - time) > (playing ? 0.18 : 0.001)
+        !media.seeking &&
+        (seekRef.current !== seekRevision ||
+          clipRef.current !== clipId ||
+          Math.abs(media.currentTime - time) > (playing ? 0.5 : 0.001))
       )
         media.currentTime = time;
-      clipRef.current = clipId;
+      if (!media.seeking || Math.abs(media.currentTime - time) < 0.05) {
+        clipRef.current = clipId;
+        seekRef.current = seekRevision;
+      }
+      if (media.ended && time >= media.duration - 0.05) return;
       if (!playing) media.pause();
       else if (media.paused && !pendingRef.current) {
         pendingRef.current = true;
@@ -47,7 +55,7 @@ export function useClipMediaSync(
     synchronize();
     media.addEventListener("loadeddata", synchronize);
     return () => media.removeEventListener("loadeddata", synchronize);
-  }, [clipId, onError, playing, ref, sourceTime]);
+  }, [clipId, onError, playing, ref, sourceTime, seekRevision]);
   useEffect(() => {
     const media = ref.current;
     return () => {

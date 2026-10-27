@@ -71,6 +71,8 @@ function WorkspaceContent({
           duration={duration}
           playing={playback.playing}
           onPlayingChange={playback.setPlaying}
+          onMediaClock={playback.setMediaClock}
+          seekRevision={playback.seekRevision}
           onSeek={playback.seek}
           muted={muted}
           onMuteChange={setMuted}

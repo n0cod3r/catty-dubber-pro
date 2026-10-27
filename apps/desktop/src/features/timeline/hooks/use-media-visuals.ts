@@ -13,7 +13,7 @@ export function useMediaVisuals(episode: EpisodeMedia | null) {
   const [revision, setRevision] = useState(0);
   const [videoError, setVideoError] = useState<string | null>(null);
   const duration = episode?.durationSeconds ?? 0;
-  const path = episode?.path;
+  const path = episode?.playbackPath || episode?.path;
 
   useEffect(() => {
     if (!path || duration <= 0) return;

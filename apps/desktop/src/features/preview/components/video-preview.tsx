@@ -32,6 +32,8 @@ type VideoPreviewProps = {
   playing: boolean;
   onPlayingChange: (value: boolean) => void;
   onSeek: (time: number) => void;
+  seekRevision: number;
+  onMediaClock: (clock: (() => number | null) | null) => void;
   onMetadata: (metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => void;
   muted: boolean;
   onMuteChange: (muted: boolean) => void;
@@ -46,6 +48,8 @@ export function VideoPreview({
   playing,
   onPlayingChange,
   onSeek,
+  onMediaClock,
+  seekRevision,
   onMetadata,
   muted,
   onMuteChange,
@@ -64,6 +68,17 @@ export function VideoPreview({
   const ready = duration > 0 && !mediaError;
   const activeVideo = activeVideoAt(document, currentTime, episode ? [episode] : []);
   const pictureVisible = activeVideo !== null;
+  const activeClip = activeVideo?.clip;
+  useEffect(() => {
+    onMediaClock(() => {
+      const video = videoRef.current;
+      if (!activeClip || !video || video.ended) return null;
+      // Keep the clock still while the native element buffers or seeks.
+      return activeClip.start + Math.max(0, video.currentTime - activeClip.sourceStart);
+    });
+    return () => onMediaClock(null);
+  }, [activeClip, onMediaClock]);
+
   const frameSource = activeVideo?.source ?? episode;
   const reportPlaybackError = useCallback(
     (message: string) => {
@@ -78,6 +93,7 @@ export function VideoPreview({
     playing,
     activeVideo?.clip.id,
     reportPlaybackError,
+    seekRevision,
   );
   const togglePlayback = useCallback(() => {
     if (!ready) return;
