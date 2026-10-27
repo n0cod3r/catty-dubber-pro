@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AppSettings, ComputeDevice, SettingsSnapshot, TranslationModel, TranslationProviderId, TranslationStyle } from "@catty/contracts";
-import { AudioLines, Bot, Database, Gauge, HardDrive, Info, Keyboard, Languages, Loader2, Search, Settings2, X } from "lucide-react";
+import { AlertCircle, AudioLines, Bot, Database, Gauge, HardDrive, Info, Keyboard, Languages, Loader2, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requestEngine } from "@/features/engine/services/client";
@@ -27,7 +27,36 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
   const [models, setModels] = useState<TranslationModel[]>([]);
   const [busy, setBusy] = useState<"load" | "save" | "models" | "test" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  useEffect(() => { if (!open) return; setBusy("load"); setMessage(null); setCredential(""); setRemoveCredential(false); setModels([]); void requestEngine("settings.get", {}).then((v) => { setSnapshot(v); setDraft(structuredClone(v.settings)); }).catch((e: Error) => setMessage(e.message)).finally(() => setBusy(null)); }, [open]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadRevision, setLoadRevision] = useState(0);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setBusy("load");
+    setLoadError(null);
+    setMessage(null);
+    setCredential("");
+    setRemoveCredential(false);
+    setModels([]);
+    void requestEngine("settings.get", {})
+      .then((value) => {
+        if (cancelled) return;
+        setSnapshot(value);
+        setDraft(structuredClone(value.settings));
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setDraft(null);
+        setSnapshot(null);
+        setLoadError(error instanceof Error ? error.message : "Could not load settings.");
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(null);
+      });
+    return () => { cancelled = true; };
+  }, [open, loadRevision]);
+
   const filtered = useMemo(() => { const q=query.trim().toLowerCase(); return q?pages.filter(([,l,h])=>`${l} ${h}`.toLowerCase().includes(q)):pages; },[query]);
   if (!open) return null;
   const selected=pages.find(([id])=>id===page)??pages[0]; const provider=draft?.translation.provider??"local"; const configured=snapshot?.credentials[provider]??false;
@@ -36,7 +65,7 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
   async function save(){if(!draft)return;setBusy("save");setMessage(null);const credentials:Partial<Record<TranslationProviderId,string|null>>={};if(provider!=="local"){if(removeCredential)credentials[provider]=null;else if(credential.trim())credentials[provider]=credential.trim();}try{const v=await requestEngine("settings.update",{settings:draft,credentials});setSnapshot(v);setDraft(structuredClone(v.settings));setCredential("");setRemoveCredential(false);onOpenChange(false);}catch(e){setMessage(e instanceof Error?e.message:"Could not save settings.");}finally{setBusy(null);}}
   return <div className="fixed inset-0 z-[100] grid place-items-center bg-black/45 p-4 backdrop-blur-[2px]" onMouseDown={()=>onOpenChange(false)}><section role="dialog" aria-modal="true" aria-label="Catty Settings" onMouseDown={(e)=>e.stopPropagation()} className="flex h-[min(720px,90vh)] w-[min(940px,94vw)] min-h-[520px] overflow-hidden rounded-xl border bg-background shadow-2xl">
     <aside className="flex w-56 shrink-0 flex-col border-r bg-muted/20"><div className="flex h-12 items-center gap-2 border-b px-3"><div className="grid size-7 place-items-center rounded-md bg-primary/15 text-primary"><Settings2 className="size-4"/></div><div><p className="text-xs font-semibold">ការកំណត់</p><p className="text-[9px] text-muted-foreground">Catty Dubber Pro</p></div></div><div className="p-2"><div className="relative"><Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"/><Input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="ស្វែងរក..." className="h-8 pl-7 text-xs"/></div></div><nav className="min-h-0 flex-1 overflow-auto px-2">{filtered.map(([id,label,hint,Icon])=><button key={id} onClick={()=>setPage(id)} className={`mb-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${page===id?"bg-primary/12 text-primary":"text-muted-foreground hover:bg-muted"}`}><Icon className="size-3.5"/><span><span className="block text-[11px] font-medium text-foreground">{label}</span><span className="block text-[9px]">{hint}</span></span></button>)}</nav><div className="border-t px-3 py-2 text-[9px] text-muted-foreground">Khmer-first · Local-first</div></aside>
-    <div className="flex min-w-0 flex-1 flex-col"><header className="flex h-12 items-center border-b px-4"><div><h2 className="text-sm font-semibold">{selected[1]}</h2><p className="text-[10px] text-muted-foreground">{selected[2]}</p></div><Button variant="ghost" size="icon-xs" className="ml-auto" onClick={()=>onOpenChange(false)}><X/></Button></header><main className="min-h-0 flex-1 overflow-auto p-4">{busy==="load"||!draft?<div className="grid h-full place-items-center"><Loader2 className="size-4 animate-spin"/></div>:page==="translation"?<TranslationPage draft={draft} setDraft={setDraft} credential={credential} setCredential={setCredential} configured={configured} removeCredential={removeCredential} setRemoveCredential={setRemoveCredential} models={models} busy={busy} refreshModels={refreshModels} testConnection={testConnection}/>:page==="performance"?<PerformancePage draft={draft} setDraft={setDraft}/>:page==="general"?<GeneralPage draft={draft} setDraft={setDraft}/>:<StaticPage page={page}/>}</main><footer className="flex min-h-12 items-center gap-2 border-t px-4"><p className="mr-auto max-w-[55%] truncate text-[9px] text-muted-foreground">{message??"Application-level settings"}</p><Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={()=>onOpenChange(false)}>Cancel</Button><Button size="sm" className="h-7 text-[11px]" disabled={!draft||busy!==null} onClick={()=>void save()}>{busy==="save"&&<Loader2 className="animate-spin"/>}Save Changes</Button></footer></div>
+    <div className="flex min-w-0 flex-1 flex-col"><header className="flex h-12 items-center border-b px-4"><div><h2 className="text-sm font-semibold">{selected[1]}</h2><p className="text-[10px] text-muted-foreground">{selected[2]}</p></div><Button variant="ghost" size="icon-xs" className="ml-auto" onClick={()=>onOpenChange(false)}><X/></Button></header><main className="min-h-0 flex-1 overflow-auto p-4">{busy==="load"?<div className="grid h-full place-items-center"><div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin"/>កំពុងផ្ទុកការកំណត់…</div></div>:loadError?<div className="grid h-full place-items-center"><div role="alert" className="max-w-md rounded-lg border border-destructive/30 bg-destructive/5 p-4"><div className="flex items-start gap-2"><AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive"/><div><p className="text-xs font-medium">មិនអាចផ្ទុកការកំណត់បាន</p><p className="mt-1 break-words text-[10px] text-muted-foreground">{loadError}</p><Button variant="outline" size="sm" className="mt-3 h-7 text-[10px]" onClick={()=>setLoadRevision((value)=>value+1)}>ព្យាយាមម្ដងទៀត</Button></div></div></div></div>:draft?(page==="translation"?<TranslationPage draft={draft} setDraft={setDraft} credential={credential} setCredential={setCredential} configured={configured} removeCredential={removeCredential} setRemoveCredential={setRemoveCredential} models={models} busy={busy} refreshModels={refreshModels} testConnection={testConnection}/>:page==="performance"?<PerformancePage draft={draft} setDraft={setDraft}/>:page==="general"?<GeneralPage draft={draft} setDraft={setDraft}/>:<StaticPage page={page}/>):null}</main><footer className="flex min-h-12 items-center gap-2 border-t px-4"><p className="mr-auto max-w-[55%] truncate text-[9px] text-muted-foreground">{message??(loadError?"Settings failed to load":"Application-level settings")}</p><Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={()=>onOpenChange(false)}>Cancel</Button><Button size="sm" className="h-7 text-[11px]" disabled={!draft||busy!==null||loadError!==null} onClick={()=>void save()}>{busy==="save"&&<Loader2 className="animate-spin"/>}Save Changes</Button></footer></div>
   </section></div>;
 }
 
@@ -49,6 +78,6 @@ function TranslationPage({draft,setDraft,credential,setCredential,configured,rem
 function GeneralPage({draft,setDraft}:{draft:AppSettings;setDraft:(v:AppSettings)=>void}){return <div className="mx-auto max-w-2xl"><Section title="General" description="Application defaults."><Field label="Language"><select value={draft.general.language} onChange={(e)=>setDraft({...draft,general:{...draft.general,language:e.target.value}})} className="h-8 w-full rounded-md border bg-background px-2 text-xs"><option value="km">ខ្មែរ</option><option value="en">English</option></select></Field><Check label="Follow playhead" checked={draft.general.follow_playhead} onChange={(v)=>setDraft({...draft,general:{...draft.general,follow_playhead:v}})}/></Section></div>}
 function PerformancePage({draft,setDraft}:{draft:AppSettings;setDraft:(v:AppSettings)=>void}){return <div className="mx-auto max-w-2xl"><Section title="Compute device" description="Auto remains the safe default."><Field label="Device"><select value={draft.performance.device} onChange={(e)=>setDraft({...draft,performance:{...draft.performance,device:e.target.value as ComputeDevice}})} className="h-8 w-full rounded-md border bg-background px-2 text-xs"><option value="auto">Auto (recommended)</option><option value="cpu">CPU</option><option value="cuda">CUDA</option><option value="mps">MPS</option></select></Field><Field label="CPU threads"><Input type="number" min={1} max={32} value={draft.performance.cpu_threads??""} onChange={(e)=>setDraft({...draft,performance:{...draft.performance,cpu_threads:e.target.value?Number(e.target.value):null}})} className="h-8 text-xs" placeholder="Auto"/></Field></Section></div>}
 function StaticPage({page}:{page:PageId}){const text:Record<string,string>={models:"Real model-manager state only; no fake installed state.",tts:"Edge TTS and future TTS configuration.",clone:"VoxCPM2 configuration uses this settings foundation.",storage:"Storage overrides persist without moving files automatically.",shortcuts:"Editor shortcuts remain unchanged.",about:"Catty Dubber Pro · local-first dubbing studio."};return <div className="mx-auto max-w-2xl"><Section title={pages.find(([id])=>id===page)?.[1]??"Settings"} description={text[page]??"Configuration"}><div className="rounded-md border border-dashed p-4 text-[10px] text-muted-foreground">{text[page]}</div></Section></div>}
-function Section({title,description,children}:{title:string;description:string;children:React.ReactNode}){return <section className="rounded-lg border bg-card/30 p-3"><h3 className="text-xs font-semibold">{title}</h3><p className="mb-3 mt-0.5 text-[9px] text-muted-foreground">{description}</p><div className="space-y-3">{children}</div></section>}
-function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="block"><span className="mb-1 block text-[10px] font-medium">{label}</span>{children}</label>}
-function Check({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}){return <label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={checked} onChange={(e)=>onChange(e.target.checked)} className="accent-primary"/>{label}</label>}
+function Section({title,description,children}:{title:string;description:string;children:ReactNode}){return <section className="rounded-lg border bg-card/30 p-3"><h3 className="text-xs font-semibold">{title}</h3><p className="mb-3 mt-0.5 text-[9px] text-muted-foreground">{description}</p><div className="space-y-3">{children}</div></section>}
+function Field({label,children}:{label:string;children:ReactNode}){return <label className="block"><span className="mb-1 block text-[10px] font-medium">{label}</span>{children}</label>}
+function Check({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}){return <label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={checked} onChange={(e)=>onChange(e.target.checked)} className="accent-primary"/><span>{label}</span></label>}
