@@ -26,6 +26,11 @@ def test_health_lists_available_operations() -> None:
         "project.dialogue_update_text",
         "project.dialogue_assign_speaker",
         "speech.transcribe",
+        "settings.get",
+        "settings.update",
+        "translation.providers",
+        "translation.models",
+        "translation.test_connection",
         "speakers.funasr-campplus",
         "asr.paraformer",
         "asr.sense-small",
@@ -123,7 +128,7 @@ def test_server_handles_multiple_requests_and_shutdown() -> None:
 def test_dialogue_text_command_persists_unicode_and_rejects_stale_text(
     tmp_path: Path,
 ) -> None:
-    from catty_engine.project import ProjectService, DialogueSegment
+    from catty_engine.project import DialogueSegment, ProjectService
 
     service = ProjectService()
     project = service.create_project(tmp_path, "Dialogue")
