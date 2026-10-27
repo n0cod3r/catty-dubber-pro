@@ -57,11 +57,15 @@ class DialogueSegment(BaseModel):
     translation: Translation | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
+
     @model_validator(mode="after")
     def validate_timing(self) -> DialogueSegment:
-        if self.start < 0: raise ValueError("segment start cannot be negative")
-        if self.end <= self.start: raise ValueError("segment end must be greater than start")
+        if self.start < 0:
+            raise ValueError("segment start cannot be negative")
+        if self.end <= self.start:
+            raise ValueError("segment end must be greater than start")
         return self
+
     @property
     def duration(self) -> float:
         return self.end - self.start
