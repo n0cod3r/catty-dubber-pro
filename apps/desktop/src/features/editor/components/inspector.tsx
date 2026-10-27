@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Film, Languages, MessageSquareText, Sparkles } from "lucide-react";
 
@@ -13,8 +13,28 @@ const tabs = [
   { id: "properties", label: "Media", icon: Film },
 ] as const;
 
+const transcriptionEngines = [
+  { id: "paraformer", label: "Paraformer" },
+  { id: "sense-small", label: "SenseSmall" },
+] as const;
+
+type TranscriptionEngine = (typeof transcriptionEngines)[number]["id"];
+
+const TRANSCRIPTION_ENGINE_KEY = "catty.transcription-engine.v1";
+
+function readTranscriptionEngine(): TranscriptionEngine {
+  if (typeof window === "undefined") return "paraformer";
+  const value = window.localStorage.getItem(TRANSCRIPTION_ENGINE_KEY);
+  return value === "sense-small" ? "sense-small" : "paraformer";
+}
+
 export function Inspector({ episode }: { episode: EpisodeMedia | null }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("source");
+  const [engine, setEngine] = useState<TranscriptionEngine>(readTranscriptionEngine);
+
+  useEffect(() => {
+    window.localStorage.setItem(TRANSCRIPTION_ENGINE_KEY, engine);
+  }, [engine]);
 
   return (
     <section
@@ -99,22 +119,43 @@ export function Inspector({ episode }: { episode: EpisodeMedia | null }) {
             ))}
           </dl>
         ) : tab === "source" ? (
-          <div className="m-auto flex max-w-[250px] flex-col items-center text-center">
+          <div className="m-auto flex w-full max-w-[270px] flex-col items-center text-center">
             <MessageSquareText className="mb-3 size-7 text-muted-foreground/50" strokeWidth={1.3} />
             <p className="text-xs font-medium">
               {episode ? "No dialogue yet" : "No media selected"}
             </p>
             <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
               {episode
-                ? "Transcribe source audio to create timed dialogue. Speech audio preparation and voice detection run automatically in the background."
+                ? "ជ្រើស engine ហើយចុច Transcribe។ Catty នឹងរៀបចំ audio និងរត់ VAD ដោយស្វ័យប្រវត្តិនៅខាងក្រោយ។"
                 : "Import an episode to start transcription and dubbing."}
             </p>
+
+            {episode && (
+              <div className="mt-3 flex items-center rounded-md border bg-muted/30 p-0.5" role="group" aria-label="Transcription engine">
+                {transcriptionEngines.map((item) => (
+                  <Button
+                    key={item.id}
+                    type="button"
+                    size="xs"
+                    variant={engine === item.id ? "secondary" : "ghost"}
+                    aria-pressed={engine === item.id}
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() => setEngine(item.id)}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+
             <Button
               size="xs"
-              className="mt-3"
+              className="mt-2"
               disabled
               title={
-                episode ? "Speech model setup is the next engine step" : "Import an episode first"
+                episode
+                  ? `${engine === "paraformer" ? "Paraformer" : "SenseSmall"} model setup is required before transcription can run`
+                  : "Import an episode first"
               }
             >
               <Sparkles />
@@ -122,7 +163,7 @@ export function Inspector({ episode }: { episode: EpisodeMedia | null }) {
             </Button>
             {episode && (
               <p className="mt-2 text-[9px] text-muted-foreground/70">
-                Select an audio clip or range on the timeline, then transcribe.
+                Chinese · {engine === "paraformer" ? "Paraformer" : "SenseSmall"} · Auto VAD
               </p>
             )}
           </div>
