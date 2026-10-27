@@ -68,7 +68,7 @@ class SpeechTranscribeParams(BaseModel):
     existing_asset: AudioAsset | None = None
 
 def _hello() -> dict[str, Any]:
-    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "speech.transcribe", "asr.paraformer", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
+    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
 
 def _open_or_create_project(directory: Path, name: str):
     service = ProjectService()
