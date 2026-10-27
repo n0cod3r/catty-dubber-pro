@@ -1,1 +1,6 @@
-export { Timeline, createTimeline, documentDuration, timelineReducer } from "@/features/timeline";
+export {
+  Timeline,
+  TimelineProvider,
+  useTimelineStore,
+  documentDuration,
+} from "@/features/timeline";

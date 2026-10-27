@@ -1,10 +1,5 @@
 export { Timeline } from "./components/timeline";
-export { createTimeline, documentDuration, timelineReducer } from "./stores/timeline-reducer";
-export type {
-  Layer,
-  TimelineAction,
-  TimelineClip,
-  TimelineDocument,
-  TimelineHistory,
-  TrackKind,
-} from "./types";
+export { createTimeline, documentDuration } from "./stores/timeline-edits";
+export type { Layer, TimelineClip, TimelineDocument, TimelineHistory, TrackKind } from "./types";
+export { TimelineProvider } from "./components/timeline-provider";
+export { useTimelineStore } from "./hooks/use-timeline-store";

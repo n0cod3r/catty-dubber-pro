@@ -70,3 +70,17 @@ placeholders for future features.
 
 Run `pnpm check:boundaries` to enforce the import rules and keep feature UI out of
 root components. This check also runs as part of `pnpm check`.
+
+### Editor loading and timeline sessions
+
+The public editor workspace is a lazy component with a visible Suspense fallback.
+Project home can render before the workspace chunk is loaded. The existing editor
+error boundary handles loading and render failures.
+
+Each mounted workspace creates a vanilla Zustand store through `TimelineProvider`.
+`useTimelineStore(selector)` reads that session through context. The store exposes named editing actions and commits each edit atomically,
+preserving editing constraints and undo/redo. It is
+not a global singleton and does not persist transient history. The existing
+workspace key resets the session when the episode or playback media revision
+changes; closing a project unmounts the provider. Future timeline consumers can
+subscribe directly through the provider without extending workspace prop chains.

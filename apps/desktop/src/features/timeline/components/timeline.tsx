@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Flag, Plus } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,9 +19,10 @@ import { TIMELINE } from "../constants";
 import { useClipDrag } from "../hooks/use-clip-drag";
 import { useMediaVisuals } from "../hooks/use-media-visuals";
 import { useTimelineScrub } from "../hooks/use-timeline-scrub";
+import { useTimelineStore } from "../hooks/use-timeline-store";
 import { useTimelineViewport } from "../hooks/use-timeline-viewport";
-import { clipEditGroup, splitCandidates } from "../stores/timeline-reducer";
-import type { Layer, TimelineAction, TimelineClip, TimelineHistory, TrackKind } from "../types";
+import { clipEditGroup, splitCandidates } from "../stores/timeline-edits";
+import type { Layer, TimelineClip, TrackKind } from "../types";
 import { snapTime, visibleTicks } from "../utils/geometry";
 import { clipRenderWindow, thumbnailTiles } from "../utils/render-window";
 import { trackStyles } from "../utils/tracks";
@@ -34,8 +36,6 @@ type TimelineProps = {
   muted: boolean;
   onMuteChange: (muted: boolean) => void;
   followPlayhead: boolean;
-  history: TimelineHistory;
-  dispatch: Dispatch<TimelineAction>;
   duration: number;
 };
 
@@ -46,10 +46,21 @@ export function Timeline({
   muted,
   onMuteChange,
   followPlayhead,
-  history,
-  dispatch,
   duration: projectDuration,
 }: TimelineProps) {
+  const history = useTimelineStore((state) => state.history);
+  const actions = useTimelineStore(
+    useShallow((state) => ({
+      addLayer: state.addLayer,
+      addClip: state.addClip,
+      moveClip: state.moveClip,
+      removeClip: state.removeClip,
+      updateText: state.updateText,
+      split: state.split,
+      undo: state.undo,
+      redo: state.redo,
+    })),
+  );
   const visuals = useMediaVisuals(episode);
   const mediaDuration = episode?.durationSeconds ?? 0;
   const duration = Math.max(projectDuration, 30);
@@ -72,7 +83,7 @@ export function Timeline({
     snap,
     [0, currentTime, ...markers],
     setSelected,
-    dispatch,
+    actions.moveClip,
   );
   const document = clipDrag.draft?.document ?? committedDocument;
   const ticks = useMemo(
@@ -93,12 +104,11 @@ export function Timeline({
   const canEdit = !document.layers.some((layer) => layer.locked);
   const canSplit = splitCandidates(document, currentTime, selected).length > 0;
   function split() {
-    if (canSplit) dispatch({ type: "split", time: currentTime, selectedId: selected });
+    if (canSplit) actions.split({ time: currentTime, selectedId: selected });
   }
   const addLayer = (kind: TrackKind) => {
     const count = document.layers.filter((layer) => layer.kind === kind).length + 1;
-    dispatch({
-      type: "add-layer",
+    actions.addLayer({
       layer: {
         id: crypto.randomUUID(),
         kind,
@@ -134,10 +144,10 @@ export function Timeline({
           : undefined,
         color: "#c084fc",
       };
-      dispatch({ type: "add-clip", clip });
+      actions.addClip({ clip });
       setSelected(clip.id);
     },
-    [dispatch, episode, mediaDuration],
+    [actions, episode, mediaDuration],
   );
   const frameTimes = useMemo(() => {
     const times = document.clips
@@ -181,7 +191,7 @@ export function Timeline({
   const canDelete = !!selected && clipEditGroup(committedDocument, selected).length > 0;
   function removeSelected() {
     if (selected && canDelete) {
-      dispatch({ type: "remove-clip", id: selected });
+      actions.removeClip({ id: selected });
       setSelected(null);
     }
   }
@@ -238,7 +248,10 @@ export function Timeline({
         const command = event.metaKey || event.ctrlKey;
         if (command && event.key.toLowerCase() === "z") {
           event.preventDefault();
-          if (canEdit) dispatch({ type: event.shiftKey ? "redo" : "undo" });
+          if (canEdit) {
+            if (event.shiftKey) actions.redo();
+            else actions.undo();
+          }
         } else if (!command && !event.altKey) {
           if (event.key.toLowerCase() === "s") {
             event.preventDefault();
@@ -267,8 +280,8 @@ export function Timeline({
         canDelete={canDelete}
         onDelete={removeSelected}
         onSplit={split}
-        onUndo={() => dispatch({ type: "undo" })}
-        onRedo={() => dispatch({ type: "redo" })}
+        onUndo={() => actions.undo()}
+        onRedo={() => actions.redo()}
         onSnap={() => setSnap((value) => !value)}
         onMarker={addMarker}
         onZoom={viewport.changeZoom}
@@ -377,7 +390,6 @@ export function Timeline({
               selected={selected}
               muted={muted}
               visuals={visuals}
-              dispatch={dispatch}
               canEditClip={canEditClip}
               onMuteChange={onMuteChange}
               onSelect={setSelected}
@@ -415,11 +427,7 @@ export function Timeline({
             defaultValue={selectedClip.text}
             disabled={document.layers.find((layer) => layer.id === selectedClip.trackId)?.locked}
             onBlur={(event) =>
-              dispatch({
-                type: "update-text",
-                id: selectedClip.id,
-                text: event.currentTarget.value,
-              })
+              actions.updateText({ id: selectedClip.id, text: event.currentTarget.value })
             }
             onKeyDown={(event) => {
               if (event.key === "Enter") event.currentTarget.blur();

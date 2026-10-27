@@ -57,7 +57,7 @@ resize, media inspection, source replacement, and invalid-file recovery.
 ## Multiple layers and media graphics
 
 The editor session now owns a document of independent `layers` and `clips` in
-`features/timeline/stores/timeline-reducer.ts`. Video, audio, subtitle, and graphic clips share
+`features/timeline/stores/timeline-edits.ts`. Video, audio, subtitle, and graphic clips share
 explicit timeline start/duration and source offsets. The default source video,
 source audio, and dub layers can be extended using **Layer** in the toolbar.
 Layer menus reorder layers or remove empty ones; header buttons lock, hide, or

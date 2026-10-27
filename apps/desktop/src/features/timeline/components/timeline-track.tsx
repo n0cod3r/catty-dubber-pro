@@ -1,4 +1,4 @@
-import { memo, type Dispatch } from "react";
+import { memo } from "react";
 
 import {
   ArrowDown,
@@ -14,6 +14,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +35,8 @@ import { formatTime } from "@/shared/utils/time";
 
 import { TIMELINE } from "../constants";
 import type { MediaVisuals } from "../hooks/use-media-visuals";
-import type { Layer, TimelineAction, TimelineClip } from "../types";
+import { useTimelineStore } from "../hooks/use-timeline-store";
+import type { Layer, TimelineClip } from "../types";
 import { trackStyles } from "../utils/tracks";
 import { ClipMediaCanvas } from "./clip-media-canvas";
 
@@ -50,7 +52,6 @@ type Props = {
   selected: string | null;
   muted: boolean;
   visuals: MediaVisuals;
-  dispatch: Dispatch<TimelineAction>;
   canEditClip: (id: string) => boolean;
   onMuteChange: (value: boolean) => void;
   onSelect: (id: string) => void;
@@ -70,13 +71,20 @@ export const TimelineTrack = memo(function TimelineTrack({
   selected,
   muted,
   visuals,
-  dispatch,
   canEditClip,
   onMuteChange,
   onSelect,
   onSeek,
   onAddClip,
 }: Props) {
+  const actions = useTimelineStore(
+    useShallow((state) => ({
+      moveLayer: state.moveLayer,
+      removeLayer: state.removeLayer,
+      toggleLayer: state.toggleLayer,
+      removeClip: state.removeClip,
+    })),
+  );
   const style = trackStyles[layer.kind];
   const Icon = style.icon;
   const isMuted = layer.muted || (layer.source && muted);
@@ -104,21 +112,21 @@ export const TimelineTrack = memo(function TimelineTrack({
             <DropdownMenuContent className="w-44">
               <DropdownMenuItem
                 disabled={layer.locked}
-                onClick={() => dispatch({ type: "move-layer", id: layer.id, direction: -1 })}
+                onClick={() => actions.moveLayer({ id: layer.id, direction: -1 })}
               >
                 <ArrowUp />
                 Move layer up
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={layer.locked}
-                onClick={() => dispatch({ type: "move-layer", id: layer.id, direction: 1 })}
+                onClick={() => actions.moveLayer({ id: layer.id, direction: 1 })}
               >
                 <ArrowDown />
                 Move layer down
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={layer.locked || !!layer.source || clips.length > 0}
-                onClick={() => dispatch({ type: "remove-layer", id: layer.id })}
+                onClick={() => actions.removeLayer({ id: layer.id })}
               >
                 <Trash2 />
                 Remove empty layer
@@ -140,7 +148,7 @@ export const TimelineTrack = memo(function TimelineTrack({
               onClick={() =>
                 layer.source
                   ? onMuteChange(!muted)
-                  : dispatch({ type: "toggle-layer", id: layer.id, property: "muted" })
+                  : actions.toggleLayer({ id: layer.id, property: "muted" })
               }
             >
               {isMuted ? <VolumeX className="text-primary" /> : <Volume2 />}
@@ -152,7 +160,7 @@ export const TimelineTrack = memo(function TimelineTrack({
               aria-label={`${layer.hidden ? "Show" : "Hide"} ${layer.name}`}
               aria-pressed={layer.hidden}
               disabled={layer.locked}
-              onClick={() => dispatch({ type: "toggle-layer", id: layer.id, property: "hidden" })}
+              onClick={() => actions.toggleLayer({ id: layer.id, property: "hidden" })}
             >
               {layer.hidden ? <EyeOff className="text-primary" /> : <Eye />}
             </Button>
@@ -162,7 +170,7 @@ export const TimelineTrack = memo(function TimelineTrack({
             size="icon-xs"
             aria-label={`${layer.locked ? "Unlock" : "Lock"} ${layer.name} track`}
             aria-pressed={layer.locked}
-            onClick={() => dispatch({ type: "toggle-layer", id: layer.id, property: "locked" })}
+            onClick={() => actions.toggleLayer({ id: layer.id, property: "locked" })}
           >
             {layer.locked ? (
               <LockKeyhole className="text-primary" />
@@ -283,7 +291,7 @@ export const TimelineTrack = memo(function TimelineTrack({
                 <ContextMenuItem
                   disabled={!canEditClip(clip.id)}
                   variant="destructive"
-                  onClick={() => dispatch({ type: "remove-clip", id: clip.id })}
+                  onClick={() => actions.removeClip({ id: clip.id })}
                 >
                   <Trash2 />
                   Remove clip

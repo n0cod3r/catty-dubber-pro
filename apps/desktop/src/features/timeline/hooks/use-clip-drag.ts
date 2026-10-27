@@ -1,17 +1,10 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type PointerEvent,
-  type RefObject,
-} from "react";
+import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 
 import { clampFinite as clamp } from "@/shared/utils/math";
 
 import { TIMELINE } from "../constants";
-import { clipEditGroup, resolveClipDrag } from "../stores/timeline-reducer";
-import type { TimelineAction, TimelineDocument } from "../types";
+import { clipEditGroup, resolveClipDrag } from "../stores/timeline-edits";
+import type { TimelineDocument } from "../types";
 import { snapClipStart } from "../utils/geometry";
 
 type Gesture = {
@@ -26,7 +19,7 @@ type Gesture = {
   moved: boolean;
   flush?: () => void;
   lastKey?: string;
-  candidate: Extract<TimelineAction, { type: "move-clip" }> | null;
+  candidate: { id: string; start: number; trackId: string } | null;
 };
 type Draft = { document: TimelineDocument; valid: boolean; start: number };
 
@@ -37,7 +30,7 @@ export function useClipDrag(
   snap: boolean,
   snapPoints: number[],
   onSelect: (id: string) => void,
-  dispatch: Dispatch<TimelineAction>,
+  moveClip: (input: { id: string; start: number; trackId: string }) => void,
 ) {
   const gestureRef = useRef<Gesture | null>(null);
   const frameRef = useRef(0);
@@ -112,8 +105,7 @@ export function useClipDrag(
         if (gesture.lastKey !== key) {
           gesture.lastKey = key;
           const next = trackId ? resolveClipDrag(model, clipId, start, trackId) : null;
-          gesture.candidate =
-            next && trackId ? { type: "move-clip", id: clipId, start: next.start, trackId } : null;
+          gesture.candidate = next && trackId ? { id: clipId, start: next.start, trackId } : null;
           setDraft({
             document: next?.document ?? model,
             valid: next !== null,
@@ -146,7 +138,7 @@ export function useClipDrag(
       cancelAnimationFrame(frameRef.current);
       gesture.flush?.();
     }
-    if (commit && gesture.moved && gesture.candidate) dispatch(gesture.candidate);
+    if (commit && gesture.moved && gesture.candidate) moveClip(gesture.candidate);
     cancel();
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);

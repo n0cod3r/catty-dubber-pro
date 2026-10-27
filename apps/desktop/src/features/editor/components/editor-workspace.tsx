@@ -1,13 +1,13 @@
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 import { usePlayback } from "@/features/editor/deps/playback";
 import { VideoPreview } from "@/features/editor/deps/preview";
 import {
-  createTimeline,
   documentDuration,
   Timeline,
-  timelineReducer,
+  TimelineProvider,
+  useTimelineStore,
 } from "@/features/editor/deps/timeline";
 
 import { EditorPanels } from "./editor-panels";
@@ -23,7 +23,15 @@ type EditorWorkspaceProps = {
     metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">,
   ) => void;
 };
-export function EditorWorkspace({
+export function EditorWorkspace(props: EditorWorkspaceProps) {
+  return (
+    <TimelineProvider>
+      <WorkspaceContent {...props} />
+    </TimelineProvider>
+  );
+}
+
+function WorkspaceContent({
   episode,
   importing,
   onImport,
@@ -31,7 +39,8 @@ export function EditorWorkspace({
   onMetadata,
 }: EditorWorkspaceProps) {
   const [muted, setMuted] = useState(false);
-  const [history, dispatch] = useReducer(timelineReducer, undefined, createTimeline);
+  const history = useTimelineStore((state) => state.history);
+  const initialize = useTimelineStore((state) => state.initialize);
   const duration = documentDuration(history.present);
   const playback = usePlayback(duration);
   const sourceId = episode?.id;
@@ -39,8 +48,8 @@ export function EditorWorkspace({
   const sourceDuration = episode?.durationSeconds;
   useEffect(() => {
     if (sourceId && sourceName && sourceDuration)
-      dispatch({ type: "initialize", sourceId, name: sourceName, duration: sourceDuration });
-  }, [sourceId, sourceName, sourceDuration]);
+      initialize({ sourceId, name: sourceName, duration: sourceDuration });
+  }, [sourceId, sourceName, sourceDuration, initialize]);
   return (
     <EditorPanels
       timeline={
@@ -51,8 +60,6 @@ export function EditorWorkspace({
           muted={muted}
           onMuteChange={setMuted}
           followPlayhead={followPlayhead}
-          history={history}
-          dispatch={dispatch}
           duration={duration}
         />
       }

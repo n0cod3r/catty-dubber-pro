@@ -1,4 +1,4 @@
-import type { TimelineAction, TimelineDocument, TimelineHistory } from "../types";
+import type { Layer, TimelineClip, TimelineDocument, TimelineHistory } from "../types";
 
 export function createTimeline(): TimelineHistory {
   return {
@@ -168,104 +168,141 @@ export function documentDuration(document: TimelineDocument) {
   return document.clips.reduce((end, clip) => Math.max(end, clip.start + clip.duration), 0);
 }
 
-function change(
+export function initializeEdit(
   document: TimelineDocument,
-  action: Exclude<TimelineAction, { type: "undo" | "redo" }>,
+  action: { sourceId: string; name: string; duration: number },
 ): TimelineDocument {
-  if (action.type === "initialize") {
-    if (document.initialized || !Number.isFinite(action.duration) || action.duration <= 0)
-      return document;
-    return {
-      ...document,
-      initialized: true,
-      clips: ["video", "audio"].map((kind) => ({
-        id: `${kind}:source`,
-        trackId: kind,
-        kind: kind as "video" | "audio",
-        sourceId: action.sourceId,
-        sourceStart: 0,
-        start: 0,
-        duration: action.duration,
-        name: action.name,
-        linkId: "source",
-      })),
-    };
-  }
-  if (action.type === "add-layer") {
-    if (document.layers.some((layer) => layer.id === action.layer.id)) return document;
-    return { ...document, layers: [action.layer, ...document.layers] };
-  }
-  const layer = "id" in action ? document.layers.find((item) => item.id === action.id) : undefined;
-  if (action.type === "remove-layer") {
-    if (
-      !layer ||
-      layer.source ||
-      layer.locked ||
-      document.clips.some((clip) => clip.trackId === layer.id)
-    )
-      return document;
-    return { ...document, layers: document.layers.filter((item) => item.id !== action.id) };
-  }
-  if (action.type === "toggle-layer") {
-    if (!layer || (layer.locked && action.property !== "locked")) return document;
-    return {
-      ...document,
-      layers: document.layers.map((item) =>
-        item.id === action.id ? { ...item, [action.property]: !item[action.property] } : item,
-      ),
-    };
-  }
-  if (action.type === "move-layer") {
-    const index = document.layers.findIndex((item) => item.id === action.id);
-    const next = index + action.direction;
-    if (!layer || layer.locked || next < 0 || next >= document.layers.length) return document;
-    const layers = [...document.layers];
-    layers.splice(index, 1);
-    layers.splice(next, 0, layer);
-    return { ...document, layers };
-  }
-  if (action.type === "add-clip") {
-    const target = document.layers.find((item) => item.id === action.clip.trackId);
-    if (
-      !target ||
-      target.locked ||
-      target.kind !== action.clip.kind ||
-      document.clips.some((clip) => clip.id === action.clip.id) ||
-      !Number.isFinite(action.clip.duration) ||
-      action.clip.duration <= 0 ||
-      !Number.isFinite(action.clip.start) ||
-      action.clip.start < 0 ||
-      !Number.isFinite(action.clip.sourceStart) ||
-      action.clip.sourceStart < 0
-    )
-      return document;
-    return { ...document, clips: [...document.clips, action.clip] };
-  }
-  if (action.type === "move-clip")
-    return moveClip(document, action.id, action.start, action.trackId) ?? document;
-  if (action.type === "remove-clip") {
-    const ids = new Set(clipEditGroup(document, action.id).map((clip) => clip.id));
-    return ids.size
-      ? { ...document, clips: document.clips.filter((clip) => !ids.has(clip.id)) }
-      : document;
-  }
-  if (action.type === "update-text") {
-    const clip = document.clips.find((item) => item.id === action.id);
-    if (
-      !clip ||
-      document.layers.find((item) => item.id === clip.trackId)?.locked ||
-      clip.text === action.text
-    )
-      return document;
-    return {
-      ...document,
-      clips: document.clips.map((item) =>
-        item.id === action.id
-          ? { ...item, text: action.text, name: action.text || item.kind }
-          : item,
-      ),
-    };
-  }
+  if (document.initialized || !Number.isFinite(action.duration) || action.duration <= 0)
+    return document;
+  return {
+    ...document,
+    initialized: true,
+    clips: ["video", "audio"].map((kind) => ({
+      id: `${kind}:source`,
+      trackId: kind,
+      kind: kind as "video" | "audio",
+      sourceId: action.sourceId,
+      sourceStart: 0,
+      start: 0,
+      duration: action.duration,
+      name: action.name,
+      linkId: "source",
+    })),
+  };
+}
+
+export function addLayerEdit(
+  document: TimelineDocument,
+  action: { layer: Layer },
+): TimelineDocument {
+  if (document.layers.some((layer) => layer.id === action.layer.id)) return document;
+  return { ...document, layers: [action.layer, ...document.layers] };
+}
+
+export function removeLayerEdit(
+  document: TimelineDocument,
+  action: { id: string },
+): TimelineDocument {
+  const layer = document.layers.find((item) => item.id === action.id);
+  if (
+    !layer ||
+    layer.source ||
+    layer.locked ||
+    document.clips.some((clip) => clip.trackId === layer.id)
+  )
+    return document;
+  return { ...document, layers: document.layers.filter((item) => item.id !== action.id) };
+}
+
+export function toggleLayerEdit(
+  document: TimelineDocument,
+  action: { id: string; property: "locked" | "muted" | "hidden" },
+): TimelineDocument {
+  const layer = document.layers.find((item) => item.id === action.id);
+  if (!layer || (layer.locked && action.property !== "locked")) return document;
+  return {
+    ...document,
+    layers: document.layers.map((item) =>
+      item.id === action.id ? { ...item, [action.property]: !item[action.property] } : item,
+    ),
+  };
+}
+
+export function moveLayerEdit(
+  document: TimelineDocument,
+  action: { id: string; direction: -1 | 1 },
+): TimelineDocument {
+  const layer = document.layers.find((item) => item.id === action.id);
+  const index = document.layers.findIndex((item) => item.id === action.id);
+  const next = index + action.direction;
+  if (!layer || layer.locked || next < 0 || next >= document.layers.length) return document;
+  const layers = [...document.layers];
+  layers.splice(index, 1);
+  layers.splice(next, 0, layer);
+  return { ...document, layers };
+}
+
+export function addClipEdit(
+  document: TimelineDocument,
+  action: { clip: TimelineClip },
+): TimelineDocument {
+  const target = document.layers.find((item) => item.id === action.clip.trackId);
+  if (
+    !target ||
+    target.locked ||
+    target.kind !== action.clip.kind ||
+    document.clips.some((clip) => clip.id === action.clip.id) ||
+    !Number.isFinite(action.clip.duration) ||
+    action.clip.duration <= 0 ||
+    !Number.isFinite(action.clip.start) ||
+    action.clip.start < 0 ||
+    !Number.isFinite(action.clip.sourceStart) ||
+    action.clip.sourceStart < 0
+  )
+    return document;
+  return { ...document, clips: [...document.clips, action.clip] };
+}
+
+export function moveClipEdit(
+  document: TimelineDocument,
+  action: { id: string; start: number; trackId: string },
+): TimelineDocument {
+  return moveClip(document, action.id, action.start, action.trackId) ?? document;
+}
+
+export function removeClipEdit(
+  document: TimelineDocument,
+  action: { id: string },
+): TimelineDocument {
+  const ids = new Set(clipEditGroup(document, action.id).map((clip) => clip.id));
+  return ids.size
+    ? { ...document, clips: document.clips.filter((clip) => !ids.has(clip.id)) }
+    : document;
+}
+
+export function updateTextEdit(
+  document: TimelineDocument,
+  action: { id: string; text: string },
+): TimelineDocument {
+  const clip = document.clips.find((item) => item.id === action.id);
+  if (
+    !clip ||
+    document.layers.find((item) => item.id === clip.trackId)?.locked ||
+    clip.text === action.text
+  )
+    return document;
+  return {
+    ...document,
+    clips: document.clips.map((item) =>
+      item.id === action.id ? { ...item, text: action.text, name: action.text || item.kind } : item,
+    ),
+  };
+}
+
+export function splitEdit(
+  document: TimelineDocument,
+  action: { time: number; selectedId: string | null },
+): TimelineDocument {
   const candidates = splitCandidates(document, action.time, action.selectedId);
   if (!candidates.length) return document;
   const ids = new Set(candidates.map((clip) => clip.id));
@@ -286,33 +323,4 @@ function change(
       ];
     }),
   };
-}
-
-export function timelineReducer(state: TimelineHistory, action: TimelineAction): TimelineHistory {
-  if (action.type === "undo") {
-    const previous = state.past.at(-1);
-    return previous
-      ? {
-          past: state.past.slice(0, -1),
-          present: previous,
-          future: [state.present, ...state.future],
-        }
-      : state;
-  }
-  if (action.type === "redo") {
-    const next = state.future[0];
-    return next
-      ? { past: [...state.past, state.present], present: next, future: state.future.slice(1) }
-      : state;
-  }
-  const next = change(state.present, action);
-  if (next === state.present) return state;
-  // Media metadata is initialization, never an undoable edit.
-  return action.type === "initialize"
-    ? {
-        past: state.past.map((document) => change(document, action)),
-        present: next,
-        future: state.future.map((document) => change(document, action)),
-      }
-    : { past: [...state.past.slice(-99), state.present], present: next, future: [] };
 }
