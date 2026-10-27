@@ -150,9 +150,21 @@ def handle_request(payload: Any) -> dict[str, Any]:
             ).model_dump(mode="json")
         elif request.method == "project.open":
             open_params = ProjectOpenParams.model_validate(request.params)
-            result = ProjectService().open_project(
-                open_params.project_directory
-            ).model_dump(mode="json")
+            service = ProjectService()
+            project = service.open_project(open_params.project_directory)
+            # Older projects predate playback proxies. Build the active/first episode
+            # proxy during open so reopening a project never silently falls back to
+            # the heavy original video forever.
+            if project.episodes:
+                first = project.episodes[0]
+                proxy = Path(first.playback_proxy_path).expanduser() if first.playback_proxy_path else None
+                if proxy is None or not proxy.is_file() or proxy.stat().st_size == 0:
+                    service.prepare_episode_proxy(
+                        open_params.project_directory,
+                        project,
+                        first.id,
+                    )
+            result = project.model_dump(mode="json")
         elif request.method == "project.import_episode":
             import_params = ProjectImportEpisodeParams.model_validate(request.params)
             service, project = _open_or_create_project(
