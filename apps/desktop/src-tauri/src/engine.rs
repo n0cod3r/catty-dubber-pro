@@ -43,7 +43,7 @@ fn request_with_control(
         "method": method,
         "params": params,
     });
-    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe") {
+    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode") {
         Duration::from_secs(3605)
     } else {
         Duration::from_secs(35)
@@ -149,19 +149,11 @@ struct JobToken {
 }
 
 fn prune_jobs(active: &mut HashMap<String, JobToken>) {
-    active.retain(|_, token| {
-        token
-            .pending_until
-            .is_none_or(|until| until > Instant::now())
-    });
+    active.retain(|_, token| token.pending_until.is_none_or(|until| until > Instant::now()));
 }
 
 fn validate_job_id(id: &str) -> Result<(), EngineError> {
-    if id.len() != 36
-        || !id
-            .bytes()
-            .all(|byte| byte.is_ascii_hexdigit() || byte == b'-')
-    {
+    if id.len() != 36 || !id.bytes().all(|byte| byte.is_ascii_hexdigit() || byte == b'-') {
         return Err(EngineError::new(
             "INVALID_JOB_ID",
             "Expected a UUID job identifier",
@@ -178,7 +170,12 @@ pub async fn engine_request(
 ) -> Result<Value, EngineError> {
     if !matches!(
         method.as_str(),
-        "health" | "system.hello" | "media.probe" | "speech.transcribe"
+        "health"
+            | "system.hello"
+            | "media.probe"
+            | "project.open"
+            | "project.import_episode"
+            | "speech.transcribe"
     ) {
         return Err(EngineError::new(
             "UNKNOWN_METHOD",

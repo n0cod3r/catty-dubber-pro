@@ -17,6 +17,38 @@ export type MediaInfo = {
   sample_rate: number | null;
   channels: number | null;
 };
+export type AudioAsset = {
+  path: string;
+  kind: "speech" | "master" | "background" | "dialogue" | "dub";
+  sample_rate: number;
+  channels: number;
+  source_fingerprint: string;
+  created_at: string;
+};
+export type PersistedEpisode = {
+  id: string;
+  name: string;
+  order: number;
+  media: MediaInfo;
+  audio_assets: AudioAsset[];
+  speakers: unknown[];
+  dialogue_segments: unknown[];
+  dub_segments: unknown[];
+  processing: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+};
+export type PersistedProject = {
+  schema_version: number;
+  id: string;
+  name: string;
+  episodes: PersistedEpisode[];
+  characters: unknown[];
+  voice_profiles: unknown[];
+  settings: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
 export type TranscriptSegment = {
   start: number;
   end: number;
@@ -42,23 +74,22 @@ export type SpeechTranscribeParams = {
   vad_config: Record<string, unknown>;
   existing_asset?: AudioAsset | null;
 };
-export type EngineMethods = {
-  health: { params: Record<string, never>; result: EngineStatus };
-  "media.probe": { params: { path: string }; result: MediaInfo };
-  "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
-};
-
-export type AudioAsset = {
-  path: string;
-  kind: "speech" | "master" | "background" | "dialogue" | "dub";
-  sample_rate: number;
-  channels: number;
-  source_fingerprint: string;
-  created_at: string;
-};
 export type AudioPrepareParams = {
   source: string;
   episode_id: string;
   project_directory: string;
   existing_asset?: AudioAsset | null;
+};
+export type EngineMethods = {
+  health: { params: Record<string, never>; result: EngineStatus };
+  "media.probe": { params: { path: string }; result: MediaInfo };
+  "project.open": {
+    params: { project_directory: string };
+    result: PersistedProject;
+  };
+  "project.import_episode": {
+    params: { project_directory: string; project_name: string; source: string };
+    result: PersistedEpisode;
+  };
+  "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
 };

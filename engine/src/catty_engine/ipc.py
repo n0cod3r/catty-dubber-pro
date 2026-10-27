@@ -23,6 +23,7 @@ from catty_engine.media.errors import (
 )
 from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
+from catty_engine.project import ProjectService
 from catty_engine.speech.runtime import create_asr_registry, create_vad
 from catty_engine.speech.transcription import TranscriptionService
 
@@ -39,6 +40,8 @@ class Request(BaseModel):
         "system.shutdown",
         "media.probe",
         "audio.prepare",
+        "project.open",
+        "project.import_episode",
         "speech.transcribe",
     ]
     params: dict[str, Any] = Field(default_factory=dict)
@@ -47,6 +50,18 @@ class Request(BaseModel):
 class ProbeParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     path: str = Field(min_length=1)
+
+
+class ProjectOpenParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project_directory: Path
+
+
+class ProjectImportEpisodeParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project_directory: Path
+    project_name: str = Field(min_length=1)
+    source: str = Field(min_length=1)
 
 
 class AudioPrepareParams(BaseModel):
@@ -81,6 +96,8 @@ def _hello() -> dict[str, Any]:
         "capabilities": [
             "media.probe",
             "audio.prepare",
+            "project.open",
+            "project.import_episode",
             "speech.transcribe",
             "asr.paraformer",
             "vad.silero",
@@ -91,12 +108,19 @@ def _hello() -> dict[str, Any]:
     }
 
 
+def _open_or_create_project(directory: Path, name: str):
+    service = ProjectService()
+    project_file = directory / "project.json"
+    if project_file.exists():
+        project = service.open_project(directory)
+    else:
+        project = service.create_project(directory, name)
+    return service, project
+
+
 def handle_request(payload: Any) -> dict[str, Any]:
     request_id = payload.get("id") if isinstance(payload, dict) else None
-    response: dict[str, Any] = {
-        "version": PROTOCOL_VERSION,
-        "id": request_id,
-    }
+    response: dict[str, Any] = {"version": PROTOCOL_VERSION, "id": request_id}
     try:
         request = Request.model_validate(payload)
         if request.method in {"health", "system.hello"}:
@@ -107,14 +131,27 @@ def handle_request(payload: Any) -> dict[str, Any]:
             if request.params:
                 raise ValueError("system.shutdown does not accept parameters")
             result = {"shutting_down": True}
+        elif request.method == "project.open":
+            params = ProjectOpenParams.model_validate(request.params)
+            result = ProjectService().open_project(params.project_directory).model_dump(mode="json")
+        elif request.method == "project.import_episode":
+            params = ProjectImportEpisodeParams.model_validate(request.params)
+            service, project = _open_or_create_project(
+                params.project_directory,
+                params.project_name,
+            )
+            episode = service.import_episode(
+                directory=params.project_directory,
+                project=project,
+                source_path=params.source,
+                prepare_audio=True,
+            )
+            result = episode.model_dump(mode="json")
         elif request.method == "audio.prepare":
             audio_params = AudioPrepareParams.model_validate(request.params)
 
             def cancelled() -> bool:
-                return (
-                    audio_params.cancel_file is not None
-                    and audio_params.cancel_file.exists()
-                )
+                return audio_params.cancel_file is not None and audio_params.cancel_file.exists()
 
             if cancelled():
                 raise AudioPreparationCancelled("Audio preparation cancelled")
@@ -175,12 +212,10 @@ def handle_request(payload: Any) -> dict[str, Any]:
 
 
 def _write_response(response: dict[str, Any]) -> None:
-    # stdout is exclusively protocol data. Diagnostics belong on stderr.
     print(json.dumps(response, ensure_ascii=False, allow_nan=False), flush=True)
 
 
 def run_rpc() -> None:
-    """Compatibility mode: handle exactly one JSON document then exit."""
     try:
         payload = json.load(sys.stdin)
         response = handle_request(payload)
@@ -197,7 +232,6 @@ def run_rpc() -> None:
 
 
 def run_server() -> None:
-    """Long-lived NDJSON server. One request line produces one response line."""
     for raw_line in sys.stdin:
         line = raw_line.strip()
         if not line:
