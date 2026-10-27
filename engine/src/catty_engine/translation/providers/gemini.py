@@ -13,7 +13,26 @@ from ..models import ConnectionTestResult, TranslationModel
 
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 TIMEOUT_SECONDS = 15
-_EXCLUDED = ("embedding", "aqa", "imagen", "veo", "audio", "tts", "live")
+
+# Translation needs ordinary text-capable Gemini models. Specialized media/live/task
+# endpoints may also contain "gemini" in their IDs, so exclude them explicitly.
+_EXCLUDED = (
+    "embedding",
+    "aqa",
+    "imagen",
+    "veo",
+    "image",
+    "banana",
+    "audio",
+    "tts",
+    "live",
+    "transcribe",
+    "omni",
+    "robotics",
+    "computer-use",
+    "deep-research",
+)
+_TEXT_GENERATION_METHODS = {"generateContent", "streamGenerateContent"}
 
 
 def _request_json(url: str, timeout: int = TIMEOUT_SECONDS) -> dict[str, Any]:
@@ -69,8 +88,30 @@ class GeminiProvider:
     def list_models(self) -> list[TranslationModel]:
         if not self._api_key:
             raise ProviderError("Add a Gemini API key first.")
-        payload = self._transport(self._url("models", pageSize="1000"))
-        return _parse_models(payload)
+
+        models: list[TranslationModel] = []
+        page_token: str | None = None
+        seen_tokens: set[str] = set()
+        while True:
+            params = {"pageSize": "1000"}
+            if page_token:
+                params["pageToken"] = page_token
+            payload = self._transport(self._url("models", **params))
+            models.extend(_parse_models(payload))
+
+            next_token = payload.get("nextPageToken")
+            if not isinstance(next_token, str) or not next_token or next_token in seen_tokens:
+                break
+            seen_tokens.add(next_token)
+            page_token = next_token
+
+        unique = {model.id: model for model in models}
+        result = sorted(unique.values(), key=lambda model: model.id)
+        if not result:
+            raise ProviderError(
+                "Gemini connected, but no text-generation models were returned for this API key."
+            )
+        return result
 
     def test_connection(self) -> ConnectionTestResult:
         if not self._api_key:
@@ -78,21 +119,31 @@ class GeminiProvider:
                 ok=False, message="Add a Gemini API key first."
             )
         try:
-            payload = self._transport(self._url("models", pageSize="1"))
+            models = self.list_models()
         except ProviderError as exc:
             return ConnectionTestResult(ok=False, message=str(exc))
-        models = payload.get("models")
-        if not isinstance(models, list):
+
+        if self.selected_model and not any(
+            model.id == self.selected_model for model in models
+        ):
             return ConnectionTestResult(
-                ok=False, message="Gemini returned an unreadable response."
+                ok=False,
+                message=(
+                    f"Connected to Gemini, but model '{self.selected_model}' "
+                    "is not available for this API key."
+                ),
             )
-        return ConnectionTestResult(ok=True, message="Connected to Gemini.")
+        return ConnectionTestResult(
+            ok=True,
+            message=f"Connected to Gemini. {len(models)} text model(s) available.",
+        )
 
 
 def _parse_models(payload: dict[str, Any]) -> list[TranslationModel]:
     items = payload.get("models")
     if not isinstance(items, list):
         raise ProviderError("Gemini returned an unreadable model list.")
+
     models: list[TranslationModel] = []
     for item in items:
         if not isinstance(item, dict):
@@ -100,15 +151,24 @@ def _parse_models(payload: dict[str, Any]) -> list[TranslationModel]:
         name = item.get("name")
         if not isinstance(name, str) or not name.startswith("models/"):
             continue
+
         model_id = name.removeprefix("models/")
-        methods = item.get("supportedGenerationMethods")
-        if not isinstance(methods, list) or "generateContent" not in methods:
-            continue
         lowered = model_id.lower()
+        if not lowered.startswith("gemini-"):
+            continue
         if any(token in lowered for token in _EXCLUDED):
             continue
-        if not any(token in lowered for token in ("gemini", "gemma")):
-            continue
+
+        # Older ListModels responses advertise generateContent here. Newer model
+        # metadata may omit the field, so absence must not turn a valid Gemini text
+        # model into an empty selector. When methods are present, still reject a
+        # model that explicitly has no standard text-generation method.
+        methods = item.get("supportedGenerationMethods")
+        if isinstance(methods, list) and methods:
+            advertised = {method for method in methods if isinstance(method, str)}
+            if advertised.isdisjoint(_TEXT_GENERATION_METHODS):
+                continue
+
         display = item.get("displayName")
         description = item.get("description")
         models.append(
@@ -118,4 +178,4 @@ def _parse_models(payload: dict[str, Any]) -> list[TranslationModel]:
                 description=str(description) if isinstance(description, str) else None,
             )
         )
-    return sorted(models, key=lambda model: model.id)
+    return models
