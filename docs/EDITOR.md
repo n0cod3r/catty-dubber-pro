@@ -155,4 +155,7 @@ Undo/Redo, project/episode history reset, and Chinese source text editing.
 Later: dialogue revision tracking, timestamp-aware word/character splitting, and
 semantic split boundaries. Reliable timestamp splitting belongs with a future
 ASR pipeline/model upgrade; proportional text splitting remains the manual MVP.
-Chinese → Khmer translation follows source dialogue cleanup.
+The next milestone is Smart Speaker Detection inside Transcribe, with optional
+speaker corrections rather than a mandatory assignment step. Smart Khmer
+Translation follows. See [Smart Dubbing Pipeline](SMART-DUBBING-PIPELINE.md) for
+the automation-first workflow.
