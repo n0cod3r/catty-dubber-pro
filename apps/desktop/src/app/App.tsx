@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { AlertCircle, ChevronLeft, LoaderCircle, X } from "lucide-react";
 import { AppSidebar } from "@/components/editor/app-sidebar";
 import { EditorErrorBoundary } from "@/components/editor/editor-error-boundary";
@@ -18,6 +18,11 @@ export function App() {
   const closing = useDesktopShutdown();
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const onImport = () => void source.openEpisode();
+  useEffect(() => {
+    const rebuild = () => void source.rebuildProxy();
+    window.addEventListener("catty:rebuild-proxy", rebuild);
+    return () => window.removeEventListener("catty:rebuild-proxy", rebuild);
+  }, [source.rebuildProxy]);
   if (closing) return <div role="status" className="flex h-svh items-center justify-center gap-3 bg-background text-foreground"><LoaderCircle className="size-5 animate-spin text-primary" /><div><p className="text-sm font-medium">កំពុងបិទ Catty…</p><p className="mt-1 text-xs text-muted-foreground">កំពុងបញ្ឈប់ audio preparation និង background work។</p></div></div>;
   if (!projects.current) return <ProjectHome busy={projects.busy} error={projects.error} recents={projects.recentProjects} onCreate={projects.create} onOpen={projects.chooseAndOpen} onOpenRecent={projects.openRecent} />;
   return <EditorErrorBoundary><TooltipProvider><SidebarProvider className="h-svh min-h-0 overflow-hidden bg-background text-foreground" style={{ "--sidebar-width": "14rem" } as CSSProperties} defaultOpen={false}>
