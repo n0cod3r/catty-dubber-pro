@@ -15,11 +15,12 @@ from catty_engine.media.errors import AudioPreparationCancelled, FFmpegError, FF
 from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
 from catty_engine.project import ProjectService
+from catty_engine.project.models import DialogueSegment, EpisodeSpeaker, DubSegment
 from catty_engine.speech.runtime import create_asr_registry, create_vad
 from catty_engine.speech.transcription import TranscriptionService
 
 PROTOCOL_VERSION = 1
-EngineMethod = Literal["health", "system.hello", "system.shutdown", "media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "speech.transcribe"]
+EngineMethod = Literal["health", "system.hello", "system.shutdown", "media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore", "speech.transcribe"]
 
 class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -54,6 +55,11 @@ class DialogueEditParams(BaseModel):
     segment_id: UUID
 class DialogueSplitParams(DialogueEditParams):
     split_at: float = Field(ge=0)
+class DialogueRestoreParams(ProjectPrepareEpisodeParams):
+    expected_segments: list[DialogueSegment]
+    dialogue_segments: list[DialogueSegment]
+    speakers: list[EpisodeSpeaker]
+    dub_segments: list[DubSegment]
 class AudioPrepareParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
@@ -76,7 +82,7 @@ class SpeechTranscribeParams(BaseModel):
     existing_asset: AudioAsset | None = None
 
 def _hello() -> dict[str, Any]:
-    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
+    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore", "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
 
 def _open_or_create_project(directory: Path, name: str):
     service = ProjectService()
@@ -122,6 +128,10 @@ def handle_request(payload: Any) -> dict[str, Any]:
             params = DialogueEditParams.model_validate(request.params)
             service = ProjectService(); project = service.open_project(params.project_directory)
             result = service.merge_dialogue_segment_with_next(params.project_directory, project, params.episode_id, params.segment_id).model_dump(mode="json")
+        elif request.method == "project.dialogue_restore":
+            params = DialogueRestoreParams.model_validate(request.params)
+            service = ProjectService(); project = service.open_project(params.project_directory)
+            result = service.restore_dialogue(params.project_directory, project, params.episode_id, params.expected_segments, params.dialogue_segments, params.speakers, params.dub_segments).model_dump(mode="json")
         elif request.method == "audio.prepare":
             params = AudioPrepareParams.model_validate(request.params)
             def cancelled() -> bool: return params.cancel_file is not None and params.cancel_file.exists()

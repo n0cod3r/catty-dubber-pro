@@ -1,1 +1,1 @@
-export { EngineConnection } from "@/features/engine";
+export { EngineConnection, requestEngine } from "@/features/engine";

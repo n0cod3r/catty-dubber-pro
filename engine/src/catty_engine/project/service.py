@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from math import isclose
 from uuid import UUID
 
 from catty_engine.media.audio import AudioAssetKind
@@ -10,7 +11,7 @@ from catty_engine.media.probe import MediaProbeService
 from catty_engine.media.video_proxy import VideoProxyService
 from catty_engine.speech.models import TranscriptSegment
 
-from .models import DialogueSegment, Episode, ProcessingStatus, Project, utc_now
+from .models import DialogueSegment, EpisodeSpeaker, DubSegment, Episode, ProcessingStatus, Project, utc_now
 from .store import ProjectStore
 
 
@@ -122,6 +123,7 @@ class ProjectService:
         left = DialogueSegment(start=segment.start, end=split_at, speaker_id=segment.speaker_id, source_language=segment.source_language, source_text=left_text, confidence=segment.confidence)
         right = DialogueSegment(start=split_at, end=segment.end, speaker_id=segment.speaker_id, source_language=segment.source_language, source_text=right_text, confidence=segment.confidence)
         episode.dialogue_segments[index:index + 1] = [left, right]
+        self._replace_speaker_segment_ids(episode, {segment.id}, [left, right])
         episode.dub_segments = [dub for dub in episode.dub_segments if dub.dialogue_segment_id != segment.id]
         self._touch_and_save(directory, project, episode)
         return episode
@@ -139,9 +141,48 @@ class ProjectService:
         merged = DialogueSegment(start=first.start, end=second.end, speaker_id=first.speaker_id if first.speaker_id == second.speaker_id else None, source_language=first.source_language, source_text=f"{first.source_text.rstrip()}{separator}{second.source_text.lstrip()}", confidence=self._average_confidence(first.confidence, second.confidence))
         episode.dialogue_segments[index:index + 2] = [merged]
         replaced_ids = {first.id, second.id}
+        self._replace_speaker_segment_ids(episode, replaced_ids, [merged])
         episode.dub_segments = [dub for dub in episode.dub_segments if dub.dialogue_segment_id not in replaced_ids]
         self._touch_and_save(directory, project, episode)
         return episode
+
+    @staticmethod
+    def _same_dialogue(current: list[DialogueSegment], expected: list[DialogueSegment]) -> bool:
+        if len(current) != len(expected):
+            return False
+        for actual, previous in zip(current, expected):
+            # JS/Rust JSON transport can round the final float digit. Timestamps
+            # are metadata; IDs and all non-numeric dialogue content must match.
+            excluded = {"created_at", "updated_at", "start", "end", "confidence"}
+            if actual.model_dump(exclude=excluded) != previous.model_dump(exclude=excluded):
+                return False
+            for field in ("start", "end", "confidence"):
+                left, right = getattr(actual, field), getattr(previous, field)
+                if left is None or right is None:
+                    if left != right:
+                        return False
+                elif not isclose(left, right, rel_tol=0, abs_tol=1e-9):
+                    return False
+        return True
+
+    def restore_dialogue(self, directory: Path, project: Project, episode_id: UUID, expected_segments: list[DialogueSegment], segments: list[DialogueSegment], speakers: list[EpisodeSpeaker], dubs: list[DubSegment]) -> Episode:
+        episode = self._episode(project, episode_id)
+        if not self._same_dialogue(episode.dialogue_segments, expected_segments):
+            raise ValueError("Dialogue changed since this edit. Reopen the project before undoing.")
+        episode.dialogue_segments = [segment.model_copy(deep=True) for segment in segments]
+        episode.speakers = [speaker.model_copy(deep=True) for speaker in speakers]
+        episode.dub_segments = [dub.model_copy(deep=True) for dub in dubs]
+        self._touch_and_save(directory, project, episode)
+        return episode
+
+    @staticmethod
+    def _replace_speaker_segment_ids(episode: Episode, removed: set[UUID], replacements: list[DialogueSegment]) -> None:
+        for speaker in episode.speakers:
+            # Segment ownership is authoritative. A mixed-speaker merge becomes
+            # unassigned, so neither speaker retains the merged segment.
+            ids = [segment_id for segment_id in speaker.segment_ids if segment_id not in removed]
+            ids.extend(segment.id for segment in replacements if segment.speaker_id == speaker.id)
+            speaker.segment_ids = list(dict.fromkeys(ids))
 
     @staticmethod
     def _episode(project: Project, episode_id: UUID) -> Episode:

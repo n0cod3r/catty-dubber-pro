@@ -174,6 +174,17 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
     }
     setError("Web preview មិនអាចរក្សាទុក episode ទៅ Project បានទេ។ សូមប្រើ Catty desktop app។");
   }, []);
+  const activeDirectory = useRef(projectDirectory);
+  useEffect(() => {
+    activeDirectory.current = projectDirectory;
+  }, [projectDirectory]);
+  const applyPersistedEpisode = useCallback(
+    (persisted: PersistedEpisode) => {
+      if (!mounted.current || activeDirectory.current !== projectDirectory) return;
+      setEpisode((current) => (current?.id === persisted.id ? toEpisodeMedia(persisted) : current));
+    },
+    [projectDirectory],
+  );
   const updateMetadata = useCallback(
     (id: string, metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => {
       setEpisode((current) => (current?.id === id ? { ...current, ...metadata } : current));
@@ -193,5 +204,6 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
     importFile,
     fileInputRef,
     updateMetadata,
+    applyPersistedEpisode,
   };
 }

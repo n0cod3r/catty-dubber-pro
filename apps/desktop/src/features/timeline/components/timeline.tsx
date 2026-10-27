@@ -23,6 +23,7 @@ import { useTimelineStore } from "../hooks/use-timeline-store";
 import { useTimelineViewport } from "../hooks/use-timeline-viewport";
 import { clipEditGroup, splitCandidates } from "../stores/timeline-edits";
 import type { Layer, TimelineClip, TrackKind } from "../types";
+import { dialogueSplitTarget } from "../utils/dialogue-split";
 import { snapTime, visibleTicks } from "../utils/geometry";
 import { clipRenderWindow, thumbnailTiles } from "../utils/render-window";
 import { trackStyles } from "../utils/tracks";
@@ -37,6 +38,12 @@ type TimelineProps = {
   onMuteChange: (muted: boolean) => void;
   followPlayhead: boolean;
   duration: number;
+  dialogueEditing: {
+    busy: boolean;
+    historyCounts: { undo: number; redo: number };
+    split: (id: string, time: number) => Promise<boolean | undefined>;
+    restore: (redo: boolean) => Promise<boolean | undefined>;
+  };
 };
 
 export function Timeline({
@@ -47,6 +54,7 @@ export function Timeline({
   onMuteChange,
   followPlayhead,
   duration: projectDuration,
+  dialogueEditing,
 }: TimelineProps) {
   const history = useTimelineStore((state) => state.history);
   const actions = useTimelineStore(
@@ -102,10 +110,31 @@ export function Timeline({
     [document.layers, document.clips],
   );
   const canEdit = !document.layers.some((layer) => layer.locked);
-  const canSplit = splitCandidates(document, currentTime, selected).length > 0;
+  const dialogueSegment = dialogueSplitTarget(
+    episode?.id,
+    episode?.dialogueSegments ?? [],
+    selected,
+    currentTime,
+  );
+  const dialogueContext =
+    !!selected?.startsWith(`dialogue:${episode?.id}:`) ||
+    (!selected &&
+      (!!dialogueSegment ||
+        dialogueEditing.historyCounts.undo > 0 ||
+        dialogueEditing.historyCounts.redo > 0));
+  const canSplit =
+    !dialogueEditing.busy &&
+    (dialogueContext
+      ? !!dialogueSegment &&
+        !document.layers.find((layer) => layer.id === "dialogue-subtitles")?.locked
+      : splitCandidates(document, currentTime, selected).length > 0);
   function split() {
-    if (canSplit) actions.split({ time: currentTime, selectedId: selected });
+    if (!canSplit) return;
+    if (dialogueSegment) void dialogueEditing.split(dialogueSegment.id, currentTime);
+    else actions.split({ time: currentTime, selectedId: selected });
   }
+  const undo = () => (dialogueContext ? void dialogueEditing.restore(false) : actions.undo());
+  const redo = () => (dialogueContext ? void dialogueEditing.restore(true) : actions.redo());
   const addLayer = (kind: TrackKind) => {
     const count = document.layers.filter((layer) => layer.kind === kind).length + 1;
     actions.addLayer({
@@ -249,8 +278,8 @@ export function Timeline({
         if (command && event.key.toLowerCase() === "z") {
           event.preventDefault();
           if (canEdit) {
-            if (event.shiftKey) actions.redo();
-            else actions.undo();
+            if (event.shiftKey) redo();
+            else undo();
           }
         } else if (!command && !event.altKey) {
           if (event.key.toLowerCase() === "s") {
@@ -275,13 +304,21 @@ export function Timeline({
         snap={snap}
         enabled={enabled}
         canSplit={canSplit}
-        canUndo={history.past.length > 0 && canEdit}
-        canRedo={history.future.length > 0 && canEdit}
+        canUndo={
+          !dialogueEditing.busy &&
+          (dialogueContext ? dialogueEditing.historyCounts.undo > 0 : history.past.length > 0) &&
+          canEdit
+        }
+        canRedo={
+          !dialogueEditing.busy &&
+          (dialogueContext ? dialogueEditing.historyCounts.redo > 0 : history.future.length > 0) &&
+          canEdit
+        }
         canDelete={canDelete}
         onDelete={removeSelected}
         onSplit={split}
-        onUndo={() => actions.undo()}
-        onRedo={() => actions.redo()}
+        onUndo={undo}
+        onRedo={redo}
         onSnap={() => setSnap((value) => !value)}
         onMarker={addMarker}
         onZoom={viewport.changeZoom}

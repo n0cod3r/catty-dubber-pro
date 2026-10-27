@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+
+import type { PersistedEpisode } from "@catty/contracts";
 
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 import { usePlayback } from "@/features/editor/deps/playback";
@@ -10,6 +12,7 @@ import {
   useTimelineStore,
 } from "@/features/editor/deps/timeline";
 
+import { useDialogueEditing } from "../hooks/use-dialogue-editing";
 import { EditorPanels } from "./editor-panels";
 import { Inspector } from "./inspector";
 
@@ -18,6 +21,7 @@ type EditorWorkspaceProps = {
   projectDirectory: string;
   importing: boolean;
   onImport: () => void;
+  onEpisodePersisted: (episode: PersistedEpisode) => void;
   followPlayhead: boolean;
   onMetadata: (
     id: string,
@@ -39,7 +43,9 @@ function WorkspaceContent({
   onImport,
   followPlayhead,
   onMetadata,
+  onEpisodePersisted,
 }: EditorWorkspaceProps) {
+  const dialogue = useDialogueEditing(episode, projectDirectory, onEpisodePersisted);
   const [muted, setMuted] = useState(false);
   const history = useTimelineStore((state) => state.history);
   const initialize = useTimelineStore((state) => state.initialize);
@@ -65,12 +71,6 @@ function WorkspaceContent({
       })),
     });
   }, [sourceId, episode?.dialogueSegments, syncDialogue]);
-  const handleDialogueChange = useCallback(
-    (segments: Array<{ id: string; start: number; end: number; text: string }>) => {
-      if (sourceId) syncDialogue({ sourceId, segments });
-    },
-    [sourceId, syncDialogue],
-  );
   return (
     <EditorPanels
       timeline={
@@ -82,6 +82,7 @@ function WorkspaceContent({
           onMuteChange={setMuted}
           followPlayhead={followPlayhead}
           duration={duration}
+          dialogueEditing={dialogue}
         />
       }
       preview={
@@ -107,10 +108,10 @@ function WorkspaceContent({
       inspector={
         <Inspector
           episode={episode}
-          projectDirectory={projectDirectory}
           currentTime={playback.currentTime}
+          followTimeline={followPlayhead}
           onSeek={playback.seek}
-          onDialogueChange={handleDialogueChange}
+          dialogue={dialogue}
         />
       }
     />

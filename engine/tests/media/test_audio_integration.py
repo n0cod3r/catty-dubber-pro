@@ -146,7 +146,7 @@ def test_video_without_audio_returns_error_and_leaves_no_partial(
             },
         }
     )
-    assert response["error"]["code"] == "AUDIO_PREPARATION_FAILED"
+    assert response["error"]["code"] == "FFMPEG_FAILED"
     assert not list((tmp_path / "project").rglob("*.wav"))
 
 
