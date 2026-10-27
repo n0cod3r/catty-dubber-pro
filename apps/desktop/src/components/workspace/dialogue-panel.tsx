@@ -1,21 +1,21 @@
 import { useState } from "react";
 
-import { AudioLines, Film, Languages, MessageSquareText } from "lucide-react";
+import { Film, Languages, MessageSquareText, Sparkles } from "lucide-react";
 
-import { AudioPreparationPanel } from "@/components/workspace/audio-preparation-panel";
+import { Button } from "@/components/ui/button";
 import type { EpisodeMedia } from "@/features/episodes/types";
 import { formatTime } from "@/features/timeline/geometry";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { id: "audio", label: "Audio", icon: AudioLines },
   { id: "source", label: "Dialogue", icon: MessageSquareText },
   { id: "translation", label: "Khmer", icon: Languages },
   { id: "properties", label: "Media", icon: Film },
 ] as const;
 
 export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
-  const [tab, setTab] = useState<(typeof tabs)[number]["id"]>(episode ? "audio" : "source");
+  const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("source");
+
   return (
     <section
       className="flex min-h-0 min-w-0 flex-1 flex-col bg-card"
@@ -24,9 +24,10 @@ export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
       <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-[11px] font-medium">
         Inspector
         <span className="rounded border px-1.5 py-0.5 text-[9px] font-normal text-muted-foreground">
-          {tab === "audio" ? "Preparation" : tab === "properties" ? "Source" : "0 lines"}
+          {tab === "properties" ? "Source" : "0 lines"}
         </span>
       </div>
+
       <div role="tablist" aria-label="Inspector panels" className="flex h-9 shrink-0 border-b">
         {tabs.map(({ id, label, icon: Icon }, index) => (
           <button
@@ -65,6 +66,7 @@ export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
           </button>
         ))}
       </div>
+
       <div
         role="tabpanel"
         id={`inspector-panel-${tab}`}
@@ -72,67 +74,78 @@ export function DialoguePanel({ episode }: { episode: EpisodeMedia | null }) {
         tabIndex={0}
         className="flex min-h-0 flex-1 flex-col overflow-auto p-4 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        {tab === "audio" && episode ? null : tab === "properties" && episode ? (
-          <div>
-            <dl className="space-y-4 text-[11px]">
-              {[
-                ["File", episode.name],
-                ["Container", episode.extension.toUpperCase()],
-                ["Duration", formatTime(episode.durationSeconds ?? 0, true)],
-                [
-                  "Resolution",
-                  episode.width && episode.height
-                    ? `${episode.width} × ${episode.height}`
-                    : "Reading…",
-                ],
-                ["Target language", "Khmer"],
-                ...(episode.fps ? [["Frame rate", `${episode.fps.toFixed(3)} fps`]] : []),
-                ...(episode.videoCodec ? [["Video codec", episode.videoCodec]] : []),
-                ...(episode.audioCodec ? [["Audio codec", episode.audioCodec]] : []),
-                ...(episode.sampleRate ? [["Audio sample rate", `${episode.sampleRate} Hz`]] : []),
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="mb-1 text-[10px] text-muted-foreground">{label}</dt>
-                  <dd className="break-words">{value}</dd>
-                </div>
-              ))}
-            </dl>
+        {tab === "properties" && episode ? (
+          <dl className="space-y-4 text-[11px]">
+            {[
+              ["File", episode.name],
+              ["Container", episode.extension.toUpperCase()],
+              ["Duration", formatTime(episode.durationSeconds ?? 0, true)],
+              [
+                "Resolution",
+                episode.width && episode.height
+                  ? `${episode.width} × ${episode.height}`
+                  : "Reading…",
+              ],
+              ["Target language", "Khmer"],
+              ...(episode.fps ? [["Frame rate", `${episode.fps.toFixed(3)} fps`]] : []),
+              ...(episode.videoCodec ? [["Video codec", episode.videoCodec]] : []),
+              ...(episode.audioCodec ? [["Audio codec", episode.audioCodec]] : []),
+              ...(episode.sampleRate ? [["Audio sample rate", `${episode.sampleRate} Hz`]] : []),
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt className="mb-1 text-[10px] text-muted-foreground">{label}</dt>
+                <dd className="break-words">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : tab === "source" ? (
+          <div className="m-auto flex max-w-[250px] flex-col items-center text-center">
+            <MessageSquareText
+              className="mb-3 size-7 text-muted-foreground/50"
+              strokeWidth={1.3}
+            />
+            <p className="text-xs font-medium">{episode ? "No dialogue yet" : "No media selected"}</p>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              {episode
+                ? "Transcribe source audio to create timed dialogue. Speech audio preparation and voice detection run automatically in the background."
+                : "Import an episode to start transcription and dubbing."}
+            </p>
+            <Button
+              size="xs"
+              className="mt-3"
+              disabled
+              title={episode ? "Speech model setup is the next engine step" : "Import an episode first"}
+            >
+              <Sparkles />
+              Transcribe
+            </Button>
+            {episode && (
+              <p className="mt-2 text-[9px] text-muted-foreground/70">
+                Select an audio clip or range on the timeline, then transcribe.
+              </p>
+            )}
           </div>
         ) : (
           <div className="m-auto text-center">
-            <MessageSquareText
+            <Languages
               className="mx-auto mb-3 size-7 text-muted-foreground/50"
               strokeWidth={1.3}
             />
             <p className="text-xs font-medium">
-              {tab === "audio"
-                ? "No source audio yet"
-                : tab === "translation"
-                  ? "No translations yet"
-                  : tab === "properties"
-                    ? "No media selected"
-                    : "No dialogue yet"}
+              {episode ? "No Khmer translation yet" : "No media selected"}
             </p>
             <p className="mt-2 max-w-[230px] text-[11px] leading-relaxed text-muted-foreground">
-              {tab === "audio"
-                ? "Import an episode, then prepare its speech audio here."
-                : tab === "translation"
-                  ? "Khmer translations and speaker assignments will appear here when translation is connected."
-                  : tab === "properties"
-                    ? "Import an episode to inspect its duration and resolution."
-                    : "The transcription engine is not connected yet. Imported video and source audio are available on the timeline."}
+              {episode
+                ? "Translate dialogue after transcription. Translation will stay linked to its source timing and speaker."
+                : "Import and transcribe an episode before translating it."}
             </p>
-          </div>
-        )}
-        {episode && (
-          <div hidden={tab !== "audio"}>
-            <AudioPreparationPanel key={episode.id} episode={episode} />
           </div>
         )}
       </div>
+
       <div className="flex h-7 shrink-0 items-center justify-between border-t px-3 text-[9px] text-muted-foreground">
         <span>Source → Khmer</span>
-        <span>Inspector</span>
+        <span>{episode ? "AI dubbing" : "Inspector"}</span>
       </div>
     </section>
   );
