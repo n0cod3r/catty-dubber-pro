@@ -1,5 +1,4 @@
 import { useEffect, useReducer, useState } from "react";
-
 import { EditorPanels } from "@/components/editor/editor-panels";
 import { DialoguePanel } from "@/components/workspace/dialogue-panel";
 import { Timeline } from "@/components/workspace/timeline";
@@ -12,23 +11,14 @@ import { createTimeline, documentDuration, timelineReducer } from "@/features/ti
 type EditorWorkspaceProps = {
   episode: EpisodeMedia | null;
   importing: boolean;
+  preparing: boolean;
   onImport: () => void;
+  onRebuildProxy: () => void;
   followPlayhead: boolean;
-  onMetadata: (
-    id: string,
-    metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">,
-  ) => void;
+  onMetadata: (id: string, metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => void;
 };
 
-// A new episode mounts a fresh session: playback, clip edits, mute, and markers
-// cannot leak from a previous source, including pending seek requests.
-export function EditorWorkspace({
-  episode,
-  importing,
-  onImport,
-  followPlayhead,
-  onMetadata,
-}: EditorWorkspaceProps) {
+export function EditorWorkspace({ episode, importing, preparing, onImport, onRebuildProxy, followPlayhead, onMetadata }: EditorWorkspaceProps) {
   const [muted, setMuted] = useState(false);
   const [history, dispatch] = useReducer(timelineReducer, undefined, createTimeline);
   const duration = documentDuration(history.present);
@@ -37,48 +27,11 @@ export function EditorWorkspace({
   const sourceId = episode?.id;
   const sourceName = episode?.name;
   const sourceDuration = episode?.durationSeconds;
-  useEffect(() => {
-    if (sourceId && sourceName && sourceDuration)
-      dispatch({ type: "initialize", sourceId, name: sourceName, duration: sourceDuration });
-  }, [sourceId, sourceName, sourceDuration]);
-
-  return (
-    <EditorPanels
-      timeline={
-        <Timeline
-          episode={episode}
-          currentTime={playback.currentTime}
-          onSeek={playback.seek}
-          muted={muted}
-          onMuteChange={setMuted}
-          followPlayhead={followPlayhead}
-          history={history}
-          dispatch={dispatch}
-          visuals={visuals}
-          duration={duration}
-        />
-      }
-      preview={
-        <VideoPreview
-          episode={episode}
-          document={history.present}
-          currentTime={playback.currentTime}
-          duration={duration}
-          playing={playback.playing}
-          onPlayingChange={playback.setPlaying}
-          onSeek={playback.seek}
-          muted={muted}
-          onMuteChange={setMuted}
-          onImport={onImport}
-          importing={importing}
-          onMetadata={(metadata) => {
-            if (episode) {
-              onMetadata(episode.id, metadata);
-            }
-          }}
-        />
-      }
-      inspector={<DialoguePanel episode={episode} />}
-    />
-  );
+  useEffect(() => { if (sourceId && sourceName && sourceDuration) dispatch({ type: "initialize", sourceId, name: sourceName, duration: sourceDuration }); }, [sourceId, sourceName, sourceDuration]);
+  const rebuildProxy = () => { playback.setPlaying(false); onRebuildProxy(); };
+  return <EditorPanels
+    timeline={<Timeline episode={episode} currentTime={playback.currentTime} onSeek={playback.seek} muted={muted} onMuteChange={setMuted} followPlayhead={followPlayhead} history={history} dispatch={dispatch} visuals={visuals} duration={duration} preparing={preparing} onRebuildProxy={rebuildProxy} />}
+    preview={<VideoPreview episode={episode} document={history.present} currentTime={playback.currentTime} duration={duration} playing={playback.playing} onPlayingChange={playback.setPlaying} onSeek={playback.seek} muted={muted} onMuteChange={setMuted} onImport={onImport} importing={importing} onMetadata={(metadata) => { if (episode) onMetadata(episode.id, metadata); }} />}
+    inspector={<DialoguePanel episode={episode} />}
+  />;
 }
