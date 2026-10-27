@@ -50,7 +50,7 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
 
   useEffect(() => {
     setEpisode(project?.episodes[0] ? toEpisodeMedia(project.episodes[0]) : null);
-  }, [project?.id]);
+  }, [project]);
 
   useEffect(() => {
     const path = episode?.path;
