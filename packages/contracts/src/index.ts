@@ -61,6 +61,7 @@ export type EngineMethods = {
   "project.dialogue_restore": { params: { project_directory: string; episode_id: string; expected_segments: PersistedDialogueSegment[]; dialogue_segments: PersistedDialogueSegment[]; speakers: EpisodeSpeaker[]; dub_segments: unknown[] }; result: PersistedEpisode };
   "project.dialogue_assign_speaker": { params: DialogueEditParams & { speaker_id: string | null; expected_speaker_id: string | null; create_new?: boolean }; result: PersistedEpisode };
   "project.dialogue_update_text": { params: DialogueEditParams & { text: string; expected_text: string }; result: PersistedEpisode };
+  "project.dialogue_update_translation": { params: DialogueEditParams & { text: string; expected_text: string | null }; result: PersistedEpisode };
   "project.dialogue_split": { params: DialogueSplitParams; result: PersistedEpisode };
   "project.dialogue_merge_next": { params: DialogueEditParams; result: PersistedEpisode };
   "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
