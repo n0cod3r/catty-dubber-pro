@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from .models import ConnectionTestResult, TranslationModel
+from .models import (
+    ConnectionTestResult,
+    TranslationBatchRequest,
+    TranslationBatchResult,
+    TranslationModel,
+)
 
 
 class ProviderError(RuntimeError):
@@ -18,5 +23,4 @@ class TranslationProvider(Protocol):
 
     def test_connection(self) -> ConnectionTestResult: ...
 
-    # Future milestone: translate_batch(...) belongs here once the dialogue
-    # translation pipeline lands. Do not add a fake implementation.
+    def translate_batch(self, request: TranslationBatchRequest) -> TranslationBatchResult: ...
