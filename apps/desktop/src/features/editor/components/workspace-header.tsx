@@ -6,6 +6,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { EngineConnection } from "@/features/editor/deps/engine";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 
+import { ImportedCat } from "./imported-cat";
+
 export function WorkspaceHeader({
   episode,
   importing,
@@ -16,13 +18,18 @@ export function WorkspaceHeader({
   onImport: () => void;
 }) {
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b bg-card px-3">
+    <header className="relative flex h-12 shrink-0 items-center gap-3 border-b bg-card px-3">
       <SidebarTrigger />
       <div className="h-5 w-px bg-border" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h1 className="truncate text-xs font-semibold">{episode?.name ?? "Untitled project"}</h1>
           <Badge variant="outline">{episode ? "Imported" : "Draft"}</Badge>
+          {episode && (
+            <span className="w-16 shrink-0" aria-hidden="true">
+              <ImportedCat />
+            </span>
+          )}
         </div>
         <p className="mt-0.5 text-[10px] text-muted-foreground">
           Dubbing workspace <span className="px-1">/</span> Source → Khmer
