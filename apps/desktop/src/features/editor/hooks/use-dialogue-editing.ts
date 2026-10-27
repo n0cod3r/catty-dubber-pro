@@ -27,6 +27,7 @@ export function useDialogueEditing(
     return persisted;
   }, [episode?.id, projectDirectory]);
   const [error, setError] = useState<string | null>(null);
+  const [speakerWarning, setSpeakerWarning] = useState<string | null>(null);
   useEffect(() => {
     const guard = sessionGuard.current;
     guard.reset(JSON.stringify([projectDirectory, episode?.id ?? null]));
@@ -34,6 +35,7 @@ export function useDialogueEditing(
     redoStack.current = [];
     setHistoryCounts({ undo: 0, redo: 0 });
     setError(null);
+    setSpeakerWarning(null);
     setTranscribing(false);
     setEditing(false);
     return () => guard.reset(null);
@@ -45,8 +47,9 @@ export function useDialogueEditing(
     if (!ticket) return;
     setTranscribing(true);
     setError(null);
+    setSpeakerWarning(null);
     try {
-      await requestEngine("speech.transcribe", {
+      const transcription = await requestEngine("speech.transcribe", {
         project_directory: projectDirectory,
         episode_id: episode.id,
         source: episode.path,
@@ -66,6 +69,7 @@ export function useDialogueEditing(
       undoStack.current = [];
       redoStack.current = [];
       setHistoryCounts({ undo: undoStack.current.length, redo: redoStack.current.length });
+      setSpeakerWarning(transcription.speaker_error ?? null);
       onEpisodePersisted(persisted);
       return true;
     } catch (cause) {
@@ -257,6 +261,7 @@ export function useDialogueEditing(
     busy,
     transcribing,
     error,
+    speakerWarning,
     historyCounts,
     split,
     merge,

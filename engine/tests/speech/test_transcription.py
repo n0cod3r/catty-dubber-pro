@@ -1,6 +1,8 @@
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
+
 from catty_engine.media.audio import AudioAsset, AudioAssetKind
 from catty_engine.speech import (
     AsrBackendRegistry,
@@ -104,6 +106,42 @@ def test_vad_regions_are_passed_to_asr_without_fixed_six_second_chopping(
         (1.2, 2.8),
         (4.0, 5.1),
     ]
+
+
+def test_registry_get_has_no_lazy_model_or_network_side_effects() -> None:
+    registry = AsrBackendRegistry()
+    with pytest.raises(ValueError, match="Unknown ASR backend"):
+        registry.get("paraformer")
+    assert registry.ids() == []
+
+
+def test_paraformer_resolves_to_funasr_and_never_sherpa_small() -> None:
+    from catty_engine.speakers.funasr import FunASRParaformerBackend
+    from catty_engine.speech.model_manager import ModelManager
+    from catty_engine.speech.runtime import create_asr_registry
+
+    registry = create_asr_registry("paraformer", {})
+    assert isinstance(registry.get("paraformer"), FunASRParaformerBackend)
+    with pytest.raises(ValueError, match="FunASR"):
+        ModelManager().ensure_asr("paraformer")
+
+
+def test_factory_uses_integrated_vad_and_speakers_for_paraformer(
+    monkeypatch,
+) -> None:
+    from catty_engine.speech import runtime
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("integrated backends must not build external VAD")
+
+    monkeypatch.setattr(runtime, "create_vad", unexpected)
+    service = runtime.create_transcription_service(
+        backend_id="paraformer",
+        asr_config={},
+        vad_backend="silero",
+        vad_config={},
+    )
+    assert service is not None
 
 
 def test_registry_allows_multiple_models() -> None:

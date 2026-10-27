@@ -493,3 +493,40 @@ def test_detected_speakers_replace_cleanly_and_correction_undo_redo(
     assert len(restored.speakers) == 2
     assert len(restored.dialogue_segments) == 2
     assert all(s.segment_ids for s in restored.speakers)
+
+
+def test_speaker_failure_persists_failed_state_without_failing_transcription(
+    tmp_path: Path,
+) -> None:
+    from catty_engine.project.models import ProcessingStatus
+    from catty_engine.speech.models import TranscriptSegment
+
+    service = project_service_without_ffprobe()
+    project = service.create_project(tmp_path, "Speakers")
+    episode = project.add_episode("episode.mp4")
+    service.replace_dialogue_segments(
+        tmp_path,
+        project,
+        episode.id,
+        [TranscriptSegment(start=0, end=2, text="你好。")],
+        source_language="zh",
+        speaker_error="CAM++ failed",
+    )
+
+    failed = service.open_project(tmp_path).episodes[0]
+    assert failed.processing.transcription == ProcessingStatus.COMPLETED
+    assert failed.processing.speakers == ProcessingStatus.FAILED
+    assert failed.processing.speaker_error == "CAM++ failed"
+    assert [segment.source_text for segment in failed.dialogue_segments] == ["你好。"]
+
+    service.replace_dialogue_segments(
+        tmp_path,
+        project,
+        episode.id,
+        [TranscriptSegment(start=0, end=2, text="你好。", speaker="S1")],
+        source_language="zh",
+    )
+    recovered = service.open_project(tmp_path).episodes[0]
+    assert recovered.processing.transcription == ProcessingStatus.COMPLETED
+    assert recovered.processing.speakers == ProcessingStatus.COMPLETED
+    assert recovered.processing.speaker_error is None

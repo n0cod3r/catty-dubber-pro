@@ -43,6 +43,12 @@ export type EpisodeSpeaker = {
   character_id: string | null;
   segment_ids: string[];
 };
+export type EpisodeProcessingState = {
+  transcription: string;
+  speakers: string;
+  speaker_error?: string | null;
+  [key: string]: string | null | undefined;
+};
 export type PersistedEpisode = {
   id: string;
   name: string;
@@ -53,7 +59,7 @@ export type PersistedEpisode = {
   speakers: EpisodeSpeaker[];
   dialogue_segments: PersistedDialogueSegment[];
   dub_segments: unknown[];
-  processing: Record<string, string>;
+  processing: EpisodeProcessingState;
   created_at: string;
   updated_at: string;
 };
@@ -79,6 +85,7 @@ export type TranscriptionResult = {
   model: string;
   language: string;
   segments: TranscriptSegment[];
+  speaker_error?: string | null;
 };
 export type SpeechTranscribeParams = {
   project_directory: string;

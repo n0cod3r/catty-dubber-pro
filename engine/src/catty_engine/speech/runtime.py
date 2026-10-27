@@ -6,7 +6,8 @@ from typing import Any
 from .backends import AsrBackendRegistry
 from .model_manager import ModelManager
 from .sense_voice import SenseVoiceBackend
-from .vad import SileroVad, VadBackend
+from .transcription import TranscriptionService
+from .vad import SileroVad, VadBackend, WholeClipVad
 
 
 def create_asr_registry(backend_id: str, config: dict[str, Any]) -> AsrBackendRegistry:
@@ -37,6 +38,34 @@ def create_asr_registry(backend_id: str, config: dict[str, Any]) -> AsrBackendRe
         )
         return registry
     raise ValueError(f"Unsupported ASR backend: {backend_id}")
+
+
+def create_transcription_service(
+    *,
+    backend_id: str,
+    asr_config: dict[str, Any],
+    vad_backend: str,
+    vad_config: dict[str, Any],
+) -> TranscriptionService:
+    """Build the production service without hidden registry side effects.
+
+    Integrated backends own their VAD and speaker models (FSMN-VAD + CAM++ for
+    FunASR), so ``WholeClipVad`` only expresses the requested recognition range.
+    External ``vad_backend``/``vad_config`` apply to backends that do not own VAD.
+    """
+    registry = create_asr_registry(backend_id, asr_config)
+    backend = registry.get(backend_id)
+    integrated_vad = bool(getattr(backend, "integrated_vad", False))
+    speaker_pipeline = None
+    if not getattr(backend, "integrated_speakers", False):
+        from catty_engine.speakers.funasr import FunASRSpeakerPipeline
+
+        speaker_pipeline = FunASRSpeakerPipeline()
+    return TranscriptionService(
+        asr_backends=registry,
+        vad=WholeClipVad() if integrated_vad else create_vad(vad_backend, vad_config),
+        speaker_pipeline=speaker_pipeline,
+    )
 
 
 def create_vad(backend_id: str, config: dict[str, Any]) -> VadBackend:

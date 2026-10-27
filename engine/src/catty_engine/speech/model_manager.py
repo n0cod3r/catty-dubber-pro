@@ -20,12 +20,6 @@ class ArchiveModel:
     model_name: str
 
 
-PARAFORMER = ArchiveModel(
-    directory="sherpa-onnx-paraformer-zh-small-2024-03-09",
-    archive="sherpa-onnx-paraformer-zh-small-2024-03-09.tar.bz2",
-    model_file="model.int8.onnx",
-    model_name="paraformer-zh-small-2024-03-09",
-)
 SENSE_SMALL = ArchiveModel(
     directory="sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17",
     archive="sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2",
@@ -48,14 +42,12 @@ class ModelManager:
 
     def ensure_asr(self, backend_id: str) -> dict[str, Any]:
         if backend_id == "paraformer":
-            directory = self._ensure_archive(PARAFORMER)
-            return {
-                "model": str(directory / PARAFORMER.model_file),
-                "tokens": str(directory / "tokens.txt"),
-                "model_name": PARAFORMER.model_name,
-                "num_threads": 2,
-                "provider": "cpu",
-            }
+            # Paraformer is provided by FunASR (large model + FSMN-VAD + CT-Punc
+            # + CAM++) and is resolved by catty_engine.speakers.funasr. The sherpa
+            # Paraformer-small archive must never be downloaded by Smart Transcribe.
+            raise ValueError(
+                "Paraformer is provided by FunASR; sherpa Paraformer is unavailable"
+            )
         if backend_id == "sense-small":
             directory = self._ensure_archive(SENSE_SMALL)
             return {

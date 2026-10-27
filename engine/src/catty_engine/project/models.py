@@ -117,6 +117,7 @@ class EpisodeProcessingState(BaseModel):
     media: ProcessingStatus = ProcessingStatus.IDLE
     transcription: ProcessingStatus = ProcessingStatus.IDLE
     speakers: ProcessingStatus = ProcessingStatus.IDLE
+    speaker_error: str | None = None
     translation: ProcessingStatus = ProcessingStatus.IDLE
     dubbing: ProcessingStatus = ProcessingStatus.IDLE
     separation: ProcessingStatus = ProcessingStatus.IDLE

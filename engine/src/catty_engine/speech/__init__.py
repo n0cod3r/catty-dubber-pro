@@ -2,14 +2,14 @@
 
 from .backends import AsrBackend, AsrBackendRegistry
 from .models import SpeechRegion, TranscriptSegment, TranscriptionResult
-from .paraformer import ParaformerBackend
+from .segmentation import MAX_DIALOGUE_DURATION, split_long_dialogue
 from .transcription import TranscriptionService
 from .vad import SileroVad, VadBackend, WholeClipVad
 
 __all__ = [
     "AsrBackend",
     "AsrBackendRegistry",
-    "ParaformerBackend",
+    "MAX_DIALOGUE_DURATION",
     "SileroVad",
     "SpeechRegion",
     "TranscriptSegment",
@@ -17,4 +17,5 @@ __all__ = [
     "TranscriptionService",
     "VadBackend",
     "WholeClipVad",
+    "split_long_dialogue",
 ]

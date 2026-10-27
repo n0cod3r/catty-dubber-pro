@@ -9,6 +9,7 @@ from catty_engine.media.audio_preparation import AudioPreparationService
 
 from .backends import AsrBackendRegistry
 from .models import TranscriptionResult
+from .segmentation import split_long_dialogue
 from .vad import VadBackend
 
 
@@ -80,6 +81,9 @@ class TranscriptionService:
             except Exception as exc:
                 speaker_error = str(exc)
 
+        # ASR keeps full context. Shorten only after recognition and speaker
+        # annotation, so every split inherits the recognized speaker.
+        segments = split_long_dialogue(segments)
         return TranscriptionResult(
             backend=backend.id,
             model=model,

@@ -18,13 +18,15 @@ voice before continuing.
 
 ## Current implementation
 
-Import and transcription include internal audio preparation, VAD, ASR and automatic
-segmentation. Dialogue text editing, manual Split/Merge, persistent project data,
-Undo/Redo and history isolation are implemented. Speaker detection, translation,
-dubbing generation and export described below are planned capabilities, not
-claims about the current runtime.
+Import and transcription include internal audio preparation, FSMN-VAD, Paraformer
+ASR, CT-Punc sentence timing, CAM++ speaker annotation and post-ASR semantic
+splitting. Dialogue text editing, manual Split/Merge, persistent project data,
+Undo/Redo and history isolation are implemented. Speaker detection is integrated
+and optional to correct; a speaker-only failure keeps dialogue and is persisted as
+`processing.speakers = failed`. Translation, dubbing generation and export
+described below are planned capabilities, not claims about the current runtime.
 
-## Next milestone: Smart Speaker Detection
+## Smart Speaker Detection (implemented)
 
 One **Transcribe** action should produce dialogue with speakers automatically:
 

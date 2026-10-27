@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { TranscriptSegment } from "@catty/contracts";
-import { Film, Languages, LoaderCircle, MessageSquareText, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Film,
+  Languages,
+  LoaderCircle,
+  MessageSquareText,
+  Sparkles,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
@@ -59,6 +66,7 @@ export function Inspector({
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("source");
   const [engine, setEngine] = useState<TranscriptionEngine>(readTranscriptionEngine);
   const { busy, transcribing, error, historyCounts } = dialogue;
+  const speakerWarning = dialogue.speakerWarning ?? episode?.speakerError ?? null;
   const [segments, setSegments] = useState<DialogueRow[]>(() =>
     persistedSegments(episode?.dialogueSegments),
   );
@@ -330,6 +338,19 @@ export function Inspector({
                 <span>Time</span>
                 <span>Dialogue</span>
               </div>
+              {speakerWarning && (
+                <p
+                  role="status"
+                  title={speakerWarning}
+                  className="flex shrink-0 items-start gap-1.5 border-b border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-snug text-amber-700 dark:text-amber-300"
+                >
+                  <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+                  <span>
+                    ការបម្លែងសំឡេងទៅជាអត្ថបទបានជោគជ័យ ប៉ុន្តែការសម្គាល់អ្នកនិយាយបរាជ័យ។ Dialogue
+                    ត្រូវបានរក្សាទុក ហើយអ្នកអាចកែ Speaker ដោយដៃ។
+                  </span>
+                </p>
+              )}
               <div
                 ref={listRef}
                 className="min-h-0 flex-1 overflow-auto"

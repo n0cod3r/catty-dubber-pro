@@ -104,7 +104,11 @@ class SileroVad:
 
 
 class WholeClipVad:
-    """Deterministic fallback useful for tests and model-less development."""
+    """Return the requested range as one region.
+
+    Used by tests and by integrated backends that own VAD internally (FunASR
+    FSMN-VAD); it only expresses the recognition range, never a subtitle boundary.
+    """
 
     id = "whole-clip"
 

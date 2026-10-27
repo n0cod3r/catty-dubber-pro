@@ -24,8 +24,6 @@ from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
 from catty_engine.project import ProjectService
 from catty_engine.project.models import DialogueSegment, EpisodeSpeaker, DubSegment
-from catty_engine.speech.runtime import create_asr_registry, create_vad
-from catty_engine.speech.transcription import TranscriptionService
 
 PROTOCOL_VERSION = 1
 EngineMethod = Literal[
@@ -338,28 +336,13 @@ def handle_request(payload: Any) -> dict[str, Any]:
             speech_transcribe_params = SpeechTranscribeParams.model_validate(
                 request.params
             )
-            from catty_engine.speakers.funasr import FunASRSpeakerPipeline
-            from catty_engine.speech.backends import AsrBackendRegistry
-            from catty_engine.speech.vad import WholeClipVad
+            from catty_engine.speech.runtime import create_transcription_service
 
-            registry = (
-                create_asr_registry(
-                    speech_transcribe_params.asr_backend,
-                    speech_transcribe_params.asr_config,
-                )
-                if speech_transcribe_params.asr_backend != "paraformer"
-                else AsrBackendRegistry()
-            )
-            vad = (
-                create_vad(
-                    speech_transcribe_params.vad_backend,
-                    speech_transcribe_params.vad_config,
-                )
-                if speech_transcribe_params.asr_backend != "paraformer"
-                else WholeClipVad()
-            )
-            transcription = TranscriptionService(
-                asr_backends=registry, vad=vad, speaker_pipeline=FunASRSpeakerPipeline()
+            transcription = create_transcription_service(
+                backend_id=speech_transcribe_params.asr_backend,
+                asr_config=speech_transcribe_params.asr_config,
+                vad_backend=speech_transcribe_params.vad_backend,
+                vad_config=speech_transcribe_params.vad_config,
             ).transcribe(
                 project_directory=speech_transcribe_params.project_directory,
                 episode_id=speech_transcribe_params.episode_id,
@@ -378,6 +361,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
                 speech_transcribe_params.episode_id,
                 transcription.segments,
                 source_language=speech_transcribe_params.language,
+                speaker_error=transcription.speaker_error,
             )
             result = transcription.model_dump(mode="json")
         else:

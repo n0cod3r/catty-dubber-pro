@@ -163,6 +163,7 @@ class ProjectService:
         segments: list[TranscriptSegment],
         *,
         source_language: str,
+        speaker_error: str | None = None,
     ) -> Episode:
         episode = self._episode(project, episode_id)
         speakers = {
@@ -196,8 +197,14 @@ class ProjectService:
                 if segment.speaker_id == speaker.id
             ]
         episode.dub_segments = []
-        episode.processing.speakers = ProcessingStatus.COMPLETED
         episode.processing.transcription = ProcessingStatus.COMPLETED
+        if speaker_error is None:
+            episode.processing.speakers = ProcessingStatus.COMPLETED
+            episode.processing.speaker_error = None
+        else:
+            # Recognition succeeded; only speaker annotation is unavailable.
+            episode.processing.speakers = ProcessingStatus.FAILED
+            episode.processing.speaker_error = speaker_error
         self._touch_and_save(directory, project, episode)
         return episode
 

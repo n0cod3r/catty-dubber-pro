@@ -159,31 +159,6 @@ def _load_pipeline(
     )
 
 
-@lru_cache(maxsize=2)
-def _load_asr_fallback(
-    model_paths: tuple[tuple[str, str], ...], device: str, ncpu: int
-) -> Any:
-    """Load ASR/VAD/punctuation without CAM++ for diarization-failure recovery."""
-    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-    import torch
-    from funasr import AutoModel
-
-    torch.set_num_threads(ncpu)
-    models = dict(model_paths)
-    return AutoModel(
-        model=models["paraformer-zh"],
-        vad_model=models["fsmn-vad"],
-        punc_model=models["ct-punc"],
-        device=device,
-        ncpu=ncpu,
-        disable_update=True,
-        disable_pbar=True,
-        trust_remote_code=False,
-        log_level="ERROR",
-        vad_kwargs={"max_single_segment_time": MAX_VAD_SEGMENT_MS},
-    )
-
-
 def _has_spoken_text(text: str) -> bool:
     return any(
         not unicodedata.category(character).startswith(("P", "S", "Z", "C"))
@@ -203,7 +178,6 @@ def parse_sentences(
     *,
     start: float,
     duration: float,
-    require_speaker: bool = False,
 ) -> list[TranscriptSegment]:
     """Convert punctuated FunASR sentence_info into canonical dialogue."""
     segments: list[TranscriptSegment] = []
@@ -218,8 +192,6 @@ def parse_sentences(
         if right <= left or not text or not _has_spoken_text(text):
             continue
         cluster = sentence.get("spk")
-        if require_speaker and cluster is None:
-            raise ValueError("FunASR did not return speaker labels")
         label = None
         if cluster is not None:
             label = labels.setdefault(int(cluster), f"S{len(labels) + 1}")
@@ -263,14 +235,27 @@ def match_speakers(
     return matched
 
 
-def _run_generate(pipeline: Any, samples: Any, rate: int) -> list[dict[str, Any]]:
+def _run_generate(
+    pipeline: Any,
+    samples: Any,
+    rate: int,
+    *,
+    return_spk_res: bool,
+) -> list[dict[str, Any]]:
+    """Run the one production pipeline, optionally skipping CAM++ annotation.
+
+    FunASR does not expose a speaker-only entry point: speaker clustering is part
+    of the same ``generate`` call that runs ASR. Reusing the loaded pipeline with
+    ``return_spk_res=False`` is therefore the supported recovery path. It keeps
+    canonical ASR, VAD and CT-Punc output without loading a second model stack.
+    """
     return pipeline.generate(
         input=samples,
         fs=rate,
         batch_size_s=30,
         disable_pbar=True,
         sentence_timestamp=True,
-        return_spk_res=True,
+        return_spk_res=return_spk_res,
     )
 
 
@@ -280,6 +265,7 @@ class FunASRParaformerBackend:
     id = "paraformer"
     model = "funasr-paraformer-ct-punc-campplus"
     integrated_speakers = True
+    integrated_vad = True
 
     def __init__(self) -> None:
         self.speaker_error: str | None = None
@@ -291,6 +277,8 @@ class FunASRParaformerBackend:
         *,
         language: str,
     ) -> list[TranscriptSegment]:
+        # A reused backend instance must never leak a previous speaker warning.
+        self.speaker_error = None
         if language not in {"zh", "zh-CN", "zh-cn"}:
             raise ValueError("The FunASR Paraformer backend supports Chinese dialogue")
         if not regions:
@@ -312,30 +300,30 @@ class FunASRParaformerBackend:
             ncpu = _cpu_threads()
             model_paths = tuple(models.items())
             pipeline = _load_pipeline(model_paths, device, ncpu)
+            audio_duration = min(duration, len(samples) / rate)
             try:
-                result = _run_generate(pipeline, samples, rate)
-                segments = parse_sentences(
-                    result,
-                    start=start,
-                    duration=min(duration, len(samples) / rate),
-                )
-                self.speaker_error = None
-                return segments
-            except Exception as exc:
-                self.speaker_error = str(exc)
-                fallback = _load_asr_fallback(model_paths, device, ncpu)
-                result = fallback.generate(
-                    input=samples,
-                    fs=rate,
-                    batch_size_s=30,
-                    disable_pbar=True,
-                    sentence_timestamp=True,
+                result = _run_generate(
+                    pipeline, samples, rate, return_spk_res=True
                 )
                 return parse_sentences(
-                    result,
-                    start=start,
-                    duration=min(duration, len(samples) / rate),
+                    result, start=start, duration=audio_duration
                 )
+            except Exception as speaker_exc:
+                # No clean speaker-only exception boundary exists inside FunASR.
+                # Retry the SAME pipeline without CAM++; if the transcript comes
+                # back, the failure was speaker-related. If it also fails, the
+                # original error is chained and the real ASR failure surfaces.
+                try:
+                    result = _run_generate(
+                        pipeline, samples, rate, return_spk_res=False
+                    )
+                    segments = parse_sentences(
+                        result, start=start, duration=audio_duration
+                    )
+                except Exception as transcription_exc:
+                    raise transcription_exc from speaker_exc
+                self.speaker_error = str(speaker_exc)
+                return segments
 
 
 class FunASRSpeakerPipeline:

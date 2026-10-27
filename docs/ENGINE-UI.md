@@ -1,6 +1,6 @@
 # Engine ↔ UI connection
 
-The desktop transport is now connected for engine health, media probing, and speech-audio preparation:
+The desktop transport is connected for engine health, media probing, project and episode import, persistent dialogue editing, speaker correction, and Smart Transcribe:
 
 ```text
 React: requestEngine("media.probe", { path })
@@ -13,8 +13,10 @@ React: requestEngine("media.probe", { path })
 The engine runs locally; no HTTP server or port is required. Requests are passed
 as JSON on stdin, never interpolated into shell commands. Rust runs the process
 on a blocking worker so the UI remains responsive, checks the response ID and
-protocol version, and limits short requests to 35 seconds. FFprobe has a 30-second
-timeout. The process exits after each short request.
+protocol version, limits short requests to 35 seconds, and allows long media and
+speech requests up to one hour. FFprobe has a 30-second timeout. The Python process
+is persistent: model-heavy operations reuse the loaded FunASR stack instead of
+restarting the engine per request.
 
 ## Run in development
 
@@ -71,17 +73,15 @@ Stdout is reserved for one JSON response; engine diagnostics belong on stderr.
 
 ## What to connect next
 
-`ProjectService` and `ProjectStore` are implemented in Python, but project UI and
-project IPC operations are not connected yet. Add explicit request/result types,
-validated parameter models, and narrow Tauri method allowlisting for create,
-open, save, and episode operations before exposing them in the UI.
+`ProjectService` and `ProjectStore` are connected to the editor through
+`project.*` operations. `speech.transcribe` runs Smart Transcribe and persists
+dialogue, speakers, and processing state. `speaker_error` is returned to the UI and
+persisted as `processing.speaker_error` when only speaker annotation fails.
 
-Speech, translation, TTS, separation, and workers currently have no implemented
-operations. When they are added, expose them as background jobs with job IDs,
-progress events, cancellation, and structured results. Use a persistent engine
-worker for model-heavy work so models are not reloaded per request. The current
-one-request transport handles health/probe calls and bounded audio extraction;
-model-heavy AI work should still use a persistent worker.
+Translation, TTS, separation, and annotate-only speaker retry are not implemented.
+When they are added, expose them as cancellable jobs with structured progress.
+`audio.prepare` already uses the dedicated cancellable Tauri command; Transcribe is
+a long-running synchronous request and does not yet expose progress or cancel.
 
 Release packaging is a separate step: ship a Python engine executable as a Tauri
 sidecar and include/configure FFprobe. This development bridge relies on the

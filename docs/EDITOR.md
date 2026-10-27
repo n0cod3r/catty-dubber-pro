@@ -39,10 +39,14 @@ and Media tabs.
 
 Video and source audio play from the original media file. Splits create contiguous
 linked segment boundaries; trimming, offline rendering, and exporting edits are
-not implemented. Changes are session-only; only the timeline panel height persists.
-Transcript, translation, and voice generation require the dubbing engine and show
-explicit empty states until connected. Frame stepping uses 1/30 second because
-source frame-rate detection is not available yet.
+not implemented. Timeline document edits remain session-only; the timeline panel
+height, inspector width, dialogue, speakers, and transcript persist in
+`project.json`. Transcription is connected to the engine. Translation and voice
+generation still show explicit empty states. If speaker annotation fails,
+transcription still succeeds: the Inspector shows a compact warning, dialogue stays
+editable, and the persisted episode records `processing.speakers = failed`.
+Frame stepping uses 1/30 second because source frame-rate detection is not
+available yet.
 
 ## Validation
 

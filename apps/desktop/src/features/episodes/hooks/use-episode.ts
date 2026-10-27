@@ -30,6 +30,9 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
     sampleRate: episode.media.sample_rate,
     channels: episode.media.channels,
     speakers: episode.speakers,
+    speakerError:
+      episode.processing?.speaker_error ??
+      (episode.processing?.speakers === "failed" ? "Speaker detection failed." : null),
     dialogueSegments: episode.dialogue_segments.map((segment) => ({
       id: segment.id,
       start: segment.start,

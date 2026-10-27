@@ -2,6 +2,7 @@ import type { EpisodeSpeaker } from "@catty/contracts";
 
 export type EpisodeMedia = {
   speakers?: EpisodeSpeaker[];
+  speakerError?: string | null;
   id: string;
   path: string;
   playbackPath?: string | null;

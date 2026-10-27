@@ -91,8 +91,9 @@ Catty follows **automation first, correction second**. The five primary actions
 are Import, Transcribe, Translate to Khmer, Generate Dubbing and Export. Internal
 analysis and setup must not become mandatory manual workflow steps.
 
-The next milestone is **Smart Speaker Detection**, integrated into Transcribe.
-Speaker assignment and renaming are optional corrections, followed by the
-**Smart Khmer Translation** milestone. Voice mapping likewise defaults to ready
-to run when generating dubbing. See [Smart Dubbing Pipeline](SMART-DUBBING-PIPELINE.md)
+**Smart Speaker Detection** is integrated into Transcribe: one FunASR pass owns
+canonical punctuated ASR and CAM++ only annotates it, with post-ASR semantic
+splitting and non-fatal speaker failures. Speaker assignment and renaming are
+optional corrections. The next milestone is **Smart Khmer Translation**. Voice
+mapping likewise defaults to ready to run when generating dubbing. See [Smart Dubbing Pipeline](SMART-DUBBING-PIPELINE.md)
 for planned behavior, acceptance criteria and the distinction from current support.
