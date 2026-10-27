@@ -15,6 +15,7 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
 
 export function useEpisode(projectDirectory: string | null, project: PersistedProject | null) {
   const [episode, setEpisode] = useState<EpisodeMedia | null>(() => project?.episodes[0] ? toEpisodeMedia(project.episodes[0]) : null);
+  const [mediaRevision, setMediaRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -27,13 +28,14 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
   useEffect(() => {
     const first = project?.episodes[0];
     setEpisode(first ? toEpisodeMedia(first) : null);
+    setMediaRevision(0);
     if (!first || !projectDirectory || !isTauri() || first.playback_proxy_path) { setPreparing(false); setStatus(null); return; }
     const key = `${projectDirectory}:${first.id}`;
     if (preparationKey.current === key) return;
     preparationKey.current = key;
     setPreparing(true); setStatus("កំពុងរៀបចំ preview video និង audio សម្រាប់ playback រលូន…");
     void requestEngine("project.prepare_episode", { project_directory: projectDirectory, episode_id: first.id })
-      .then((prepared) => { if (!mounted.current) return; setEpisode(toEpisodeMedia(prepared)); setStatus("Preview រួចរាល់"); window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800); })
+      .then((prepared) => { if (!mounted.current) return; setEpisode(toEpisodeMedia(prepared)); setMediaRevision((value) => value + 1); setStatus("Preview រួចរាល់"); window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800); })
       .catch((cause: unknown) => { if (!mounted.current) return; preparationKey.current = null; setError(cause instanceof Error ? cause.message : "មិនអាចរៀបចំ preview បានទេ។"); setStatus(null); })
       .finally(() => { if (mounted.current) setPreparing(false); });
   }, [project, projectDirectory]);
@@ -45,14 +47,12 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
     try {
       const rebuilt = await requestEngine("project.rebuild_proxy", { project_directory: projectDirectory, episode_id: episode.id });
       if (!mounted.current) return;
-      // Add a cache-busting query only to the webview URL lifecycle by changing
-      // React media state through a remount; the persisted filesystem path stays clean.
       setEpisode(toEpisodeMedia(rebuilt));
+      setMediaRevision((value) => value + 1);
       setStatus("Proxy rebuild រួចរាល់");
       window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800);
-    } catch (cause) {
-      if (mounted.current) { setError(cause instanceof Error ? cause.message : "មិនអាច rebuild proxy បានទេ។"); setStatus(null); }
-    } finally { if (mounted.current) setPreparing(false); }
+    } catch (cause) { if (mounted.current) { setError(cause instanceof Error ? cause.message : "មិនអាច rebuild proxy បានទេ។"); setStatus(null); } }
+    finally { if (mounted.current) setPreparing(false); }
   }, [episode, preparing, projectDirectory]);
 
   const openEpisode = useCallback(async () => {
@@ -63,11 +63,11 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
       const selected = await pickEpisodePath(); if (!selected) return;
       setStatus("កំពុងបង្កើត preview video និង audio…");
       const persisted = await requestEngine("project.import_episode", { project_directory: projectDirectory, project_name: project.name, source: selected });
-      if (mounted.current) { setEpisode(toEpisodeMedia(persisted)); setStatus("Episode រួចរាល់"); window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800); }
+      if (mounted.current) { setEpisode(toEpisodeMedia(persisted)); setMediaRevision((value) => value + 1); setStatus("Episode រួចរាល់"); window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800); }
     } catch (cause) { if (mounted.current) { setError(cause instanceof Error ? cause.message : "មិនអាច import episode នេះបានទេ។"); setStatus(null); } }
     finally { importLock.current = false; if (mounted.current) setImporting(false); }
   }, [projectDirectory, project]);
   const importFile = useCallback((file: File) => { if (!/\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name)) { setError("សូមជ្រើស MP4, MOV, MKV, WebM, M4V ឬ AVI។"); return; } setError("Web preview មិនអាចរក្សាទុក episode ទៅ Project បានទេ។ សូមប្រើ Catty desktop app។"); }, []);
   const updateMetadata = useCallback((id: string, metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => { setEpisode((current) => current?.id === id ? { ...current, ...metadata } : current); }, []);
-  return { episode, importing, preparing, status, error, dismissError: () => setError(null), openEpisode, rebuildProxy, importFile, fileInputRef, updateMetadata };
+  return { episode, mediaRevision, importing, preparing, status, error, dismissError: () => setError(null), openEpisode, rebuildProxy, importFile, fileInputRef, updateMetadata };
 }
