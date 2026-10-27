@@ -32,6 +32,14 @@ class AsrBackendRegistry:
         self._backends[backend.id] = backend
 
     def get(self, backend_id: str) -> AsrBackend:
+        # Compatibility for older callers that constructed an empty registry for
+        # Smart Transcribe. This no longer downloads/loads the sherpa small model;
+        # the canonical backend is the same integrated FunASR large pipeline used
+        # by create_asr_registry(). New callers should use that factory directly.
+        if backend_id == "paraformer" and backend_id not in self._backends:
+            from catty_engine.speakers.funasr import FunASRParaformerBackend
+
+            self.register(FunASRParaformerBackend())
         try:
             return self._backends[backend_id]
         except KeyError as exc:
