@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { activeVideoAt, fitVideoFrame } from "../apps/desktop/src/features/timeline/preview.ts";
+import {
+  activeVideoAt,
+  fitVideoFrame,
+} from "../apps/desktop/src/features/preview/utils/video-geometry.ts";
 
 const landscape = { id: "landscape", width: 1920, height: 1080 };
 const portrait = { id: "portrait", width: 1080, height: 1920 };

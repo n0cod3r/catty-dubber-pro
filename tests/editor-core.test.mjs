@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  clamp,
-  formatTime,
   pointerToTime,
   snapTime,
   visibleTicks,
-} from "../apps/desktop/src/features/timeline/geometry.ts";
+} from "../apps/desktop/src/features/timeline/utils/geometry.ts";
+import { clampFinite as clamp } from "../apps/desktop/src/shared/utils/math.ts";
+import { formatTime } from "../apps/desktop/src/shared/utils/time.ts";
 
 test("pointer coordinates include scroll offset and clamp at media edges", () => {
   assert.equal(pointerToTime(400, 200, 300, 1000, 100), 50);
@@ -41,7 +41,7 @@ test("time displays hours correctly and guards invalid media values", () => {
 });
 
 test("a split clip snaps flush when returning despite trailing-edge rounding", async () => {
-  const { snapClipStart } = await import("../apps/desktop/src/features/timeline/geometry.ts");
+  const { snapClipStart } = await import("../apps/desktop/src/features/timeline/utils/geometry.ts");
   const firstEnd = 4.803;
   const duration = 12.008 - firstEnd;
   for (const candidate of [firstEnd - 0.05, firstEnd + 0.05, firstEnd + 0.000000000000001]) {

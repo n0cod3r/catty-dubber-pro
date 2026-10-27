@@ -25,3 +25,48 @@ The old PySide6 presentation layer is not migrated. Existing Movox engine behavi
 ## Initial modules
 
 The engine is divided into `media`, `speech`, `speakers`, `translation`, `tts`, `separation`, `project`, and `workers`. The desktop application should organize UI by feature as those features are migrated.
+
+## Desktop feature ownership
+
+The desktop source groups UI and behavior by feature:
+
+```text
+src/
+  app/                    Application composition and project routing
+  components/ui/          Shared UI primitives
+  features/
+    editor/               Workspace layout, sidebar, header, inspector
+    timeline/             Timeline UI, editing state, interactions, media visuals
+      components/
+      deps/
+      hooks/
+      services/
+      stores/
+      types/
+      utils/
+      workers/
+      constants.ts
+      types.ts
+      index.ts
+    preview/              Video composition, audio sync, aspect ratio and sizing
+    playback/             Playback clock and controls
+    episodes/             Source import and episode lifecycle
+    projects/             Project home and persistence
+    engine/               Engine connection, requests and desktop shutdown
+    audio-preparation/    Audio preparation UI
+  shared/                 Feature-independent types and utilities
+```
+
+Each feature exposes its supported interface through `index.ts`. Cross-feature
+imports go through the importing feature's `deps/` adapters, which re-export only
+what it needs from another feature's public entry. Internal files use relative
+imports. Application composition imports public entries directly. Shared code
+must not depend on features or the application.
+
+Timeline owns waveform and thumbnail generation, including its worker lifecycle.
+Editor composes timeline, playback and preview without managing visual decoding.
+Folders are created when they have an implementation, rather than adding empty
+placeholders for future features.
+
+Run `pnpm check:boundaries` to enforce the import rules and keep feature UI out of
+root components. This check also runs as part of `pnpm check`.

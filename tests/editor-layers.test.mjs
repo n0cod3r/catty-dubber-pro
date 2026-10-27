@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { accumulatePeaks } from "../apps/desktop/src/features/media-visuals/peaks.ts";
-import {
-  clipRenderWindow,
-  thumbnailTiles,
-} from "../apps/desktop/src/features/media-visuals/render-window.ts";
+import { accumulatePeaks } from "../apps/desktop/src/features/timeline/services/peaks.ts";
 import {
   createTimeline,
   splitCandidates,
   timelineReducer,
-} from "../apps/desktop/src/features/timeline/model.ts";
+} from "../apps/desktop/src/features/timeline/stores/timeline-reducer.ts";
+import {
+  clipRenderWindow,
+  thumbnailTiles,
+} from "../apps/desktop/src/features/timeline/utils/render-window.ts";
 
 const initialize = { type: "initialize", sourceId: "episode", name: "episode.webm", duration: 100 };
 const layer = {
@@ -266,7 +266,7 @@ test("an added source is removable independently of the original linked source",
 });
 
 test("split, move away, and snap back rejoins both source segments without a gap", async () => {
-  const { snapClipStart } = await import("../apps/desktop/src/features/timeline/geometry.ts");
+  const { snapClipStart } = await import("../apps/desktop/src/features/timeline/utils/geometry.ts");
   let state = timelineReducer(initialized(), { type: "split", time: 30.003, selectedId: null });
   state = timelineReducer(state, {
     type: "move-clip",
@@ -293,7 +293,8 @@ test("split, move away, and snap back rejoins both source segments without a gap
 });
 
 test("manual dragging with snapping off stops at contact instead of rejecting pointer overshoot", async () => {
-  const { resolveClipDrag } = await import("../apps/desktop/src/features/timeline/model.ts");
+  const { resolveClipDrag } =
+    await import("../apps/desktop/src/features/timeline/stores/timeline-reducer.ts");
   let state = timelineReducer(initialized(), { type: "split", time: 30.003, selectedId: null });
   state = timelineReducer(state, {
     type: "move-clip",
@@ -324,7 +325,8 @@ test("manual dragging with snapping off stops at contact instead of rejecting po
 });
 
 test("manual contact also clamps a left clip against its right neighbor", async () => {
-  const { resolveClipDrag } = await import("../apps/desktop/src/features/timeline/model.ts");
+  const { resolveClipDrag } =
+    await import("../apps/desktop/src/features/timeline/stores/timeline-reducer.ts");
   let state = timelineReducer(initialized(), { type: "split", time: 30, selectedId: null });
   state = timelineReducer(state, {
     type: "move-clip",

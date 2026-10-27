@@ -57,7 +57,7 @@ resize, media inspection, source replacement, and invalid-file recovery.
 ## Multiple layers and media graphics
 
 The editor session now owns a document of independent `layers` and `clips` in
-`features/timeline/model.ts`. Video, audio, subtitle, and graphic clips share
+`features/timeline/stores/timeline-reducer.ts`. Video, audio, subtitle, and graphic clips share
 explicit timeline start/duration and source offsets. The default source video,
 source audio, and dub layers can be extended using **Layer** in the toolbar.
 Layer menus reorder layers or remove empty ones; header buttons lock, hide, or
@@ -71,7 +71,7 @@ source video's fitted frame. Visible layers above the source video composite in
 layer order. The graphic renderer currently supports text titles; image assets,
 transforms, clip trimming, and independent media sources are future work.
 
-`features/media-visuals/media-visuals.worker.ts` decodes source media with
+`features/timeline/workers/media-visuals.worker.ts` decodes source media with
 Mediabunny in a module worker. Video thumbnails are genuine sampled video frames,
 requested for the visible viewport as it changes. The session caches at most 256
 160×90 bitmaps and releases their GPU resources when replaced or evicted.
