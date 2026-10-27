@@ -36,9 +36,34 @@ struct JobToken { cancelled: Arc<AtomicBool>, pending_until: Option<Instant> }
 fn prune_jobs(active: &mut HashMap<String, JobToken>) { active.retain(|_, token| token.pending_until.is_none_or(|until| until > Instant::now())); }
 fn validate_job_id(id: &str) -> Result<(), EngineError> { if id.len() != 36 || !id.bytes().all(|byte| byte.is_ascii_hexdigit() || byte == b'-') { return Err(EngineError::new("INVALID_JOB_ID", "Expected a UUID job identifier")); } Ok(()) }
 
+fn is_engine_method_allowed(method: &str) -> bool {
+    matches!(
+        method,
+        "health"
+            | "system.hello"
+            | "media.probe"
+            | "project.create"
+            | "project.open"
+            | "project.prepare_episode"
+            | "project.rebuild_proxy"
+            | "project.import_episode"
+            | "project.dialogue_split"
+            | "project.dialogue_merge_next"
+            | "project.dialogue_restore"
+            | "project.dialogue_update_text"
+            | "project.dialogue_assign_speaker"
+            | "speech.transcribe"
+            | "settings.get"
+            | "settings.update"
+            | "translation.providers"
+            | "translation.models"
+            | "translation.test_connection"
+    )
+}
+
 #[tauri::command]
 pub async fn engine_request(method: String, params: Value, jobs: tauri::State<'_, EngineJobs>) -> Result<Value, EngineError> {
-    if !matches!(method.as_str(), "health" | "system.hello" | "media.probe" | "project.create" | "project.open" | "project.prepare_episode" | "project.rebuild_proxy" | "project.import_episode" | "project.dialogue_split" | "project.dialogue_merge_next" | "project.dialogue_restore" | "project.dialogue_update_text" | "project.dialogue_assign_speaker" | "speech.transcribe") { return Err(EngineError::new("UNKNOWN_METHOD", "This engine operation is not available")); }
+    if !is_engine_method_allowed(&method) { return Err(EngineError::new("UNKNOWN_METHOD", "This engine operation is not available")); }
     let id = format!("rpc-{}", REQUEST_ID.fetch_add(1, Ordering::Relaxed)); let cancelled = Arc::new(AtomicBool::new(false)); jobs.register(&id, cancelled.clone())?;
     let result = tauri::async_runtime::spawn_blocking(move || request_with_control(&method, params, Some((&cancelled, &std::env::temp_dir().join("catty-unused-cancel"))))).await;
     if let Ok(mut active) = jobs.0.lock() { active.remove(&id); }
@@ -57,4 +82,4 @@ pub async fn prepare_audio(job_id: String, source: String, episode_id: String, p
 #[tauri::command]
 pub fn cancel_audio(job_id: String, jobs: tauri::State<'_, EngineJobs>) -> Result<(), EngineError> { validate_job_id(&job_id)?; let mut active = jobs.0.lock().map_err(|_| EngineError::new("JOB_STATE_ERROR", "Could not access engine jobs"))?; prune_jobs(&mut active); if active.len() >= 16 && !active.contains_key(&job_id) { return Err(EngineError::new("JOB_LIMIT", "Too many engine jobs")); } active.entry(job_id).or_insert_with(|| JobToken { cancelled: Arc::new(AtomicBool::new(false)), pending_until: Some(Instant::now() + Duration::from_secs(30)) }).cancelled.store(true, Ordering::Relaxed); Ok(()) }
 
-#[cfg(test)] mod tests { use super::*; #[test] fn shutdown_cancels_registered_jobs_and_rejects_new_work() { let jobs = EngineJobs::default(); let probe = Arc::new(AtomicBool::new(false)); let audio = Arc::new(AtomicBool::new(false)); jobs.register("probe", probe.clone()).unwrap(); jobs.register("audio", audio.clone()).unwrap(); assert!(jobs.begin_shutdown()); assert!(probe.load(Ordering::Relaxed)); assert!(audio.load(Ordering::Relaxed)); assert!(!jobs.begin_shutdown()); assert_eq!(jobs.register("late", Arc::new(AtomicBool::new(false))).unwrap_err().code, "APP_CLOSING"); } #[test] fn persistent_engine_handles_multiple_requests() { let hello = request("system.hello", json!({})).expect("engine hello"); assert_eq!(hello["name"], "catty-engine"); assert_eq!(hello["protocol_version"], 1); let health = request("health", json!({})).expect("engine health"); assert_eq!(health["name"], "catty-engine"); } #[test] fn engine_reports_missing_media() { let error = request("media.probe", json!({"path": "/__catty_missing_media__.mp4"})).unwrap_err(); assert_eq!(error.code, "MEDIA_PROBE_FAILED"); } }
+#[cfg(test)] mod tests { use super::*; #[test] fn shutdown_cancels_registered_jobs_and_rejects_new_work() { let jobs = EngineJobs::default(); let probe = Arc::new(AtomicBool::new(false)); let audio = Arc::new(AtomicBool::new(false)); jobs.register("probe", probe.clone()).unwrap(); jobs.register("audio", audio.clone()).unwrap(); assert!(jobs.begin_shutdown()); assert!(probe.load(Ordering::Relaxed)); assert!(audio.load(Ordering::Relaxed)); assert!(!jobs.begin_shutdown()); assert_eq!(jobs.register("late", Arc::new(AtomicBool::new(false))).unwrap_err().code, "APP_CLOSING"); } #[test] fn persistent_engine_handles_multiple_requests() { let hello = request("system.hello", json!({})).expect("engine hello"); assert_eq!(hello["name"], "catty-engine"); assert_eq!(hello["protocol_version"], 1); let health = request("health", json!({})).expect("engine health"); assert_eq!(health["name"], "catty-engine"); } #[test] fn engine_reports_missing_media() { let error = request("media.probe", json!({"path": "/__catty_missing_media__.mp4"})).unwrap_err(); assert_eq!(error.code, "MEDIA_PROBE_FAILED"); } #[test] fn settings_and_translation_methods_are_allowed() { assert!(is_engine_method_allowed("settings.get")); assert!(is_engine_method_allowed("settings.update")); assert!(is_engine_method_allowed("translation.providers")); assert!(is_engine_method_allowed("translation.models")); assert!(is_engine_method_allowed("translation.test_connection")); assert!(!is_engine_method_allowed("shell.execute")); } }
