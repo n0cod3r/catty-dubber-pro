@@ -13,14 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
-from catty_engine.media.errors import (
-    AudioPreparationCancelled,
-    FFmpegError,
-    FFmpegNotFoundError,
-    FFprobeNotFoundError,
-    MediaError,
-    MediaProbeError,
-)
+from catty_engine.media.errors import AudioPreparationCancelled, FFmpegError, FFmpegNotFoundError, FFprobeNotFoundError, MediaError, MediaProbeError
 from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
 from catty_engine.project import ProjectService
@@ -35,14 +28,8 @@ class Request(BaseModel):
     version: Literal[1]
     id: str = Field(min_length=1, max_length=128)
     method: Literal[
-        "health",
-        "system.hello",
-        "system.shutdown",
-        "media.probe",
-        "audio.prepare",
-        "project.open",
-        "project.import_episode",
-        "speech.transcribe",
+        "health", "system.hello", "system.shutdown", "media.probe", "audio.prepare",
+        "project.create", "project.open", "project.import_episode", "speech.transcribe",
     ]
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -50,6 +37,12 @@ class Request(BaseModel):
 class ProbeParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     path: str = Field(min_length=1)
+
+
+class ProjectCreateParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project_directory: Path
+    name: str = Field(min_length=1)
 
 
 class ProjectOpenParams(BaseModel):
@@ -90,18 +83,10 @@ class SpeechTranscribeParams(BaseModel):
 
 def _hello() -> dict[str, Any]:
     return {
-        "name": "catty-engine",
-        "version": "0.1.0",
-        "protocol_version": PROTOCOL_VERSION,
+        "name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION,
         "capabilities": [
-            "media.probe",
-            "audio.prepare",
-            "project.open",
-            "project.import_episode",
-            "speech.transcribe",
-            "asr.paraformer",
-            "vad.silero",
-            "system.shutdown",
+            "media.probe", "audio.prepare", "project.create", "project.open",
+            "project.import_episode", "speech.transcribe", "asr.paraformer", "vad.silero", "system.shutdown",
         ],
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
         "ffprobe_available": shutil.which("ffprobe") is not None,
@@ -111,10 +96,7 @@ def _hello() -> dict[str, Any]:
 def _open_or_create_project(directory: Path, name: str):
     service = ProjectService()
     project_file = directory / "project.json"
-    if project_file.exists():
-        project = service.open_project(directory)
-    else:
-        project = service.create_project(directory, name)
+    project = service.open_project(directory) if project_file.exists() else service.create_project(directory, name)
     return service, project
 
 
@@ -131,20 +113,19 @@ def handle_request(payload: Any) -> dict[str, Any]:
             if request.params:
                 raise ValueError("system.shutdown does not accept parameters")
             result = {"shutting_down": True}
+        elif request.method == "project.create":
+            params = ProjectCreateParams.model_validate(request.params)
+            if (params.project_directory / "project.json").exists():
+                raise ValueError("A Catty project already exists in this folder")
+            result = ProjectService().create_project(params.project_directory, params.name).model_dump(mode="json")
         elif request.method == "project.open":
             params = ProjectOpenParams.model_validate(request.params)
             result = ProjectService().open_project(params.project_directory).model_dump(mode="json")
         elif request.method == "project.import_episode":
             params = ProjectImportEpisodeParams.model_validate(request.params)
-            service, project = _open_or_create_project(
-                params.project_directory,
-                params.project_name,
-            )
+            service, project = _open_or_create_project(params.project_directory, params.project_name)
             episode = service.import_episode(
-                directory=params.project_directory,
-                project=project,
-                source_path=params.source,
-                prepare_audio=True,
+                directory=params.project_directory, project=project, source_path=params.source, prepare_audio=True,
             )
             result = episode.model_dump(mode="json")
         elif request.method == "audio.prepare":
@@ -155,33 +136,19 @@ def handle_request(payload: Any) -> dict[str, Any]:
 
             if cancelled():
                 raise AudioPreparationCancelled("Audio preparation cancelled")
-            asset = AudioPreparationService(
-                runner=FFmpegRunner(cancelled=cancelled)
-            ).prepare_speech_audio(
-                project_directory=audio_params.project_directory,
-                episode_id=audio_params.episode_id,
-                source=audio_params.source,
-                existing_asset=audio_params.existing_asset,
+            asset = AudioPreparationService(runner=FFmpegRunner(cancelled=cancelled)).prepare_speech_audio(
+                project_directory=audio_params.project_directory, episode_id=audio_params.episode_id,
+                source=audio_params.source, existing_asset=audio_params.existing_asset,
             )
             result = asset.model_dump(mode="json")
         elif request.method == "speech.transcribe":
             speech_params = SpeechTranscribeParams.model_validate(request.params)
-            registry = create_asr_registry(
-                speech_params.asr_backend,
-                speech_params.asr_config,
-            )
+            registry = create_asr_registry(speech_params.asr_backend, speech_params.asr_config)
             vad = create_vad(speech_params.vad_backend, speech_params.vad_config)
-            transcription = TranscriptionService(
-                asr_backends=registry,
-                vad=vad,
-            ).transcribe(
-                project_directory=speech_params.project_directory,
-                episode_id=speech_params.episode_id,
-                source=speech_params.source,
-                backend_id=speech_params.asr_backend,
-                language=speech_params.language,
-                source_start=speech_params.source_start,
-                duration=speech_params.duration,
+            transcription = TranscriptionService(asr_backends=registry, vad=vad).transcribe(
+                project_directory=speech_params.project_directory, episode_id=speech_params.episode_id,
+                source=speech_params.source, backend_id=speech_params.asr_backend, language=speech_params.language,
+                source_start=speech_params.source_start, duration=speech_params.duration,
                 existing_asset=speech_params.existing_asset,
             )
             result = transcription.model_dump(mode="json")
@@ -204,10 +171,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
     except (ValidationError, ValueError, FileNotFoundError) as exc:
         response["error"] = {"code": "INVALID_REQUEST", "message": str(exc)}
     except Exception:
-        response["error"] = {
-            "code": "ENGINE_ERROR",
-            "message": "The engine could not complete the request.",
-        }
+        response["error"] = {"code": "ENGINE_ERROR", "message": "The engine could not complete the request."}
     return response
 
 
@@ -220,14 +184,7 @@ def run_rpc() -> None:
         payload = json.load(sys.stdin)
         response = handle_request(payload)
     except (json.JSONDecodeError, UnicodeDecodeError):
-        response = {
-            "version": PROTOCOL_VERSION,
-            "id": None,
-            "error": {
-                "code": "INVALID_JSON",
-                "message": "Expected a JSON request on stdin.",
-            },
-        }
+        response = {"version": PROTOCOL_VERSION, "id": None, "error": {"code": "INVALID_JSON", "message": "Expected a JSON request on stdin."}}
     _write_response(response)
 
 
@@ -241,18 +198,7 @@ def run_server() -> None:
             payload = json.loads(line)
             response = handle_request(payload)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            response = {
-                "version": PROTOCOL_VERSION,
-                "id": None,
-                "error": {
-                    "code": "INVALID_JSON",
-                    "message": "Expected one JSON request per line.",
-                },
-            }
+            response = {"version": PROTOCOL_VERSION, "id": None, "error": {"code": "INVALID_JSON", "message": "Expected one JSON request per line."}}
         _write_response(response)
-        if (
-            isinstance(payload, dict)
-            and payload.get("method") == "system.shutdown"
-            and "error" not in response
-        ):
+        if isinstance(payload, dict) and payload.get("method") == "system.shutdown" and "error" not in response:
             break

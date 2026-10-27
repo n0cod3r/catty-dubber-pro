@@ -49,18 +49,8 @@ export type PersistedProject = {
   created_at: string;
   updated_at: string;
 };
-export type TranscriptSegment = {
-  start: number;
-  end: number;
-  text: string;
-  confidence: number | null;
-};
-export type TranscriptionResult = {
-  backend: string;
-  model: string;
-  language: string;
-  segments: TranscriptSegment[];
-};
+export type TranscriptSegment = { start: number; end: number; text: string; confidence: number | null };
+export type TranscriptionResult = { backend: string; model: string; language: string; segments: TranscriptSegment[] };
 export type SpeechTranscribeParams = {
   project_directory: string;
   episode_id: string;
@@ -83,6 +73,10 @@ export type AudioPrepareParams = {
 export type EngineMethods = {
   health: { params: Record<string, never>; result: EngineStatus };
   "media.probe": { params: { path: string }; result: MediaInfo };
+  "project.create": {
+    params: { project_directory: string; name: string };
+    result: PersistedProject;
+  };
   "project.open": {
     params: { project_directory: string };
     result: PersistedProject;
