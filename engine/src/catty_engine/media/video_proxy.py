@@ -5,11 +5,13 @@ from pathlib import Path
 from .ffmpeg import FFmpegRunner
 from .fingerprint import source_fingerprint
 
-PLAYBACK_PROXY_FILE_NAME = "playback-proxy.mp4"
+# Version the proxy filename whenever its media contract changes. V1 proxies were
+# video-only, so reusing them after adding preview audio silently produced no sound.
+PLAYBACK_PROXY_FILE_NAME = "playback-proxy-av-v2.mp4"
 
 
 class VideoProxyService:
-    """Create a lightweight, seek-friendly H.264 proxy for editor playback."""
+    """Create a lightweight, seek-friendly H.264/AAC proxy for editor playback."""
 
     def __init__(self, runner: FFmpegRunner | None = None) -> None:
         self._runner = runner or FFmpegRunner()
