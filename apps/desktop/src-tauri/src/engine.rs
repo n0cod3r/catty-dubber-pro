@@ -18,7 +18,7 @@ fn request_with_control(method: &str, params: Value, control: Option<(&AtomicBoo
     if control.is_some_and(|(cancelled, _)| cancelled.load(Ordering::Relaxed)) { return Err(EngineError::new("CANCELLED", "Engine request cancelled")); }
     let id = format!("{}-{}", std::process::id(), REQUEST_ID.fetch_add(1, Ordering::Relaxed));
     let payload = json!({"version": 1, "id": id, "method": method, "params": params});
-    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode") { Duration::from_secs(3605) } else { Duration::from_secs(35) };
+    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode" | "project.open") { Duration::from_secs(3605) } else { Duration::from_secs(35) };
     let (cancelled, cancel_file) = control.map(|(flag, path)| (Some(flag), Some(path))).unwrap_or((None, None));
     let response = persistent_engine::request(&payload, cancelled, if method == "audio.prepare" { cancel_file } else { None }, timeout)
         .map_err(|message| match message.as_str() {
