@@ -11,6 +11,7 @@ import { formatTime } from "@/shared/utils/time";
 import type { DialogueEditing } from "../hooks/use-dialogue-editing";
 import { activeDialogueId, dialogueScrollDelta } from "../utils/dialogue-follow";
 import { isMergeDialogueShortcut } from "../utils/dialogue-shortcuts";
+import { DialogueTextEditor } from "./dialogue-text-editor";
 
 const tabs = [
   { id: "source", label: "Dialogue", icon: MessageSquareText },
@@ -63,6 +64,8 @@ export function Inspector({
   const listRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef(new Map<string, HTMLButtonElement>());
   const activeId = activeDialogueId(segments, currentTime);
+  const [textEditorId, setTextEditorId] = useState<string | null>(null);
+  const textEditorSegment = segments.find((segment) => segment.id === textEditorId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedIndex = useMemo(
     () => segments.findIndex((segment) => segment.id === selectedId),
@@ -93,6 +96,7 @@ export function Inspector({
     const restored = persistedSegments(episode?.dialogueSegments);
     setSegments(restored);
     setSelectedId(null);
+    setTextEditorId(null);
   }, [episode?.id, episode?.dialogueSegments]);
 
   const splitSelected = () =>
@@ -270,6 +274,17 @@ export function Inspector({
                     </Button>
                   </div>
                   {selected && (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className="h-5 px-1.5 text-[9px]"
+                      disabled={busy || !!textEditorId}
+                      onClick={() => setTextEditorId(selected.id)}
+                    >
+                      Edit text
+                    </Button>
+                  )}
+                  {selected && (
                     <div className="flex items-center gap-1 border-l pl-1">
                       <Button
                         size="xs"
@@ -353,6 +368,17 @@ export function Inspector({
                   </button>
                 ))}
               </div>
+              {textEditorSegment && (
+                <DialogueTextEditor
+                  key={textEditorSegment.id}
+                  text={textEditorSegment.text}
+                  busy={busy}
+                  onSave={(text) =>
+                    dialogue.updateText(textEditorSegment.id, text, textEditorSegment.text)
+                  }
+                  onCancel={() => setTextEditorId(null)}
+                />
+              )}
               {selected && (
                 <div className="flex h-7 shrink-0 items-center justify-between border-t px-2 text-[9px] text-muted-foreground">
                   <span>

@@ -220,3 +220,50 @@ def test_dialogue_undo_accepts_json_float_rounding_but_rejects_real_edits(tmp_pa
     changed.start += 0.001
     with pytest.raises(ValueError, match="changed since"):
         service.restore_dialogue(tmp_path, project, episode.id, [changed], [], [], [])
+
+
+def test_edit_dialogue_text_persists_and_undo_restores_derived_data(tmp_path: Path) -> None:
+    from uuid import uuid4
+    from catty_engine.project.models import Translation, DubSegment
+
+    service = ProjectService()
+    project = service.create_project(tmp_path, "Edit text")
+    episode = project.add_episode(str(tmp_path / "EP01.mp4"))
+    first = DialogueSegment(start=1, end=4, source_language="zh", source_text="你好世间", translation=Translation(text="សួស្តី"))
+    second = DialogueSegment(start=5, end=7, source_language="zh", source_text="再见")
+    episode.dialogue_segments = [first, second]
+    dub = DubSegment(dialogue_segment_id=first.id, voice_profile_id=uuid4(), target_duration=3)
+    other_dub = DubSegment(dialogue_segment_id=second.id, voice_profile_id=uuid4(), target_duration=2)
+    episode.dub_segments = [dub, other_dub]
+    service.save_project(tmp_path, project)
+    before = episode.model_copy(deep=True)
+    service.update_dialogue_text(tmp_path, project, episode.id, first.id, "  你好世界！\n你好吗？  ", "你好世间")
+    edited = service.open_project(tmp_path).episodes[0]
+    assert edited.dialogue_segments[0].source_text == "你好世界！\n你好吗？"
+    assert (edited.dialogue_segments[0].id, edited.dialogue_segments[0].start, edited.dialogue_segments[0].end) == (first.id, 1, 4)
+    assert edited.dialogue_segments[0].translation is None
+    assert edited.dub_segments == [other_dub]
+    assert edited.dialogue_segments[1] == before.dialogue_segments[1]
+    service.restore_dialogue(tmp_path, project, episode.id, edited.dialogue_segments, before.dialogue_segments, before.speakers, before.dub_segments)
+    restored = service.open_project(tmp_path).episodes[0]
+    assert restored.dialogue_segments == before.dialogue_segments
+    assert restored.dub_segments == before.dub_segments
+    service.restore_dialogue(tmp_path, project, episode.id, before.dialogue_segments, edited.dialogue_segments, edited.speakers, edited.dub_segments)
+    assert service.open_project(tmp_path).episodes[0].dialogue_segments == edited.dialogue_segments
+
+
+def test_edit_dialogue_text_rejects_empty_and_stale_changes(tmp_path: Path) -> None:
+    import pytest
+    service = ProjectService()
+    project = service.create_project(tmp_path, "Edit text")
+    episode = project.add_episode(str(tmp_path / "EP01.mp4"))
+    segment = DialogueSegment(start=0, end=4, source_language="zh", source_text="你好")
+    episode.dialogue_segments = [segment]
+    service.save_project(tmp_path, project)
+    original = (tmp_path / "project.json").read_bytes()
+    for text, expected in [(" \n ", "你好"), ("新文字", "旧文字")]:
+        with pytest.raises(ValueError):
+            service.update_dialogue_text(tmp_path, project, episode.id, segment.id, text, expected)
+        assert (tmp_path / "project.json").read_bytes() == original
+    service.update_dialogue_text(tmp_path, project, episode.id, segment.id, "你好", "你好")
+    assert (tmp_path / "project.json").read_bytes() == original

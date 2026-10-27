@@ -13,7 +13,7 @@ def test_health_lists_available_operations() -> None:
     assert response["result"]["capabilities"] == [
         "media.probe", "audio.prepare", "project.create", "project.open",
         "project.prepare_episode", "project.rebuild_proxy", "project.import_episode",
-        "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore",
+        "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore", "project.dialogue_update_text",
         "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero",
         "system.shutdown",
     ]
@@ -56,3 +56,20 @@ def test_server_handles_multiple_requests_and_shutdown() -> None:
     assert [response["id"] for response in responses] == ["one", "two", "bye"]
     assert responses[0]["result"]["protocol_version"] == 1
     assert responses[2]["result"] == {"shutting_down": True}
+
+
+def test_dialogue_text_command_persists_unicode_and_rejects_stale_text(tmp_path: Path) -> None:
+    from catty_engine.project import ProjectService, DialogueSegment
+    service = ProjectService()
+    project = service.create_project(tmp_path, "Dialogue")
+    episode = project.add_episode(str(tmp_path / "EP01.mp4"))
+    segment = DialogueSegment(start=1, end=3, source_language="zh", source_text="你号")
+    episode.dialogue_segments = [segment]
+    service.save_project(tmp_path, project)
+    params = {"project_directory": str(tmp_path), "episode_id": str(episode.id), "segment_id": str(segment.id), "text": "你好！", "expected_text": "你号"}
+    response = handle_request({"version": 1, "id": "edit-text", "method": "project.dialogue_update_text", "params": params})
+    assert "error" not in response
+    assert response["result"]["dialogue_segments"][0]["source_text"] == "你好！"
+    assert service.open_project(tmp_path).episodes[0].dialogue_segments[0].source_text == "你好！"
+    stale = handle_request({"version": 1, "id": "stale-text", "method": "project.dialogue_update_text", "params": params})
+    assert stale["error"]["code"] == "INVALID_REQUEST"

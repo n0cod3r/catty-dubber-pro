@@ -131,3 +131,28 @@ timeline rather than re-inserting the original source.
 Playback now uses the timeline clock, including gaps and clips moved past the
 original media duration. Video and each active audio clip seek to their source
 offsets independently. Removing an audio clip stops its media element immediately.
+
+## Dialogue text editing
+
+Select a dialogue row in Inspector, choose **Edit text**, correct the Chinese
+source, then choose **Save** or press Ctrl/Command + Enter. Escape or **Cancel**
+discards the draft. Chinese IME composition does not trigger the save shortcut.
+Empty dialogue cannot be saved.
+
+`project.dialogue_update_text` applies the edit through Python ProjectService and
+saves `project.json`. The existing segment UUID and timing remain intact. Inspector
+and timeline subtitles synchronize from the persisted episode; Zustand remains a
+session representation. A save checks the original source text before writing,
+so a stale draft cannot silently replace a newer correction. Changed source text
+invalidates that segment's translation and derived dub segments. Dialogue Undo/Redo
+restores the previous text and derived data and persists the result.
+
+## Dialogue roadmap
+
+Current: automatic segmentation, manual Split/Merge, persistent dialogue,
+Undo/Redo, project/episode history reset, and Chinese source text editing.
+
+Later: dialogue revision tracking, timestamp-aware word/character splitting, and
+semantic split boundaries. Reliable timestamp splitting belongs with a future
+ASR pipeline/model upgrade; proportional text splitting remains the manual MVP.
+Chinese → Khmer translation follows source dialogue cleanup.

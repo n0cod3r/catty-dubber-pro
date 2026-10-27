@@ -105,6 +105,37 @@ export function useDialogueEditing(
     }
   };
 
+  const updateText = async (segmentId: string, text: string, expectedText: string) => {
+    if (!episode) return;
+    if (text.trim() === expectedText) return true;
+    const ticket = sessionGuard.current.begin(sessionScope);
+    if (!ticket) return;
+    setEditing(true);
+    setError(null);
+    try {
+      const before = await loadPersistedEpisode();
+      if (!sessionGuard.current.isCurrent(ticket)) return;
+      const persisted = await requestEngine("project.dialogue_update_text", {
+        project_directory: projectDirectory,
+        episode_id: episode.id,
+        segment_id: segmentId,
+        text,
+        expected_text: expectedText,
+      });
+      if (!sessionGuard.current.isCurrent(ticket)) return;
+      undoStack.current = [...undoStack.current.slice(-49), { before, after: persisted }];
+      redoStack.current = [];
+      setHistoryCounts({ undo: undoStack.current.length, redo: 0 });
+      onEpisodePersisted(persisted);
+      return true;
+    } catch (cause) {
+      if (sessionGuard.current.isCurrent(ticket))
+        setError(cause instanceof Error ? cause.message : "Could not save dialogue text.");
+    } finally {
+      if (sessionGuard.current.finish(ticket)) setEditing(false);
+    }
+  };
+
   const merge = useCallback(
     async (segmentId: string) => {
       if (!episode) return;
@@ -186,6 +217,16 @@ export function useDialogueEditing(
     }
   };
 
-  return { busy, transcribing, error, historyCounts, split, merge, transcribe, restore };
+  return {
+    busy,
+    transcribing,
+    error,
+    historyCounts,
+    split,
+    merge,
+    updateText,
+    transcribe,
+    restore,
+  };
 }
 export type DialogueEditing = ReturnType<typeof useDialogueEditing>;

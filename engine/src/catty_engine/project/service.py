@@ -108,6 +108,24 @@ class ProjectService:
         self._touch_and_save(directory, project, episode)
         return episode
 
+    def update_dialogue_text(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, text: str, expected_text: str) -> Episode:
+        episode = self._episode(project, episode_id)
+        segment = episode.dialogue_segments[self._segment_index(episode, segment_id)]
+        if segment.source_text != expected_text:
+            raise ValueError("Dialogue text changed since editing began. Reload the dialogue before saving.")
+        text = text.strip()
+        if not text:
+            raise ValueError("Dialogue text cannot be empty")
+        if text == segment.source_text:
+            return episode
+        segment.source_text = text
+        segment.updated_at = utc_now()
+        # Derived translation and dub audio no longer describe this source text.
+        segment.translation = None
+        episode.dub_segments = [dub for dub in episode.dub_segments if dub.dialogue_segment_id != segment.id]
+        self._touch_and_save(directory, project, episode)
+        return episode
+
     def split_dialogue_segment(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, split_at: float) -> Episode:
         episode = self._episode(project, episode_id)
         index = self._segment_index(episode, segment_id)

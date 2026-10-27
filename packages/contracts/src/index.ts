@@ -130,6 +130,10 @@ export type EngineMethods = {
     };
     result: PersistedEpisode;
   };
+  "project.dialogue_update_text": {
+    params: DialogueEditParams & { text: string; expected_text: string };
+    result: PersistedEpisode;
+  };
   "project.dialogue_split": { params: DialogueSplitParams; result: PersistedEpisode };
   "project.dialogue_merge_next": { params: DialogueEditParams; result: PersistedEpisode };
   "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };

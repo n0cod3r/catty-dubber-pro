@@ -20,7 +20,7 @@ from catty_engine.speech.runtime import create_asr_registry, create_vad
 from catty_engine.speech.transcription import TranscriptionService
 
 PROTOCOL_VERSION = 1
-EngineMethod = Literal["health", "system.hello", "system.shutdown", "media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore", "speech.transcribe"]
+EngineMethod = Literal["health", "system.hello", "system.shutdown", "media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore", "project.dialogue_update_text", "speech.transcribe"]
 
 class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -53,6 +53,9 @@ class DialogueEditParams(BaseModel):
     project_directory: Path
     episode_id: UUID
     segment_id: UUID
+class DialogueTextParams(DialogueEditParams):
+    text: str = Field(min_length=1, max_length=100000)
+    expected_text: str
 class DialogueSplitParams(DialogueEditParams):
     split_at: float = Field(ge=0)
 class DialogueRestoreParams(ProjectPrepareEpisodeParams):
@@ -82,7 +85,7 @@ class SpeechTranscribeParams(BaseModel):
     existing_asset: AudioAsset | None = None
 
 def _hello() -> dict[str, Any]:
-    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore", "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
+    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore", "project.dialogue_update_text", "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
 
 def _open_or_create_project(directory: Path, name: str):
     service = ProjectService()
@@ -120,6 +123,10 @@ def handle_request(payload: Any) -> dict[str, Any]:
             params = ProjectImportEpisodeParams.model_validate(request.params)
             service, project = _open_or_create_project(params.project_directory, params.project_name)
             result = service.import_episode(params.project_directory, project, params.source, prepare_audio=True).model_dump(mode="json")
+        elif request.method == "project.dialogue_update_text":
+            params = DialogueTextParams.model_validate(request.params)
+            service = ProjectService(); project = service.open_project(params.project_directory)
+            result = service.update_dialogue_text(params.project_directory, project, params.episode_id, params.segment_id, params.text, params.expected_text).model_dump(mode="json")
         elif request.method == "project.dialogue_split":
             params = DialogueSplitParams.model_validate(request.params)
             service = ProjectService(); project = service.open_project(params.project_directory)
