@@ -1,8 +1,9 @@
-import type { EpisodeSpeaker } from "@catty/contracts";
+import type { EpisodeSpeaker, PersistedTranslation } from "@catty/contracts";
 
 export type EpisodeMedia = {
   speakers?: EpisodeSpeaker[];
   speakerError?: string | null;
+  translationStatus?: string;
   id: string;
   path: string;
   playbackPath?: string | null;
@@ -24,5 +25,6 @@ export type EpisodeMedia = {
     sourceLanguage: string;
     sourceText: string;
     confidence: number | null;
+    translation: PersistedTranslation | null;
   }>;
 };
