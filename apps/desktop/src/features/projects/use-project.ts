@@ -10,6 +10,7 @@ export type OpenProject = { directory: string; project: PersistedProject };
 export type RecentProject = { directory: string; name: string; openedAt: string };
 
 const RECENTS_KEY = "catty.recent-projects.v1";
+const INVALID_DIRECTORY_CHARS = /[<>:"/\\|?*]/g;
 
 function joinPath(parent: string, child: string) {
   const separator = parent.includes("\\") ? "\\" : "/";
@@ -17,7 +18,10 @@ function joinPath(parent: string, child: string) {
 }
 
 function safeDirectoryName(name: string) {
-  return name.trim().replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-").replace(/[. ]+$/, "") || "Catty Project";
+  const printable = Array.from(name.trim(), (character) =>
+    character.charCodeAt(0) < 32 ? "-" : character,
+  ).join("");
+  return printable.replace(INVALID_DIRECTORY_CHARS, "-").replace(/[. ]+$/, "") || "Catty Project";
 }
 
 function loadRecents(): RecentProject[] {
@@ -69,13 +73,20 @@ export function useProject() {
         setError("ការបង្កើត Project folder ត្រូវដំណើរការក្នុង Catty desktop app។");
         return;
       }
-      const parent = await open({ directory: true, multiple: false, title: "ជ្រើសទីតាំងរក្សាទុក Project" });
+      const parent = await open({
+        directory: true,
+        multiple: false,
+        title: "ជ្រើសទីតាំងរក្សាទុក Project",
+      });
       if (!parent || Array.isArray(parent)) return;
       const directory = joinPath(parent, safeDirectoryName(name));
       setBusy(true);
       setError(null);
       try {
-        const project = await requestEngine("project.create", { project_directory: directory, name: name.trim() });
+        const project = await requestEngine("project.create", {
+          project_directory: directory,
+          name: name.trim(),
+        });
         setCurrent({ directory, project });
         remember(directory, project);
       } catch (cause) {
@@ -100,7 +111,17 @@ export function useProject() {
   const dismissError = useCallback(() => setError(null), []);
 
   return useMemo(
-    () => ({ current, recentProjects, busy, error, create, chooseAndOpen, openRecent: load, close, dismissError }),
+    () => ({
+      current,
+      recentProjects,
+      busy,
+      error,
+      create,
+      chooseAndOpen,
+      openRecent: load,
+      close,
+      dismissError,
+    }),
     [current, recentProjects, busy, error, create, chooseAndOpen, load, close, dismissError],
   );
 }
