@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import UUID
 from typing import Protocol
+from uuid import UUID
 
 from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
@@ -88,13 +88,11 @@ class TranscriptionService:
             existing_asset=existing_asset,
         )
         audio = Path(speech_asset.path)
-        speaker_result = None
-        if self._speaker_pipeline is not None:
-            speaker_result = self._speaker_pipeline.transcribe(
-                audio, start=source_start, duration=duration, language=language
-            )
-            if backend_id == "paraformer":
-                return speaker_result
+
+        # Recognition is always the source of truth for dialogue. Diarization may
+        # fail to cover a region, but it must never be able to remove recognized
+        # speech. This is especially important near clip tails and short speaker
+        # turns where CAM++/sentence alignment can be incomplete.
         regions = self._vad.detect(
             audio,
             start=source_start,
@@ -103,13 +101,22 @@ class TranscriptionService:
         regions = split_long_speech_regions(regions)
         backend = self._asr_backends.get(backend_id)
         segments = backend.transcribe(audio, regions, language=language)
-        if speaker_result is not None:
+
+        speaker_result = None
+        if self._speaker_pipeline is not None:
+            speaker_result = self._speaker_pipeline.transcribe(
+                audio, start=source_start, duration=duration, language=language
+            )
             from catty_engine.speakers.funasr import match_speakers
 
             segments = match_speakers(segments, speaker_result.segments)
+
+        model = backend.model
+        if speaker_result is not None:
+            model = f"{model}+{speaker_result.model}"
         return TranscriptionResult(
             backend=backend.id,
-            model=backend.model,
+            model=model,
             language=language,
             segments=segments,
         )
