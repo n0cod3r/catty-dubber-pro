@@ -5,6 +5,7 @@ from typing import Any
 
 from .backends import AsrBackendRegistry
 from .paraformer import ParaformerBackend
+from .sense_voice import SenseVoiceBackend
 from .vad import SileroVad, VadBackend
 
 
@@ -21,6 +22,19 @@ def create_asr_registry(backend_id: str, config: dict[str, Any]) -> AsrBackendRe
                 model=Path(_required(config, "model")),
                 tokens=Path(_required(config, "tokens")),
                 model_name=str(config.get("model_name", "paraformer-zh")),
+                num_threads=int(config.get("num_threads", 2)),
+                provider=str(config.get("provider", "cpu")),
+            )
+        )
+        return registry
+    if backend_id == "sense-small":
+        registry.register(
+            SenseVoiceBackend(
+                model=Path(_required(config, "model")),
+                tokens=Path(_required(config, "tokens")),
+                model_name=str(config.get("model_name", "sense-voice-small")),
+                language=str(config.get("language", "auto")),
+                use_itn=bool(config.get("use_itn", True)),
                 num_threads=int(config.get("num_threads", 2)),
                 provider=str(config.get("provider", "cpu")),
             )
