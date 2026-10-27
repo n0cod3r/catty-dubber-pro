@@ -9,7 +9,11 @@ from catty_engine.speech import (
     TranscriptionService,
     WholeClipVad,
 )
-from catty_engine.speech.transcription import split_long_speech_regions
+from catty_engine.speech.models import TranscriptionResult
+from catty_engine.speech.transcription import (
+    _timing_regions_with_coverage,
+    split_long_speech_regions,
+)
 
 
 class PreparedAudio:
@@ -70,7 +74,7 @@ def test_transcribe_selection_uses_selected_backend_and_source_range(
     assert result.segments[0].text == "你好"
 
 
-def test_long_speech_regions_are_split_into_dubbing_sized_chunks() -> None:
+def test_long_speech_regions_are_split_into_recovery_chunks() -> None:
     regions = [SpeechRegion(start=2.0, end=16.5, confidence=0.9)]
 
     split = split_long_speech_regions(regions, max_duration=6.0)
@@ -90,6 +94,78 @@ def test_short_vad_regions_keep_their_natural_boundaries() -> None:
     ]
 
     assert split_long_speech_regions(regions) == regions
+
+
+def test_timing_hints_drive_caption_boundaries_and_keep_uncovered_audio() -> None:
+    turns = [
+        TranscriptSegment(start=1.2, end=2.8, text="甲", speaker="S1"),
+        TranscriptSegment(start=4.0, end=5.1, text="乙", speaker="S2"),
+    ]
+
+    regions = _timing_regions_with_coverage(turns, start=0.0, duration=7.0)
+
+    assert [(region.start, region.end) for region in regions] == [
+        (0.0, 1.2),
+        (1.2, 2.8),
+        (2.8, 4.0),
+        (4.0, 5.1),
+        (5.1, 7.0),
+    ]
+
+
+def test_smart_transcribe_uses_detected_timing_instead_of_fixed_six_seconds(
+    tmp_path: Path,
+) -> None:
+    class Speakers:
+        def transcribe(self, audio, *, start, duration, language):
+            return TranscriptionResult(
+                backend="paraformer",
+                model="funasr",
+                language=language,
+                segments=[
+                    TranscriptSegment(
+                        start=start + 1.2,
+                        end=start + 2.8,
+                        text="甲",
+                        speaker="S1",
+                    ),
+                    TranscriptSegment(
+                        start=start + 4.0,
+                        end=start + 5.1,
+                        text="乙",
+                        speaker="S2",
+                    ),
+                ],
+            )
+
+    registry = AsrBackendRegistry()
+    registry.register(FakeAsr())
+    service = TranscriptionService(
+        asr_backends=registry,
+        vad=WholeClipVad(),
+        audio_preparation=PreparedAudio(),  # type: ignore[arg-type]
+        speaker_pipeline=Speakers(),  # type: ignore[arg-type]
+    )
+
+    result = service.transcribe(
+        project_directory=tmp_path,
+        episode_id=uuid4(),
+        source=tmp_path / "episode.mp4",
+        backend_id="paraformer",
+        language="zh",
+        source_start=0.0,
+        duration=7.0,
+    )
+
+    assert [(segment.start, segment.end) for segment in result.segments] == [
+        (0.0, 1.2),
+        (1.2, 2.8),
+        (2.8, 4.0),
+        (4.0, 5.1),
+        (5.1, 7.0),
+    ]
+    assert result.segments[1].speaker == "S1"
+    assert result.segments[3].speaker == "S2"
 
 
 def test_registry_allows_multiple_models() -> None:
