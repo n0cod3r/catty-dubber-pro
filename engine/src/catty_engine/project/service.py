@@ -15,13 +15,7 @@ from .store import ProjectStore
 
 
 class ProjectService:
-    def __init__(
-        self,
-        store: ProjectStore | None = None,
-        media_probe: MediaProbeService | None = None,
-        audio_preparation: AudioPreparationService | None = None,
-        video_proxy: VideoProxyService | None = None,
-    ) -> None:
+    def __init__(self, store: ProjectStore | None = None, media_probe: MediaProbeService | None = None, audio_preparation: AudioPreparationService | None = None, video_proxy: VideoProxyService | None = None) -> None:
         self._store = store or ProjectStore()
         self._media_probe = media_probe or MediaProbeService()
         self._audio_preparation = audio_preparation or AudioPreparationService()
@@ -82,9 +76,7 @@ class ProjectService:
         return True
 
     def probe_episode_media(self, directory: Path, project: Project, episode_id: UUID) -> Episode:
-        episode = project.episode(episode_id)
-        if episode is None:
-            raise ValueError(f"Episode does not exist: {episode_id}")
+        episode = self._episode(project, episode_id)
         episode.media = self._media_probe.probe(episode.media.source_path)
         self._store.save(directory=directory, project=project)
         return episode
@@ -96,56 +88,81 @@ class ProjectService:
         return project.episodes
 
     def prepare_episode_audio(self, directory: Path, project: Project, episode_id: UUID) -> Episode:
-        episode = project.episode(episode_id)
-        if episode is None:
-            raise ValueError(f"Episode does not exist: {episode_id}")
-        asset = self._audio_preparation.prepare_speech_audio(
-            project_directory=directory,
-            episode_id=episode.id,
-            source=episode.media.source_path,
-            existing_asset=episode.audio_asset(AudioAssetKind.SPEECH),
-        )
+        episode = self._episode(project, episode_id)
+        asset = self._audio_preparation.prepare_speech_audio(project_directory=directory, episode_id=episode.id, source=episode.media.source_path, existing_asset=episode.audio_asset(AudioAssetKind.SPEECH))
         episode.set_audio_asset(asset)
         self._store.save(directory=directory, project=project)
         return episode
 
     def prepare_episode_proxy(self, directory: Path, project: Project, episode_id: UUID, *, force: bool = False) -> Episode:
-        episode = project.episode(episode_id)
-        if episode is None:
-            raise ValueError(f"Episode does not exist: {episode_id}")
-        episode.playback_proxy_path = self._video_proxy.prepare_playback_proxy(
-            project_directory=directory,
-            source=episode.media.source_path,
-            existing_path=episode.playback_proxy_path,
-            force=force,
-        )
+        episode = self._episode(project, episode_id)
+        episode.playback_proxy_path = self._video_proxy.prepare_playback_proxy(project_directory=directory, source=episode.media.source_path, existing_path=episode.playback_proxy_path, force=force)
         self._store.save(directory=directory, project=project)
         return episode
 
-    def replace_dialogue_segments(
-        self,
-        directory: Path,
-        project: Project,
-        episode_id: UUID,
-        segments: list[TranscriptSegment],
-        *,
-        source_language: str,
-    ) -> Episode:
+    def replace_dialogue_segments(self, directory: Path, project: Project, episode_id: UUID, segments: list[TranscriptSegment], *, source_language: str) -> Episode:
+        episode = self._episode(project, episode_id)
+        episode.dialogue_segments = [DialogueSegment(start=segment.start, end=segment.end, source_language=source_language, source_text=segment.text, confidence=segment.confidence) for segment in segments]
+        episode.processing.transcription = ProcessingStatus.COMPLETED
+        self._touch_and_save(directory, project, episode)
+        return episode
+
+    def split_dialogue_segment(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, split_at: float) -> Episode:
+        episode = self._episode(project, episode_id)
+        index = self._segment_index(episode, segment_id)
+        segment = episode.dialogue_segments[index]
+        margin = 0.05
+        if split_at <= segment.start + margin or split_at >= segment.end - margin:
+            raise ValueError("Split point must be inside the dialogue segment")
+        ratio = (split_at - segment.start) / segment.duration
+        text = segment.source_text.strip()
+        cut = max(1, min(len(text) - 1, round(len(text) * ratio))) if len(text) > 1 else 0
+        left_text = text[:cut].strip() if cut else text
+        right_text = text[cut:].strip() if cut else text
+        left = DialogueSegment(start=segment.start, end=split_at, speaker_id=segment.speaker_id, source_language=segment.source_language, source_text=left_text, confidence=segment.confidence)
+        right = DialogueSegment(start=split_at, end=segment.end, speaker_id=segment.speaker_id, source_language=segment.source_language, source_text=right_text, confidence=segment.confidence)
+        episode.dialogue_segments[index:index + 1] = [left, right]
+        episode.dub_segments = [dub for dub in episode.dub_segments if dub.dialogue_segment_id != segment.id]
+        self._touch_and_save(directory, project, episode)
+        return episode
+
+    def merge_dialogue_segment_with_next(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID) -> Episode:
+        episode = self._episode(project, episode_id)
+        index = self._segment_index(episode, segment_id)
+        if index + 1 >= len(episode.dialogue_segments):
+            raise ValueError("There is no next dialogue segment to merge")
+        first = episode.dialogue_segments[index]
+        second = episode.dialogue_segments[index + 1]
+        if first.source_language != second.source_language:
+            raise ValueError("Dialogue segments must use the same source language")
+        separator = "" if first.source_language.startswith("zh") else " "
+        merged = DialogueSegment(start=first.start, end=second.end, speaker_id=first.speaker_id if first.speaker_id == second.speaker_id else None, source_language=first.source_language, source_text=f"{first.source_text.rstrip()}{separator}{second.source_text.lstrip()}", confidence=self._average_confidence(first.confidence, second.confidence))
+        episode.dialogue_segments[index:index + 2] = [merged]
+        replaced_ids = {first.id, second.id}
+        episode.dub_segments = [dub for dub in episode.dub_segments if dub.dialogue_segment_id not in replaced_ids]
+        self._touch_and_save(directory, project, episode)
+        return episode
+
+    @staticmethod
+    def _episode(project: Project, episode_id: UUID) -> Episode:
         episode = project.episode(episode_id)
         if episode is None:
             raise ValueError(f"Episode does not exist: {episode_id}")
-        episode.dialogue_segments = [
-            DialogueSegment(
-                start=segment.start,
-                end=segment.end,
-                source_language=source_language,
-                source_text=segment.text,
-                confidence=segment.confidence,
-            )
-            for segment in segments
-        ]
-        episode.processing.transcription = ProcessingStatus.COMPLETED
+        return episode
+
+    @staticmethod
+    def _segment_index(episode: Episode, segment_id: UUID) -> int:
+        for index, segment in enumerate(episode.dialogue_segments):
+            if segment.id == segment_id:
+                return index
+        raise ValueError(f"Dialogue segment does not exist: {segment_id}")
+
+    @staticmethod
+    def _average_confidence(first: float | None, second: float | None) -> float | None:
+        values = [value for value in (first, second) if value is not None]
+        return sum(values) / len(values) if values else None
+
+    def _touch_and_save(self, directory: Path, project: Project, episode: Episode) -> None:
         episode.updated_at = utc_now()
         project.updated_at = utc_now()
         self._store.save(directory=directory, project=project)
-        return episode

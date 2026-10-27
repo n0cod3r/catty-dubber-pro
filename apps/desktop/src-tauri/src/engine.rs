@@ -38,7 +38,7 @@ fn validate_job_id(id: &str) -> Result<(), EngineError> { if id.len() != 36 || !
 
 #[tauri::command]
 pub async fn engine_request(method: String, params: Value, jobs: tauri::State<'_, EngineJobs>) -> Result<Value, EngineError> {
-    if !matches!(method.as_str(), "health" | "system.hello" | "media.probe" | "project.create" | "project.open" | "project.prepare_episode" | "project.rebuild_proxy" | "project.import_episode" | "speech.transcribe") { return Err(EngineError::new("UNKNOWN_METHOD", "This engine operation is not available")); }
+    if !matches!(method.as_str(), "health" | "system.hello" | "media.probe" | "project.create" | "project.open" | "project.prepare_episode" | "project.rebuild_proxy" | "project.import_episode" | "project.dialogue_split" | "project.dialogue_merge_next" | "speech.transcribe") { return Err(EngineError::new("UNKNOWN_METHOD", "This engine operation is not available")); }
     let id = format!("rpc-{}", REQUEST_ID.fetch_add(1, Ordering::Relaxed)); let cancelled = Arc::new(AtomicBool::new(false)); jobs.register(&id, cancelled.clone())?;
     let result = tauri::async_runtime::spawn_blocking(move || request_with_control(&method, params, Some((&cancelled, &std::env::temp_dir().join("catty-unused-cancel"))))).await;
     if let Ok(mut active) = jobs.0.lock() { active.remove(&id); }

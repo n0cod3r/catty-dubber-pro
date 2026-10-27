@@ -19,12 +19,13 @@ from catty_engine.speech.runtime import create_asr_registry, create_vad
 from catty_engine.speech.transcription import TranscriptionService
 
 PROTOCOL_VERSION = 1
+EngineMethod = Literal["health", "system.hello", "system.shutdown", "media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "speech.transcribe"]
 
 class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
     version: Literal[1]
     id: str = Field(min_length=1, max_length=128)
-    method: Literal["health", "system.hello", "system.shutdown", "media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "speech.transcribe"]
+    method: EngineMethod
     params: dict[str, Any] = Field(default_factory=dict)
 
 class ProbeParams(BaseModel):
@@ -46,6 +47,13 @@ class ProjectImportEpisodeParams(BaseModel):
     project_directory: Path
     project_name: str = Field(min_length=1)
     source: str = Field(min_length=1)
+class DialogueEditParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project_directory: Path
+    episode_id: UUID
+    segment_id: UUID
+class DialogueSplitParams(DialogueEditParams):
+    split_at: float = Field(ge=0)
 class AudioPrepareParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
@@ -68,7 +76,7 @@ class SpeechTranscribeParams(BaseModel):
     existing_asset: AudioAsset | None = None
 
 def _hello() -> dict[str, Any]:
-    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
+    return {"name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION, "capabilities": ["media.probe", "audio.prepare", "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy", "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown"], "ffmpeg_available": shutil.which("ffmpeg") is not None, "ffprobe_available": shutil.which("ffprobe") is not None}
 
 def _open_or_create_project(directory: Path, name: str):
     service = ProjectService()
@@ -95,8 +103,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
             result = ProjectService().open_project(params.project_directory).model_dump(mode="json")
         elif request.method in {"project.prepare_episode", "project.rebuild_proxy"}:
             params = ProjectPrepareEpisodeParams.model_validate(request.params)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             if request.method == "project.prepare_episode":
                 episode = service.prepare_episode_audio(params.project_directory, project, params.episode_id)
                 episode = service.prepare_episode_proxy(params.project_directory, project, episode.id)
@@ -107,6 +114,14 @@ def handle_request(payload: Any) -> dict[str, Any]:
             params = ProjectImportEpisodeParams.model_validate(request.params)
             service, project = _open_or_create_project(params.project_directory, params.project_name)
             result = service.import_episode(params.project_directory, project, params.source, prepare_audio=True).model_dump(mode="json")
+        elif request.method == "project.dialogue_split":
+            params = DialogueSplitParams.model_validate(request.params)
+            service = ProjectService(); project = service.open_project(params.project_directory)
+            result = service.split_dialogue_segment(params.project_directory, project, params.episode_id, params.segment_id, params.split_at).model_dump(mode="json")
+        elif request.method == "project.dialogue_merge_next":
+            params = DialogueEditParams.model_validate(request.params)
+            service = ProjectService(); project = service.open_project(params.project_directory)
+            result = service.merge_dialogue_segment_with_next(params.project_directory, project, params.episode_id, params.segment_id).model_dump(mode="json")
         elif request.method == "audio.prepare":
             params = AudioPrepareParams.model_validate(request.params)
             def cancelled() -> bool: return params.cancel_file is not None and params.cancel_file.exists()
@@ -114,11 +129,9 @@ def handle_request(payload: Any) -> dict[str, Any]:
             result = AudioPreparationService(runner=FFmpegRunner(cancelled=cancelled)).prepare_speech_audio(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, existing_asset=params.existing_asset).model_dump(mode="json")
         elif request.method == "speech.transcribe":
             params = SpeechTranscribeParams.model_validate(request.params)
-            registry = create_asr_registry(params.asr_backend, params.asr_config)
-            vad = create_vad(params.vad_backend, params.vad_config)
+            registry = create_asr_registry(params.asr_backend, params.asr_config); vad = create_vad(params.vad_backend, params.vad_config)
             transcription = TranscriptionService(asr_backends=registry, vad=vad).transcribe(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, backend_id=params.asr_backend, language=params.language, source_start=params.source_start, duration=params.duration, existing_asset=params.existing_asset)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             service.replace_dialogue_segments(params.project_directory, project, params.episode_id, transcription.segments, source_language=params.language)
             result = transcription.model_dump(mode="json")
         else:
@@ -149,9 +162,7 @@ def run_server() -> None:
         if not line: continue
         payload: Any = None
         try:
-            payload = json.loads(line)
-            response = handle_request(payload)
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            response = {"version": PROTOCOL_VERSION, "id": None, "error": {"code": "INVALID_JSON", "message": "Expected one JSON request per line."}}
+            payload = json.loads(line); response = handle_request(payload)
+        except (json.JSONDecodeError, UnicodeDecodeError): response = {"version": PROTOCOL_VERSION, "id": None, "error": {"code": "INVALID_JSON", "message": "Expected one JSON request per line."}}
         _write_response(response)
         if isinstance(payload, dict) and payload.get("method") == "system.shutdown" and "error" not in response: break

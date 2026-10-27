@@ -8,6 +8,8 @@ export type PersistedProject = { schema_version: number; id: string; name: strin
 export type TranscriptSegment = { start: number; end: number; text: string; confidence: number | null };
 export type TranscriptionResult = { backend: string; model: string; language: string; segments: TranscriptSegment[] };
 export type SpeechTranscribeParams = { project_directory: string; episode_id: string; source: string; source_start: number; duration: number; language?: string; asr_backend: string; asr_config: Record<string, unknown>; vad_backend: string; vad_config: Record<string, unknown>; existing_asset?: AudioAsset | null };
+export type DialogueEditParams = { project_directory: string; episode_id: string; segment_id: string };
+export type DialogueSplitParams = DialogueEditParams & { split_at: number };
 export type AudioPrepareParams = { source: string; episode_id: string; project_directory: string; existing_asset?: AudioAsset | null };
 export type EngineMethods = {
   health: { params: Record<string, never>; result: EngineStatus };
@@ -17,5 +19,7 @@ export type EngineMethods = {
   "project.prepare_episode": { params: { project_directory: string; episode_id: string }; result: PersistedEpisode };
   "project.rebuild_proxy": { params: { project_directory: string; episode_id: string }; result: PersistedEpisode };
   "project.import_episode": { params: { project_directory: string; project_name: string; source: string }; result: PersistedEpisode };
+  "project.dialogue_split": { params: DialogueSplitParams; result: PersistedEpisode };
+  "project.dialogue_merge_next": { params: DialogueEditParams; result: PersistedEpisode };
   "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
 };

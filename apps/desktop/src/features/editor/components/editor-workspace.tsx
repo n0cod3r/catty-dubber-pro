@@ -108,6 +108,7 @@ function WorkspaceContent({
         <Inspector
           episode={episode}
           projectDirectory={projectDirectory}
+          currentTime={playback.currentTime}
           onSeek={playback.seek}
           onDialogueChange={handleDialogueChange}
         />
