@@ -1,6 +1,16 @@
 from pathlib import Path
 
+from catty_engine.media.models import MediaInfo
 from catty_engine.project import ProjectService
+
+
+class FakeProbe:
+    def probe(self, source: str) -> MediaInfo:
+        return MediaInfo(source_path=source)
+
+
+def project_service_without_ffprobe() -> ProjectService:
+    return ProjectService(media_probe=FakeProbe())  # type: ignore[arg-type]
 
 
 def test_create_and_reload_project(tmp_path: Path) -> None:
@@ -23,7 +33,7 @@ def test_create_and_reload_project(tmp_path: Path) -> None:
 
 
 def test_import_multiple_episodes(tmp_path: Path) -> None:
-    service = ProjectService()
+    service = project_service_without_ffprobe()
     project_dir = tmp_path / "my-drama"
     project = service.create_project(directory=project_dir, name="My Drama")
 
@@ -51,7 +61,7 @@ def test_import_multiple_episodes(tmp_path: Path) -> None:
 
 
 def test_duplicate_episode_is_not_imported(tmp_path: Path) -> None:
-    service = ProjectService()
+    service = project_service_without_ffprobe()
     project_dir = tmp_path / "my-drama"
     project = service.create_project(directory=project_dir, name="My Drama")
     episode = tmp_path / "EP01.mp4"
@@ -73,12 +83,6 @@ def test_duplicate_episode_is_not_imported(tmp_path: Path) -> None:
 
 
 def test_reimport_after_reload_reuses_episode_id(tmp_path: Path) -> None:
-    class FakeProbe:
-        def probe(self, source: str):
-            from catty_engine.media.models import MediaInfo
-
-            return MediaInfo(source_path=source)
-
     class FakeAudioPreparation:
         def prepare_speech_audio(self, **kwargs):
             from catty_engine.media.audio import AudioAsset, AudioAssetKind
@@ -91,7 +95,10 @@ def test_reimport_after_reload_reuses_episode_id(tmp_path: Path) -> None:
                 source_fingerprint="stable",
             )
 
-    service = ProjectService(media_probe=FakeProbe(), audio_preparation=FakeAudioPreparation())
+    service = ProjectService(
+        media_probe=FakeProbe(),  # type: ignore[arg-type]
+        audio_preparation=FakeAudioPreparation(),  # type: ignore[arg-type]
+    )
     project_dir = tmp_path / "my-drama"
     project = service.create_project(directory=project_dir, name="My Drama")
     source = tmp_path / "EP01.mp4"
