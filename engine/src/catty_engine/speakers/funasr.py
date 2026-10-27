@@ -158,7 +158,10 @@ def _load_pipeline(
         disable_pbar=True,
         trust_remote_code=False,
         log_level="ERROR",
-        spk_mode="punc_segment",
+        # Keep VAD/ASR regions as the transcript source of truth. punc_segment can
+        # produce punctuation-only speaker sentences when punctuation/timestamp
+        # alignment is imperfect, which made Catty silently lose spoken dialogue.
+        spk_mode="vad_segment",
         vad_kwargs={"max_single_segment_time": 30000},
         spk_kwargs={"cb_kwargs": {"merge_thr": 0.78}},
     )
@@ -184,7 +187,7 @@ def parse_sentences(
         if not math.isfinite(left) or not math.isfinite(right):
             raise ValueError("FunASR returned invalid sentence timestamps")
         left, right = max(0, left), min(duration, right)
-        text = str(sentence.get("text", "")).strip()
+        text = str(sentence.get("sentence") or sentence.get("text", "")).strip()
         if right <= left or not text or not _has_spoken_text(text):
             continue
         cluster = sentence.get("spk")
@@ -262,6 +265,9 @@ class FunASRSpeakerPipeline:
                     fs=rate,
                     batch_size_s=30,
                     disable_pbar=True,
+                    sentence_timestamp=True,
+                    output_timestamp=True,
+                    return_time_stamps=True,
                     return_spk_res=True,
                 )
             except RuntimeError as exc:
