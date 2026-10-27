@@ -8,20 +8,19 @@ from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
 
 from .backends import AsrBackendRegistry
-from .models import SpeechRegion, TranscriptionResult
+from .models import SpeechRegion, TranscriptSegment, TranscriptionResult
 from .vad import VadBackend
 
-# Dialogue is the editing unit for subtitles, translation, and dubbing. Keep long
-# uninterrupted VAD regions bounded so one fast narrator does not become a
-# single 15-30 second subtitle/TTS job. Natural VAD pauses remain the preferred
-# boundary; this is only the hard safety limit.
-MAX_DIALOGUE_REGION_SECONDS = 6.0
+# Long uncovered ranges are only a recovery path. Normal dialogue boundaries come
+# from detected speech/sentence timing, never from fixed six-second timeline bins.
+MAX_RECOVERY_REGION_SECONDS = 6.0
+MIN_RECOVERY_GAP_SECONDS = 0.35
 
 
 def split_long_speech_regions(
     regions: list[SpeechRegion],
     *,
-    max_duration: float = MAX_DIALOGUE_REGION_SECONDS,
+    max_duration: float = MAX_RECOVERY_REGION_SECONDS,
 ) -> list[SpeechRegion]:
     if max_duration <= 0:
         raise ValueError("max_duration must be > 0")
@@ -40,6 +39,55 @@ def split_long_speech_regions(
                 SpeechRegion(start=start, end=region.end, confidence=region.confidence)
             )
     return result
+
+
+def _is_whole_clip_region(
+    regions: list[SpeechRegion], *, start: float, duration: float
+) -> bool:
+    if len(regions) != 1:
+        return False
+    region = regions[0]
+    return abs(region.start - start) <= 0.01 and abs(region.end - (start + duration)) <= 0.01
+
+
+def _timing_regions_with_coverage(
+    turns: list[TranscriptSegment], *, start: float, duration: float
+) -> list[SpeechRegion]:
+    """Use detected dialogue timing while retaining uncovered audio as recovery.
+
+    FunASR/CAM++ timing is useful for subtitle boundaries, but it is not allowed
+    to define transcript coverage. Any uncovered range remains an ASR recovery
+    region, so a missed diarization turn cannot silently remove spoken dialogue.
+    """
+    clip_end = start + duration
+    hints = sorted(
+        (
+            SpeechRegion(start=max(start, turn.start), end=min(clip_end, turn.end))
+            for turn in turns
+            if turn.end > start and turn.start < clip_end
+        ),
+        key=lambda region: (region.start, region.end),
+    )
+    hints = [region for region in hints if region.end - region.start > 0.001]
+    if not hints:
+        return split_long_speech_regions([SpeechRegion(start=start, end=clip_end)])
+
+    regions: list[SpeechRegion] = []
+    cursor = start
+    for hint in hints:
+        if hint.start - cursor >= MIN_RECOVERY_GAP_SECONDS:
+            regions.extend(
+                split_long_speech_regions(
+                    [SpeechRegion(start=cursor, end=hint.start)]
+                )
+            )
+        regions.append(hint)
+        cursor = max(cursor, hint.end)
+    if clip_end - cursor >= MIN_RECOVERY_GAP_SECONDS:
+        regions.extend(
+            split_long_speech_regions([SpeechRegion(start=cursor, end=clip_end)])
+        )
+    return regions
 
 
 class SpeakerPipeline(Protocol):
@@ -79,8 +127,6 @@ class TranscriptionService:
         if duration <= 0:
             raise ValueError("duration must be > 0")
 
-        # Preparation is deliberately internal. Editor actions ask to transcribe;
-        # they never need to expose the 16 kHz mono working asset to the user.
         speech_asset = self._audio_preparation.prepare_speech_audio(
             project_directory=project_directory,
             episode_id=episode_id,
@@ -89,24 +135,34 @@ class TranscriptionService:
         )
         audio = Path(speech_asset.path)
 
-        # Recognition is always the source of truth for dialogue. Diarization may
-        # fail to cover a region, but it must never be able to remove recognized
-        # speech. This is especially important near clip tails and short speaker
-        # turns where CAM++/sentence alignment can be incomplete.
         regions = self._vad.detect(
             audio,
             start=source_start,
             duration=duration,
         )
-        regions = split_long_speech_regions(regions)
-        backend = self._asr_backends.get(backend_id)
-        segments = backend.transcribe(audio, regions, language=language)
 
+        # Smart Transcribe currently uses WholeClipVad for canonical Paraformer
+        # coverage while FunASR supplies high-quality speech/sentence timing. Use
+        # those timings as boundary hints, but explicitly fill every uncovered
+        # range so diarization can never make transcript audio disappear.
         speaker_result = None
         if self._speaker_pipeline is not None:
             speaker_result = self._speaker_pipeline.transcribe(
                 audio, start=source_start, duration=duration, language=language
             )
+            if _is_whole_clip_region(
+                regions, start=source_start, duration=duration
+            ):
+                regions = _timing_regions_with_coverage(
+                    speaker_result.segments,
+                    start=source_start,
+                    duration=duration,
+                )
+
+        backend = self._asr_backends.get(backend_id)
+        segments = backend.transcribe(audio, regions, language=language)
+
+        if speaker_result is not None:
             from catty_engine.speakers.funasr import match_speakers
 
             segments = match_speakers(segments, speaker_result.segments)
