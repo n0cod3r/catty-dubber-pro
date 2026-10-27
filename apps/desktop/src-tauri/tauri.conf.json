@@ -25,7 +25,20 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": []
+        "scope": {
+          "allow": [
+            "$HOME/**",
+            "$VIDEO/**",
+            "$DOCUMENT/**",
+            "$DOWNLOAD/**",
+            "$DESKTOP/**"
+          ],
+          "deny": [
+            "$HOME/.ssh/**",
+            "$HOME/.gnupg/**"
+          ],
+          "requireLiteralLeadingDot": true
+        }
       }
     }
   },
