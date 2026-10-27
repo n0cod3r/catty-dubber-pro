@@ -5,27 +5,25 @@ from typing import Any
 
 from .backends import AsrBackendRegistry
 from .model_manager import ModelManager
-from .paraformer import ParaformerBackend
 from .sense_voice import SenseVoiceBackend
 from .vad import SileroVad, VadBackend
 
 
 def create_asr_registry(backend_id: str, config: dict[str, Any]) -> AsrBackendRegistry:
-    """Build an ASR backend, lazily installing Catty-managed models when needed."""
-    resolved = config or ModelManager().ensure_asr(backend_id)
+    """Build the requested ASR backend.
+
+    Chinese Paraformer uses Catty's integrated FunASR large-model stack so VAD,
+    punctuation, sentence timing and CAM++ share one recognition pass. SenseVoice
+    remains the lightweight sherpa-onnx alternative.
+    """
     registry = AsrBackendRegistry()
     if backend_id == "paraformer":
-        registry.register(
-            ParaformerBackend(
-                model=Path(_required(resolved, "model")),
-                tokens=Path(_required(resolved, "tokens")),
-                model_name=str(resolved.get("model_name", "paraformer-zh")),
-                num_threads=int(resolved.get("num_threads", 2)),
-                provider=str(resolved.get("provider", "cpu")),
-            )
-        )
+        from catty_engine.speakers.funasr import FunASRParaformerBackend
+
+        registry.register(FunASRParaformerBackend())
         return registry
     if backend_id == "sense-small":
+        resolved = config or ModelManager().ensure_asr(backend_id)
         registry.register(
             SenseVoiceBackend(
                 model=Path(_required(resolved, "model")),
