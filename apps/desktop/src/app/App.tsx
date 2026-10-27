@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
-import { AlertCircle, ChevronLeft, LoaderCircle, X } from "lucide-react";
+import { AlertCircle, ChevronLeft, LoaderCircle, Settings2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -14,12 +14,14 @@ import {
 import { useDesktopShutdown } from "@/features/engine";
 import { useEpisode } from "@/features/episodes";
 import { ProjectHome, useProject } from "@/features/projects";
+import { SettingsDialog } from "@/features/settings";
 
 export function App() {
   const projects = useProject();
   const source = useEpisode(projects.current?.directory ?? null, projects.current?.project ?? null);
   const closing = useDesktopShutdown();
   const [followPlayhead, setFollowPlayhead] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const onImport = () => void source.openEpisode();
   const rebuildProxy = source.rebuildProxy;
   useEffect(() => {
@@ -97,6 +99,15 @@ export function App() {
                   {projects.current.project.episodes.length} episodes
                 </span>
               )}
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="បើកការកំណត់ Catty"
+                title="Settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings2 />
+              </Button>
             </div>
             <WorkspaceHeader
               episode={source.episode}
@@ -143,6 +154,7 @@ export function App() {
               event.currentTarget.value = "";
             }}
           />
+          <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
         </SidebarProvider>
       </TooltipProvider>
     </EditorErrorBoundary>
