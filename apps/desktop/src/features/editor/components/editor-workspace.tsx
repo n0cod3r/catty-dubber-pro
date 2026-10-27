@@ -15,6 +15,7 @@ import { Inspector } from "./inspector";
 
 type EditorWorkspaceProps = {
   episode: EpisodeMedia | null;
+  projectDirectory: string;
   importing: boolean;
   onImport: () => void;
   followPlayhead: boolean;
@@ -33,6 +34,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
 
 function WorkspaceContent({
   episode,
+  projectDirectory,
   importing,
   onImport,
   followPlayhead,
@@ -83,7 +85,7 @@ function WorkspaceContent({
           }}
         />
       }
-      inspector={<Inspector episode={episode} />}
+      inspector={<Inspector episode={episode} projectDirectory={projectDirectory} />}
     />
   );
 }
