@@ -23,7 +23,7 @@ const transcriptionEngines = [
   { id: "sense-small", label: "SenseSmall" },
 ] as const;
 type TranscriptionEngine = (typeof transcriptionEngines)[number]["id"];
-type DialogueRow = TranscriptSegment & { id: string };
+type DialogueRow = TranscriptSegment & { id: string; speakerId: string | null };
 const TRANSCRIPTION_ENGINE_KEY = "catty.transcription-engine.v1";
 
 function readTranscriptionEngine(): TranscriptionEngine {
@@ -37,6 +37,7 @@ function persistedSegments(segments: EpisodeMedia["dialogueSegments"]): Dialogue
     id: segment.id,
     start: segment.start,
     end: segment.end,
+    speakerId: segment.speakerId ?? null,
     text: segment.sourceText,
     confidence: segment.confidence,
   }));
@@ -364,10 +365,50 @@ export function Inspector({
                       {formatTime(segment.start, true)}
                       <span className="block opacity-60">→ {formatTime(segment.end, true)}</span>
                     </span>
-                    <span className="min-w-0 text-[11px] leading-[1.45]">{segment.text}</span>
+                    <span className="min-w-0 text-[11px] leading-[1.45]">
+                      {segment.speakerId && (
+                        <span
+                          title="Detected speaker · select row to correct"
+                          className="mr-1 inline-block rounded border border-primary/25 bg-primary/10 px-1 text-[9px] text-primary"
+                        >
+                          {episode?.speakers?.find((speaker) => speaker.id === segment.speakerId)
+                            ?.name ?? "?"}
+                        </span>
+                      )}
+                      {segment.text}
+                    </span>
                   </button>
                 ))}
               </div>
+              {selected && (
+                <label className="flex shrink-0 items-center gap-2 border-t px-2 py-1 text-[10px] text-muted-foreground">
+                  Speaker
+                  <select
+                    aria-label="Correct dialogue speaker"
+                    className="min-w-0 rounded border bg-background px-1 py-0.5 text-foreground"
+                    disabled={busy}
+                    value={selected.speakerId ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (value !== (selected.speakerId ?? ""))
+                        void dialogue.assignSpeaker(
+                          selected.id,
+                          value === "__new" ? null : value || null,
+                          selected.speakerId,
+                          value === "__new",
+                        );
+                    }}
+                  >
+                    <option value="">Unassigned</option>
+                    {episode?.speakers?.map((speaker) => (
+                      <option key={speaker.id} value={speaker.id}>
+                        {speaker.name}
+                      </option>
+                    ))}
+                    <option value="__new">New speaker…</option>
+                  </select>
+                </label>
+              )}
               {textEditorSegment && (
                 <DialogueTextEditor
                   key={textEditorSegment.id}

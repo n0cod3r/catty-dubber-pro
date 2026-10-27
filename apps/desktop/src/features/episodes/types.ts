@@ -1,4 +1,7 @@
+import type { EpisodeSpeaker } from "@catty/contracts";
+
 export type EpisodeMedia = {
+  speakers?: EpisodeSpeaker[];
   id: string;
   path: string;
   playbackPath?: string | null;
@@ -16,6 +19,7 @@ export type EpisodeMedia = {
     id: string;
     start: number;
     end: number;
+    speakerId?: string | null;
     sourceLanguage: string;
     sourceText: string;
     confidence: number | null;

@@ -7,6 +7,10 @@ dependencies = [
   "numpy>=2.2,<3",
   "pydantic>=2.12,<3",
   "sherpa-onnx>=2.0,<3",
+  "funasr==1.4.16",
+  "torch>=2.6,<3",
+  "torchaudio>=2.6,<3",
+  "huggingface-hub>=0.30,<2",
 ]
 
 [project.scripts]
@@ -24,5 +28,5 @@ dev = [
 ]
 
 [[tool.mypy.overrides]]
-module = "sherpa_onnx"
+module = ["sherpa_onnx", "funasr"]
 ignore_missing_imports = true

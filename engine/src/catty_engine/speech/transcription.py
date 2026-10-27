@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from uuid import UUID
+from typing import Protocol
 
 from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
@@ -41,6 +42,10 @@ def split_long_speech_regions(
     return result
 
 
+class SpeakerPipeline(Protocol):
+    def transcribe(self, audio: Path, *, start: float, duration: float, language: str) -> TranscriptionResult: ...
+
+
 class TranscriptionService:
     def __init__(
         self,
@@ -48,7 +53,9 @@ class TranscriptionService:
         asr_backends: AsrBackendRegistry,
         vad: VadBackend,
         audio_preparation: AudioPreparationService | None = None,
+        speaker_pipeline: SpeakerPipeline | None = None,
     ) -> None:
+        self._speaker_pipeline = speaker_pipeline
         self._asr_backends = asr_backends
         self._vad = vad
         self._audio_preparation = audio_preparation or AudioPreparationService()
@@ -79,6 +86,11 @@ class TranscriptionService:
             existing_asset=existing_asset,
         )
         audio = Path(speech_asset.path)
+        speaker_result = None
+        if self._speaker_pipeline is not None:
+            speaker_result = self._speaker_pipeline.transcribe(audio, start=source_start, duration=duration, language=language)
+            if backend_id == "paraformer":
+                return speaker_result
         regions = self._vad.detect(
             audio,
             start=source_start,
@@ -87,6 +99,9 @@ class TranscriptionService:
         regions = split_long_speech_regions(regions)
         backend = self._asr_backends.get(backend_id)
         segments = backend.transcribe(audio, regions, language=language)
+        if speaker_result is not None:
+            from catty_engine.speakers.funasr import match_speakers
+            segments = match_speakers(segments, speaker_result.segments)
         return TranscriptionResult(
             backend=backend.id,
             model=backend.model,

@@ -267,3 +267,30 @@ def test_edit_dialogue_text_rejects_empty_and_stale_changes(tmp_path: Path) -> N
         assert (tmp_path / "project.json").read_bytes() == original
     service.update_dialogue_text(tmp_path, project, episode.id, segment.id, "你好", "你好")
     assert (tmp_path / "project.json").read_bytes() == original
+
+
+def test_detected_speakers_replace_cleanly_and_correction_undo_redo(tmp_path: Path) -> None:
+    from catty_engine.speech.models import TranscriptSegment
+    service = project_service_without_ffprobe()
+    project = service.create_project(tmp_path, "Speakers")
+    episode = project.add_episode("episode.mp4")
+    transcripts = [TranscriptSegment(start=0, end=2, text="你好", speaker="A"), TranscriptSegment(start=2, end=4, text="世界", speaker="B")]
+    service.replace_dialogue_segments(tmp_path, project, episode.id, transcripts, source_language="zh")
+    before = service.open_project(tmp_path).episodes[0]
+    assert [s.name for s in before.speakers] == ["S1", "S2"]
+    first, second = before.dialogue_segments
+    service.assign_dialogue_speaker(tmp_path, project, episode.id, first.id, second.speaker_id, first.speaker_id)
+    after = service.open_project(tmp_path).episodes[0]
+    assert after.speakers[0].segment_ids == []
+    assert after.speakers[1].segment_ids == [first.id, second.id]
+    service.restore_dialogue(tmp_path, project, episode.id, after.dialogue_segments, before.dialogue_segments, before.speakers, before.dub_segments)
+    assert service.open_project(tmp_path).episodes[0].speakers == before.speakers
+    service.restore_dialogue(tmp_path, project, episode.id, before.dialogue_segments, after.dialogue_segments, after.speakers, after.dub_segments)
+    assert service.open_project(tmp_path).episodes[0].speakers == after.speakers
+    service.assign_dialogue_speaker(tmp_path, project, episode.id, first.id, None, second.speaker_id, create_new=True)
+    assert len(service.open_project(tmp_path).episodes[0].speakers) == 3
+    service.replace_dialogue_segments(tmp_path, project, episode.id, transcripts, source_language="zh")
+    restored = service.open_project(tmp_path).episodes[0]
+    assert len(restored.speakers) == 2
+    assert len(restored.dialogue_segments) == 2
+    assert all(s.segment_ids for s in restored.speakers)

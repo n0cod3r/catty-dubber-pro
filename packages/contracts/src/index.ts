@@ -37,6 +37,12 @@ export type PersistedDialogueSegment = {
   created_at: string;
   updated_at: string;
 };
+export type EpisodeSpeaker = {
+  id: string;
+  name: string;
+  character_id: string | null;
+  segment_ids: string[];
+};
 export type PersistedEpisode = {
   id: string;
   name: string;
@@ -44,7 +50,7 @@ export type PersistedEpisode = {
   media: MediaInfo;
   playback_proxy_path: string | null;
   audio_assets: AudioAsset[];
-  speakers: unknown[];
+  speakers: EpisodeSpeaker[];
   dialogue_segments: PersistedDialogueSegment[];
   dub_segments: unknown[];
   processing: Record<string, string>;
@@ -125,8 +131,16 @@ export type EngineMethods = {
       episode_id: string;
       expected_segments: PersistedDialogueSegment[];
       dialogue_segments: PersistedDialogueSegment[];
-      speakers: unknown[];
+      speakers: EpisodeSpeaker[];
       dub_segments: unknown[];
+    };
+    result: PersistedEpisode;
+  };
+  "project.dialogue_assign_speaker": {
+    params: DialogueEditParams & {
+      speaker_id: string | null;
+      expected_speaker_id: string | null;
+      create_new?: boolean;
     };
     result: PersistedEpisode;
   };

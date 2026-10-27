@@ -136,6 +136,42 @@ export function useDialogueEditing(
     }
   };
 
+  const assignSpeaker = async (
+    segmentId: string,
+    speakerId: string | null,
+    expectedSpeakerId: string | null,
+    createNew = false,
+  ) => {
+    if (!episode) return;
+    const ticket = sessionGuard.current.begin(sessionScope);
+    if (!ticket) return;
+    setEditing(true);
+    setError(null);
+    try {
+      const before = await loadPersistedEpisode();
+      if (!sessionGuard.current.isCurrent(ticket)) return;
+      const persisted = await requestEngine("project.dialogue_assign_speaker", {
+        project_directory: projectDirectory,
+        episode_id: episode.id,
+        segment_id: segmentId,
+        speaker_id: speakerId,
+        expected_speaker_id: expectedSpeakerId,
+        create_new: createNew,
+      });
+      if (!sessionGuard.current.isCurrent(ticket)) return;
+      undoStack.current = [...undoStack.current.slice(-49), { before, after: persisted }];
+      redoStack.current = [];
+      setHistoryCounts({ undo: undoStack.current.length, redo: 0 });
+      onEpisodePersisted(persisted);
+      return true;
+    } catch (cause) {
+      if (sessionGuard.current.isCurrent(ticket))
+        setError(cause instanceof Error ? cause.message : "Could not correct speaker.");
+    } finally {
+      if (sessionGuard.current.finish(ticket)) setEditing(false);
+    }
+  };
+
   const merge = useCallback(
     async (segmentId: string) => {
       if (!episode) return;
@@ -225,6 +261,7 @@ export function useDialogueEditing(
     split,
     merge,
     updateText,
+    assignSpeaker,
     transcribe,
     restore,
   };

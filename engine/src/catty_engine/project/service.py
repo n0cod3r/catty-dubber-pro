@@ -103,8 +103,39 @@ class ProjectService:
 
     def replace_dialogue_segments(self, directory: Path, project: Project, episode_id: UUID, segments: list[TranscriptSegment], *, source_language: str) -> Episode:
         episode = self._episode(project, episode_id)
-        episode.dialogue_segments = [DialogueSegment(start=segment.start, end=segment.end, source_language=source_language, source_text=segment.text, confidence=segment.confidence) for segment in segments]
+        speakers = {label: EpisodeSpeaker(name=f"S{index + 1}") for index, label in enumerate(dict.fromkeys(segment.speaker for segment in segments if segment.speaker is not None))}
+        episode.dialogue_segments = [DialogueSegment(start=segment.start, end=segment.end, speaker_id=speakers[segment.speaker].id if segment.speaker is not None else None, source_language=source_language, source_text=segment.text, confidence=segment.confidence) for segment in segments]
+        episode.speakers = list(speakers.values())
+        for speaker in episode.speakers:
+            speaker.segment_ids = [segment.id for segment in episode.dialogue_segments if segment.speaker_id == speaker.id]
+        episode.dub_segments = []
+        episode.processing.speakers = ProcessingStatus.COMPLETED
         episode.processing.transcription = ProcessingStatus.COMPLETED
+        self._touch_and_save(directory, project, episode)
+        return episode
+
+    def assign_dialogue_speaker(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, speaker_id: UUID | None, expected_speaker_id: UUID | None, *, create_new: bool = False) -> Episode:
+        episode = self._episode(project, episode_id)
+        segment = episode.dialogue_segments[self._segment_index(episode, segment_id)]
+        if segment.speaker_id != expected_speaker_id:
+            raise ValueError("Dialogue speaker changed since editing began. Reload the dialogue before saving.")
+        if create_new:
+            if speaker_id is not None:
+                raise ValueError("Cannot select a speaker and create one simultaneously")
+            names = {speaker.name for speaker in episode.speakers}
+            index = 1
+            while f"S{index}" in names:
+                index += 1
+            speaker = EpisodeSpeaker(name=f"S{index}")
+            episode.speakers.append(speaker)
+            speaker_id = speaker.id
+        elif speaker_id is not None and not any(s.id == speaker_id for s in episode.speakers):
+            raise ValueError("Speaker does not belong to this episode")
+        segment.speaker_id = speaker_id
+        segment.updated_at = utc_now()
+        for speaker in episode.speakers:
+            speaker.segment_ids = [item.id for item in episode.dialogue_segments if item.speaker_id == speaker.id]
+        episode.dub_segments = [dub for dub in episode.dub_segments if dub.dialogue_segment_id != segment.id]
         self._touch_and_save(directory, project, episode)
         return episode
 
