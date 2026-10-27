@@ -4,7 +4,7 @@ Transcribe remains one action. The default Paraformer path is Catty's Smart Chin
 
 `16 kHz mono analysis audio → FSMN-VAD → Paraformer-large → CT-Punc sentence timing → CAM++ → speaker-aware dialogue → project.json`
 
-Paraformer-large + CT-Punc is the canonical Chinese transcript. Catty no longer runs the sherpa Paraformer-small model in parallel and no longer throws away the large model's punctuated text. `punc_segment` provides natural sentence-oriented caption boundaries; the 6-second FSMN-VAD limit is only an upper processing bound, not a fixed timeline bin.
+Paraformer-large + CT-Punc is the canonical Chinese transcript. Catty no longer runs the sherpa Paraformer-small model in parallel and no longer throws away the large model's punctuated text. `punc_segment` provides sentence-oriented caption boundaries. FSMN-VAD keeps up to 30 seconds of recognition context; Catty does not pre-cut the audio into fixed six-second subtitle bins.
 
 The native CAM++ clustering merge threshold is 0.78. Catty does not require a fixed speaker count. Speaker IDs are episode/run-local acoustic clusters (`S1`, `S2`, ...), not stable character identities or gender labels. Missing speaker metadata does not remove recognized dialogue.
 
