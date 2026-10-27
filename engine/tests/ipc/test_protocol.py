@@ -15,6 +15,12 @@ def test_health_lists_available_operations() -> None:
     assert response["result"]["capabilities"] == [
         "media.probe",
         "audio.prepare",
+        "project.create",
+        "project.open",
+        "project.import_episode",
+        "speech.transcribe",
+        "asr.paraformer",
+        "vad.silero",
         "system.shutdown",
     ]
     assert response["result"]["protocol_version"] == 1
