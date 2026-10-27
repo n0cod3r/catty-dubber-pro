@@ -30,8 +30,6 @@ class ProjectService:
         return self._store.create(directory=directory, name=name)
 
     def open_project(self, directory: Path) -> Project:
-        # Opening a project must stay metadata-only. Expensive media preparation is
-        # requested separately so the editor can render immediately.
         return self._store.load(directory=directory)
 
     def save_project(self, directory: Path, project: Project) -> None:
@@ -48,14 +46,7 @@ class ProjectService:
                 return episode
         return None
 
-    def import_episode(
-        self,
-        directory: Path,
-        project: Project,
-        source_path: str,
-        *,
-        prepare_audio: bool = True,
-    ) -> Episode:
+    def import_episode(self, directory: Path, project: Project, source_path: str, *, prepare_audio: bool = True) -> Episode:
         path = Path(source_path).expanduser().resolve()
         if not path.is_file():
             raise FileNotFoundError(f"Episode does not exist: {path}")
@@ -117,7 +108,7 @@ class ProjectService:
         self._store.save(directory=directory, project=project)
         return episode
 
-    def prepare_episode_proxy(self, directory: Path, project: Project, episode_id: UUID) -> Episode:
+    def prepare_episode_proxy(self, directory: Path, project: Project, episode_id: UUID, *, force: bool = False) -> Episode:
         episode = project.episode(episode_id)
         if episode is None:
             raise ValueError(f"Episode does not exist: {episode_id}")
@@ -125,6 +116,7 @@ class ProjectService:
             project_directory=directory,
             source=episode.media.source_path,
             existing_path=episode.playback_proxy_path,
+            force=force,
         )
         self._store.save(directory=directory, project=project)
         return episode
