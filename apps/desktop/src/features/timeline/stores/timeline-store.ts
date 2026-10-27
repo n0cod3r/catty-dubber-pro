@@ -15,8 +15,11 @@ import {
   updateTextEdit,
 } from "./timeline-edits.ts";
 
+type DialogueTimelineSegment = { id: string; start: number; end: number; text: string };
+
 export type TimelineActions = {
   initialize: (input: Parameters<typeof initializeEdit>[1]) => void;
+  syncDialogue: (input: { sourceId: string; segments: DialogueTimelineSegment[] }) => void;
   addLayer: (input: Parameters<typeof addLayerEdit>[1]) => void;
   removeLayer: (input: Parameters<typeof removeLayerEdit>[1]) => void;
   toggleLayer: (input: Parameters<typeof toggleLayerEdit>[1]) => void;
@@ -33,7 +36,6 @@ export type TimelineState = { history: TimelineHistory } & TimelineActions;
 
 export function createTimelineStore(initialHistory: TimelineHistory = createTimeline()) {
   return createStore<TimelineState>()((set) => {
-    // One transaction per committed edit, including linked audio/video clips.
     const commit = (edit: (document: TimelineDocument) => TimelineDocument, initialize = false) =>
       set((state) => {
         const history = state.history;
@@ -48,6 +50,41 @@ export function createTimelineStore(initialHistory: TimelineHistory = createTime
     return {
       history: initialHistory,
       initialize: (input) => commit((document) => initializeEdit(document, input), true),
+      syncDialogue: ({ sourceId, segments }) =>
+        commit((document) => {
+          const subtitleLayer = document.layers.find((layer) => layer.id === "dialogue-subtitles");
+          const layers = subtitleLayer
+            ? document.layers
+            : [
+                ...document.layers.slice(0, 1),
+                {
+                  id: "dialogue-subtitles",
+                  kind: "subtitle" as const,
+                  name: "Dialogue subtitles",
+                  locked: false,
+                  muted: false,
+                  hidden: false,
+                },
+                ...document.layers.slice(1),
+              ];
+          const retained = document.clips.filter(
+            (clip) => !(clip.trackId === "dialogue-subtitles" && clip.sourceId === sourceId),
+          );
+          const subtitles = segments
+            .filter((segment) => Number.isFinite(segment.start) && Number.isFinite(segment.end) && segment.end > segment.start)
+            .map((segment, index) => ({
+              id: `dialogue:${sourceId}:${segment.id || index}`,
+              trackId: "dialogue-subtitles",
+              kind: "subtitle" as const,
+              sourceId,
+              sourceStart: segment.start,
+              start: segment.start,
+              duration: segment.end - segment.start,
+              name: segment.text,
+              text: segment.text,
+            }));
+          return { ...document, layers, clips: [...retained, ...subtitles] };
+        }, true),
       addLayer: (input) => commit((document) => addLayerEdit(document, input), false),
       removeLayer: (input) => commit((document) => removeLayerEdit(document, input), false),
       toggleLayer: (input) => commit((document) => toggleLayerEdit(document, input), false),
@@ -62,13 +99,7 @@ export function createTimelineStore(initialHistory: TimelineHistory = createTime
           const { past, present, future } = state.history;
           const previous = past.at(-1);
           return previous
-            ? {
-                history: {
-                  past: past.slice(0, -1),
-                  present: previous,
-                  future: [present, ...future],
-                },
-              }
+            ? { history: { past: past.slice(0, -1), present: previous, future: [present, ...future] } }
             : state;
         }),
       redo: () =>
