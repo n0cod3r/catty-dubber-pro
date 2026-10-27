@@ -116,7 +116,11 @@ def handle_request(payload: Any) -> dict[str, Any]:
             params = SpeechTranscribeParams.model_validate(request.params)
             registry = create_asr_registry(params.asr_backend, params.asr_config)
             vad = create_vad(params.vad_backend, params.vad_config)
-            result = TranscriptionService(asr_backends=registry, vad=vad).transcribe(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, backend_id=params.asr_backend, language=params.language, source_start=params.source_start, duration=params.duration, existing_asset=params.existing_asset).model_dump(mode="json")
+            transcription = TranscriptionService(asr_backends=registry, vad=vad).transcribe(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, backend_id=params.asr_backend, language=params.language, source_start=params.source_start, duration=params.duration, existing_asset=params.existing_asset)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
+            service.replace_dialogue_segments(params.project_directory, project, params.episode_id, transcription.segments, source_language=params.language)
+            result = transcription.model_dump(mode="json")
         else:
             params = ProbeParams.model_validate(request.params)
             result = MediaProbeService().probe(params.path).model_dump(mode="json")

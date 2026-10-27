@@ -29,6 +29,14 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
     audioCodec: episode.media.audio_codec,
     sampleRate: episode.media.sample_rate,
     channels: episode.media.channels,
+    dialogueSegments: episode.dialogue_segments.map((segment) => ({
+      id: segment.id,
+      start: segment.start,
+      end: segment.end,
+      sourceLanguage: segment.source_language,
+      sourceText: segment.source_text,
+      confidence: segment.confidence,
+    })),
   };
 }
 

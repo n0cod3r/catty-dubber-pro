@@ -8,8 +8,9 @@ from catty_engine.media.audio_preparation import AudioPreparationService
 from catty_engine.media.fingerprint import source_fingerprint
 from catty_engine.media.probe import MediaProbeService
 from catty_engine.media.video_proxy import VideoProxyService
+from catty_engine.speech.models import TranscriptSegment
 
-from .models import Episode, Project
+from .models import DialogueSegment, Episode, ProcessingStatus, Project, utc_now
 from .store import ProjectStore
 
 
@@ -118,5 +119,33 @@ class ProjectService:
             existing_path=episode.playback_proxy_path,
             force=force,
         )
+        self._store.save(directory=directory, project=project)
+        return episode
+
+    def replace_dialogue_segments(
+        self,
+        directory: Path,
+        project: Project,
+        episode_id: UUID,
+        segments: list[TranscriptSegment],
+        *,
+        source_language: str,
+    ) -> Episode:
+        episode = project.episode(episode_id)
+        if episode is None:
+            raise ValueError(f"Episode does not exist: {episode_id}")
+        episode.dialogue_segments = [
+            DialogueSegment(
+                start=segment.start,
+                end=segment.end,
+                source_language=source_language,
+                source_text=segment.text,
+                confidence=segment.confidence,
+            )
+            for segment in segments
+        ]
+        episode.processing.transcription = ProcessingStatus.COMPLETED
+        episode.updated_at = utc_now()
+        project.updated_at = utc_now()
         self._store.save(directory=directory, project=project)
         return episode

@@ -12,4 +12,12 @@ export type EpisodeMedia = {
   audioCodec?: string | null;
   sampleRate?: number | null;
   channels?: number | null;
+  dialogueSegments?: Array<{
+    id: string;
+    start: number;
+    end: number;
+    sourceLanguage: string;
+    sourceText: string;
+    confidence: number | null;
+  }>;
 };
