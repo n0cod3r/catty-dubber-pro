@@ -5,8 +5,6 @@ from pathlib import Path
 from .ffmpeg import FFmpegRunner
 from .fingerprint import source_fingerprint
 
-# Version the proxy filename whenever its media contract changes. V1 proxies were
-# video-only, so reusing them after adding preview audio silently produced no sound.
 PLAYBACK_PROXY_FILE_NAME = "playback-proxy-av-v2.mp4"
 
 
@@ -22,6 +20,7 @@ class VideoProxyService:
         project_directory: Path,
         source: str | Path,
         existing_path: str | None = None,
+        force: bool = False,
     ) -> str:
         source_path = Path(source).expanduser().resolve()
         fingerprint = source_fingerprint(source_path)
@@ -34,13 +33,16 @@ class VideoProxyService:
             / PLAYBACK_PROXY_FILE_NAME
         ).resolve()
 
-        if existing_path:
-            existing = Path(existing_path).expanduser().resolve()
-            if existing == destination and self._valid(destination):
+        if not force:
+            if existing_path:
+                existing = Path(existing_path).expanduser().resolve()
+                if existing == destination and self._valid(destination):
+                    return str(destination)
+            if self._valid(destination):
                 return str(destination)
-        if self._valid(destination):
-            return str(destination)
 
+        # FFmpeg writes to a staged file and atomically replaces destination, so
+        # a failed rebuild never destroys the last usable proxy.
         self._runner.create_playback_proxy(source_path, destination)
         return str(destination)
 
