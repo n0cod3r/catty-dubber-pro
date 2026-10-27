@@ -13,7 +13,8 @@ def test_health_lists_available_operations() -> None:
     assert response["result"]["capabilities"] == [
         "media.probe", "audio.prepare", "project.create", "project.open",
         "project.prepare_episode", "project.rebuild_proxy", "project.import_episode",
-        "speech.transcribe", "asr.paraformer", "vad.silero", "system.shutdown",
+        "speech.transcribe", "asr.paraformer", "asr.sense-small", "vad.silero",
+        "system.shutdown",
     ]
     assert response["result"]["protocol_version"] == 1
     assert isinstance(response["result"]["ffprobe_available"], bool)
