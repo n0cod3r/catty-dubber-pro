@@ -14,6 +14,7 @@ export type EngineMethods = {
   "project.create": { params: { project_directory: string; name: string }; result: PersistedProject };
   "project.open": { params: { project_directory: string }; result: PersistedProject };
   "project.prepare_episode": { params: { project_directory: string; episode_id: string }; result: PersistedEpisode };
+  "project.rebuild_proxy": { params: { project_directory: string; episode_id: string }; result: PersistedEpisode };
   "project.import_episode": { params: { project_directory: string; project_name: string; source: string }; result: PersistedEpisode };
   "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
 };
