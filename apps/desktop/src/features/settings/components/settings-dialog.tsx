@@ -43,9 +43,24 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
     return () => { cancelled = true; };
   }, [open, loadRevision]);
 
+  const provider=draft?.translation.provider??"local";
+  const configured=snapshot?.credentials[provider]??false;
+
+  useEffect(() => {
+    if (!open || provider !== "gemini" || !configured || credential.trim() || removeCredential) return;
+    let cancelled = false;
+    setBusy("models");
+    setMessage(null);
+    void requestEngine("translation.models", { provider: "gemini", credential: null })
+      .then((value) => { if (!cancelled) setModels(value); })
+      .catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : "Could not load Gemini models."); })
+      .finally(() => { if (!cancelled) setBusy((current) => current === "models" ? null : current); });
+    return () => { cancelled = true; };
+  }, [open, provider, configured, credential, removeCredential]);
+
   const filtered = useMemo(() => { const q=query.trim().toLowerCase(); return q?pages.filter(([,l,h])=>`${l} ${h}`.toLowerCase().includes(q)):pages; },[query]);
   if (!open) return null;
-  const selected=pages.find(([id])=>id===page)??pages[0]; const provider=draft?.translation.provider??"local"; const configured=snapshot?.credentials[provider]??false;
+  const selected=pages.find(([id])=>id===page)??pages[0];
   async function refreshModels(){ if(!draft)return; setBusy("models");setMessage(null);try{setModels(await requestEngine("translation.models",{provider,credential:credential.trim()||null}));}catch(e){setMessage(e instanceof Error?e.message:"Could not load models.");}finally{setBusy(null);}}
   async function testConnection(){setBusy("test");setMessage(null);try{const r=await requestEngine("translation.test_connection",{provider,credential:credential.trim()||null});setMessage(r.message);}catch(e){setMessage(e instanceof Error?e.message:"Connection test failed.");}finally{setBusy(null);}}
   async function save(){if(!draft)return;setBusy("save");setMessage(null);const credentials:Partial<Record<TranslationProviderId,string|null>>={};if(provider!=="local"){if(removeCredential)credentials[provider]=null;else if(credential.trim())credentials[provider]=credential.trim();}try{const v=await requestEngine("settings.update",{settings:draft,credentials});setSnapshot(v);setDraft(structuredClone(v.settings));setCredential("");setRemoveCredential(false);onOpenChange(false);}catch(e){setMessage(e instanceof Error?e.message:"Could not save settings.");}finally{setBusy(null);}}
