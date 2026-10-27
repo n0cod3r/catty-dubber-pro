@@ -57,20 +57,25 @@ def resolve_models() -> dict[str, str]:
         else:
             from huggingface_hub.errors import LocalEntryNotFoundError
 
-            options = {
-                "repo_id": f"funasr/{name}",
-                "revision": revision,
-                "cache_dir": str(cache),
-            }
+            repo_id = f"funasr/{name}"
             try:
-                directory = Path(snapshot_download(**options, local_files_only=True))
+                directory = Path(
+                    snapshot_download(
+                        repo_id=repo_id,
+                        revision=revision,
+                        cache_dir=cache,
+                        local_files_only=True,
+                    )
+                )
             except LocalEntryNotFoundError:
                 directory = cache / ".missing"
             if not complete(directory):
                 try:
                     directory = Path(
                         snapshot_download(
-                            **options,
+                            repo_id=repo_id,
+                            revision=revision,
+                            cache_dir=cache,
                             allow_patterns=[
                                 "*.json",
                                 "*.yaml",
