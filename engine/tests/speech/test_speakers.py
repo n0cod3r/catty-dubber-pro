@@ -51,6 +51,7 @@ def test_overlap_matching_sums_each_speaker_and_leaves_gaps_unassigned():
     ]
     result = match_speakers(segments, turns)
     assert [s.speaker for s in result] == ["S1", None]
+    assert [s.text for s in result] == ["你好", "世界"]
     assert segments[0].speaker is None
 
 
@@ -86,8 +87,10 @@ def test_cpu_thread_override(monkeypatch):
         _cpu_threads()
 
 
-def test_pipeline_uses_prepared_audio_and_preserves_sense_backend(tmp_path: Path):
-    from test_transcription import PreparedAudio, FakeAsr
+def test_pipeline_keeps_asr_canonical_and_uses_fun_asr_only_for_speakers(
+    tmp_path: Path,
+):
+    from test_transcription import FakeAsr, PreparedAudio
     from catty_engine.speech import (
         AsrBackendRegistry,
         TranscriptionService,
@@ -99,13 +102,18 @@ def test_pipeline_uses_prepared_audio_and_preserves_sense_backend(tmp_path: Path
     class Speakers:
         def transcribe(self, audio, *, start, duration, language):
             assert audio.name == "speech.wav"
+            # Deliberately cover only the first half. ASR dialogue outside this
+            # range must survive and remain unassigned rather than disappearing.
             return TranscriptionResult(
                 backend="paraformer",
-                model="funasr",
+                model="funasr-speakers",
                 language=language,
                 segments=[
                     TranscriptSegment(
-                        start=start, end=start + duration, text="FunASR", speaker="S1"
+                        start=start,
+                        end=start + duration / 2,
+                        text="speaker turn",
+                        speaker="S1",
                     )
                 ],
             )
@@ -114,6 +122,7 @@ def test_pipeline_uses_prepared_audio_and_preserves_sense_backend(tmp_path: Path
         id = "sense-small"
 
     registry = AsrBackendRegistry()
+    registry.register(FakeAsr())
     registry.register(Sense())
     service = TranscriptionService(
         asr_backends=registry,
@@ -127,13 +136,16 @@ def test_pipeline_uses_prepared_audio_and_preserves_sense_backend(tmp_path: Path
         source="video.mp4",
         language="zh",
         source_start=2,
-        duration=2,
+        duration=8,
     )
-    assert (
-        service.transcribe(**params, backend_id="paraformer").segments[0].text
-        == "FunASR"
-    )
+
+    paraformer = service.transcribe(**params, backend_id="paraformer")
+    assert paraformer.backend == "paraformer"
+    assert [segment.text for segment in paraformer.segments] == ["你好", "你好"]
+    assert [segment.speaker for segment in paraformer.segments] == ["S1", None]
+    assert paraformer.segments[-1].end == 10
+
     sense = service.transcribe(**params, backend_id="sense-small")
     assert sense.backend == "sense-small"
-    assert sense.segments[0].text == "你好"
-    assert sense.segments[0].speaker == "S1"
+    assert [segment.text for segment in sense.segments] == ["你好", "你好"]
+    assert [segment.speaker for segment in sense.segments] == ["S1", None]
