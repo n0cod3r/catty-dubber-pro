@@ -25,11 +25,11 @@ EngineMethod = Literal[
     "health", "system.hello", "system.shutdown", "media.probe", "audio.prepare",
     "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy",
     "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next",
-    "project.dialogue_restore", "project.dialogue_update_text", "project.dialogue_assign_speaker",
-    "speech.transcribe", "settings.get", "settings.update", "translation.providers",
-    "translation.models", "translation.test_connection", "translation.translate_episode",
+    "project.dialogue_restore", "project.dialogue_update_text", "project.dialogue_update_translation",
+    "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
+    "translation.providers", "translation.models", "translation.test_connection",
+    "translation.translate_episode",
 ]
-
 
 class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -38,28 +38,23 @@ class Request(BaseModel):
     method: EngineMethod
     params: dict[str, Any] = Field(default_factory=dict)
 
-
 class ProbeParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     path: str = Field(min_length=1)
-
 
 class ProjectCreateParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
     name: str = Field(min_length=1)
 
-
 class ProjectOpenParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
-
 
 class ProjectPrepareEpisodeParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
     episode_id: UUID
-
 
 class ProjectImportEpisodeParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -67,35 +62,33 @@ class ProjectImportEpisodeParams(BaseModel):
     project_name: str = Field(min_length=1)
     source: str = Field(min_length=1)
 
-
 class DialogueEditParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
     episode_id: UUID
     segment_id: UUID
 
-
 class DialogueSpeakerParams(DialogueEditParams):
     speaker_id: UUID | None
     expected_speaker_id: UUID | None
     create_new: bool = False
 
-
 class DialogueTextParams(DialogueEditParams):
     text: str = Field(min_length=1, max_length=100000)
     expected_text: str
 
+class DialogueTranslationParams(DialogueEditParams):
+    text: str = Field(min_length=1, max_length=100000)
+    expected_text: str | None = None
 
 class DialogueSplitParams(DialogueEditParams):
     split_at: float = Field(ge=0)
-
 
 class DialogueRestoreParams(ProjectPrepareEpisodeParams):
     expected_segments: list[DialogueSegment]
     dialogue_segments: list[DialogueSegment]
     speakers: list[EpisodeSpeaker]
     dub_segments: list[DubSegment]
-
 
 class AudioPrepareParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -104,7 +97,6 @@ class AudioPrepareParams(BaseModel):
     source: str = Field(min_length=1)
     existing_asset: AudioAsset | None = None
     cancel_file: Path | None = None
-
 
 class SpeechTranscribeParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -120,7 +112,6 @@ class SpeechTranscribeParams(BaseModel):
     vad_config: dict[str, Any]
     existing_asset: AudioAsset | None = None
 
-
 class TranslationEpisodeParams(ProjectPrepareEpisodeParams):
     overwrite_manual: bool = False
     batch_size: int = Field(default=12, ge=1, le=20)
@@ -133,10 +124,11 @@ def _hello() -> dict[str, Any]:
             "media.probe", "audio.prepare", "project.create", "project.open",
             "project.prepare_episode", "project.rebuild_proxy", "project.import_episode",
             "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore",
-            "project.dialogue_update_text", "project.dialogue_assign_speaker", "speech.transcribe",
-            "settings.get", "settings.update", "translation.providers", "translation.models",
-            "translation.test_connection", "translation.translate_episode", "speakers.funasr-campplus",
-            "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown",
+            "project.dialogue_update_text", "project.dialogue_update_translation",
+            "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
+            "translation.providers", "translation.models", "translation.test_connection",
+            "translation.translate_episode", "speakers.funasr-campplus", "asr.paraformer",
+            "asr.sense-small", "vad.silero", "system.shutdown",
         ],
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
         "ffprobe_available": shutil.which("ffprobe") is not None,
@@ -215,28 +207,27 @@ def handle_request(payload: Any) -> dict[str, Any]:
             result = service.import_episode(params.project_directory, project, params.source, prepare_audio=True).model_dump(mode="json")
         elif request.method == "project.dialogue_assign_speaker":
             params = DialogueSpeakerParams.model_validate(request.params)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             result = service.assign_dialogue_speaker(params.project_directory, project, params.episode_id, params.segment_id, params.speaker_id, params.expected_speaker_id, create_new=params.create_new).model_dump(mode="json")
         elif request.method == "project.dialogue_update_text":
             params = DialogueTextParams.model_validate(request.params)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             result = service.update_dialogue_text(params.project_directory, project, params.episode_id, params.segment_id, params.text, params.expected_text).model_dump(mode="json")
+        elif request.method == "project.dialogue_update_translation":
+            params = DialogueTranslationParams.model_validate(request.params)
+            service = ProjectService(); project = service.open_project(params.project_directory)
+            result = service.update_dialogue_translation(params.project_directory, project, params.episode_id, params.segment_id, params.text, params.expected_text).model_dump(mode="json")
         elif request.method == "project.dialogue_split":
             params = DialogueSplitParams.model_validate(request.params)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             result = service.split_dialogue_segment(params.project_directory, project, params.episode_id, params.segment_id, params.split_at).model_dump(mode="json")
         elif request.method == "project.dialogue_merge_next":
             params = DialogueEditParams.model_validate(request.params)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             result = service.merge_dialogue_segment_with_next(params.project_directory, project, params.episode_id, params.segment_id).model_dump(mode="json")
         elif request.method == "project.dialogue_restore":
             params = DialogueRestoreParams.model_validate(request.params)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             result = service.restore_dialogue(params.project_directory, project, params.episode_id, params.expected_segments, params.dialogue_segments, params.speakers, params.dub_segments).model_dump(mode="json")
         elif request.method == "audio.prepare":
             params = AudioPrepareParams.model_validate(request.params)
@@ -249,8 +240,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
             params = SpeechTranscribeParams.model_validate(request.params)
             from catty_engine.speech.runtime import create_transcription_service
             transcription = create_transcription_service(backend_id=params.asr_backend, asr_config=params.asr_config, vad_backend=params.vad_backend, vad_config=params.vad_config).transcribe(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, backend_id=params.asr_backend, language=params.language, source_start=params.source_start, duration=params.duration, existing_asset=params.existing_asset)
-            service = ProjectService()
-            project = service.open_project(params.project_directory)
+            service = ProjectService(); project = service.open_project(params.project_directory)
             service.replace_dialogue_segments(params.project_directory, project, params.episode_id, transcription.segments, source_language=params.language, speaker_error=transcription.speaker_error)
             result = transcription.model_dump(mode="json")
         else:
@@ -282,10 +272,8 @@ def handle_request(payload: Any) -> dict[str, Any]:
 def _write_response(response: dict[str, Any]) -> None:
     print(json.dumps(response, ensure_ascii=False, allow_nan=False), flush=True)
 
-
 def _invalid_json_response() -> dict[str, Any]:
     return {"version": PROTOCOL_VERSION, "id": None, "error": {"code": "INVALID_JSON", "message": "Expected one JSON request per line."}}
-
 
 def run_rpc() -> None:
     try:
@@ -293,7 +281,6 @@ def run_rpc() -> None:
     except (json.JSONDecodeError, UnicodeDecodeError):
         response = _invalid_json_response()
     _write_response(response)
-
 
 def run_server() -> None:
     for raw_line in sys.stdin:
