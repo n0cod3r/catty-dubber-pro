@@ -1,8 +1,8 @@
-"""Local FunASR smart-transcription pipeline used by Catty.
+"""FunASR smart Chinese transcription for Catty.
 
-The pipeline owns Chinese VAD, ASR, punctuation and speaker diarization so one
-Transcribe action returns speaker-aware dialogue. Speaker labels are acoustic
-clusters, not character identities or gender labels.
+One integrated FunASR pass owns VAD, Paraformer ASR, CT-Punc sentence timing and
+CAM++ speaker clustering. The transcript is canonical; speaker labels are
+optional metadata and are never allowed to delete recognized dialogue.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from catty_engine.speech.model_manager import ModelManager
-from catty_engine.speech.models import TranscriptSegment, TranscriptionResult
+from catty_engine.speech.models import SpeechRegion, TranscriptSegment, TranscriptionResult
 from catty_engine.speech.wav import read_mono_pcm16
 
 MODEL_REVISIONS = {
@@ -26,6 +26,9 @@ MODEL_REVISIONS = {
     "ct-punc": "d0e55e2b8722a78b63705ff443d09c4f86e5d750",
     "campplus": "e4b6ede7ce16997aff4ae69fbca1f0175e2afede",
 }
+MAX_VAD_SEGMENT_MS = 6_000
+MIN_SPEAKER_OVERLAP_SECONDS = 0.30
+MIN_SPEAKER_COVERAGE = 0.50
 
 
 def resolve_models() -> dict[str, str]:
@@ -93,9 +96,7 @@ def resolve_models() -> dict[str, str]:
                         f"Could not download FunASR model {name}. Check the internet connection and retry."
                     ) from exc
         if not complete(directory):
-            raise ValueError(
-                f"Incomplete FunASR model {name}; retry the model download"
-            )
+            raise ValueError(f"Incomplete FunASR model {name}; retry the model download")
         resolved[name] = str(directory)
     return resolved
 
@@ -115,13 +116,6 @@ def _cpu_threads() -> int:
 
 
 def resolve_device(torch: Any) -> str:
-    """Choose a production-safe FunASR device.
-
-    Windows/NVIDIA automatically uses CUDA. CPU is the portable baseline and
-    remains the automatic Apple Silicon path because the complete FunASR stack
-    contains operations that are not consistently MPS-safe. Developers may
-    explicitly test MPS with CATTY_FUNASR_DEVICE=mps.
-    """
     requested = os.environ.get("CATTY_FUNASR_DEVICE", "auto").strip().lower()
     allowed = {"auto", "cpu", "cuda", "mps"}
     if requested not in allowed:
@@ -141,6 +135,7 @@ def resolve_device(torch: Any) -> str:
 def _load_pipeline(
     model_paths: tuple[tuple[str, str], ...], device: str, ncpu: int
 ) -> Any:
+    """Load the single production Smart Transcribe pipeline."""
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     import torch
     from funasr import AutoModel
@@ -158,27 +153,59 @@ def _load_pipeline(
         disable_pbar=True,
         trust_remote_code=False,
         log_level="ERROR",
-        # Keep VAD/ASR regions as the transcript source of truth. punc_segment can
-        # produce punctuation-only speaker sentences when punctuation/timestamp
-        # alignment is imperfect, which made Catty silently lose spoken dialogue.
-        spk_mode="vad_segment",
-        vad_kwargs={"max_single_segment_time": 30000},
+        spk_mode="punc_segment",
+        vad_kwargs={"max_single_segment_time": MAX_VAD_SEGMENT_MS},
         spk_kwargs={"cb_kwargs": {"merge_thr": 0.78}},
     )
 
 
+@lru_cache(maxsize=2)
+def _load_asr_fallback(
+    model_paths: tuple[tuple[str, str], ...], device: str, ncpu: int
+) -> Any:
+    """Load ASR/VAD/punctuation without CAM++ for diarization-failure recovery."""
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    import torch
+    from funasr import AutoModel
+
+    torch.set_num_threads(ncpu)
+    models = dict(model_paths)
+    return AutoModel(
+        model=models["paraformer-zh"],
+        vad_model=models["fsmn-vad"],
+        punc_model=models["ct-punc"],
+        device=device,
+        ncpu=ncpu,
+        disable_update=True,
+        disable_pbar=True,
+        trust_remote_code=False,
+        log_level="ERROR",
+        vad_kwargs={"max_single_segment_time": MAX_VAD_SEGMENT_MS},
+    )
+
+
 def _has_spoken_text(text: str) -> bool:
-    """Return true when text contains something other than punctuation/symbols."""
     return any(
         not unicodedata.category(character).startswith(("P", "S", "Z", "C"))
         for character in text
     )
 
 
+def _sentence_text(sentence: dict[str, Any]) -> str:
+    value = sentence.get("sentence") or sentence.get("text", "")
+    if isinstance(value, list):
+        value = "".join(str(item) for item in value)
+    return str(value).strip()
+
+
 def parse_sentences(
-    result: list[dict[str, Any]], *, start: float, duration: float
+    result: list[dict[str, Any]],
+    *,
+    start: float,
+    duration: float,
+    require_speaker: bool = False,
 ) -> list[TranscriptSegment]:
-    """Convert FunASR range-relative milliseconds to clean dialogue segments."""
+    """Convert punctuated FunASR sentence_info into canonical dialogue."""
     segments: list[TranscriptSegment] = []
     labels: dict[int, str] = {}
     for sentence in result[0].get("sentence_info", []) if result else []:
@@ -187,15 +214,15 @@ def parse_sentences(
         if not math.isfinite(left) or not math.isfinite(right):
             raise ValueError("FunASR returned invalid sentence timestamps")
         left, right = max(0, left), min(duration, right)
-        text = str(sentence.get("sentence") or sentence.get("text", "")).strip()
+        text = _sentence_text(sentence)
         if right <= left or not text or not _has_spoken_text(text):
             continue
         cluster = sentence.get("spk")
-        if cluster is None:
-            raise ValueError(
-                "FunASR did not return speaker labels; saved dialogue was not changed"
-            )
-        label = labels.setdefault(int(cluster), f"S{len(labels) + 1}")
+        if require_speaker and cluster is None:
+            raise ValueError("FunASR did not return speaker labels")
+        label = None
+        if cluster is not None:
+            label = labels.setdefault(int(cluster), f"S{len(labels) + 1}")
         segments.append(
             TranscriptSegment(
                 start=start + left,
@@ -204,31 +231,115 @@ def parse_sentences(
                 speaker=label,
             )
         )
-    if result and str(result[0].get("text", "")).strip() and not segments:
-        raise ValueError("FunASR returned text without timed speaker dialogue")
+    top_text = str(result[0].get("text", "")).strip() if result else ""
+    if top_text and not segments:
+        raise ValueError("FunASR returned text without timed dialogue")
     return sorted(segments, key=lambda segment: (segment.start, segment.end))
 
 
 def match_speakers(
     segments: list[TranscriptSegment], turns: list[TranscriptSegment]
 ) -> list[TranscriptSegment]:
-    """Assign the cluster with greatest overlap; gaps remain unassigned."""
+    """Assign speakers only when overlap provides meaningful coverage."""
     matched: list[TranscriptSegment] = []
     for segment in segments:
         overlaps: dict[str, float] = {}
         for turn in turns:
-            overlap = max(
-                0.0,
-                min(segment.end, turn.end) - max(segment.start, turn.start),
-            )
+            overlap = max(0.0, min(segment.end, turn.end) - max(segment.start, turn.start))
             if overlap > 0 and turn.speaker is not None:
-                overlaps[turn.speaker] = overlaps.get(turn.speaker, 0) + overlap
-        label = max(overlaps, key=lambda key: overlaps[key]) if overlaps else None
+                overlaps[turn.speaker] = overlaps.get(turn.speaker, 0.0) + overlap
+        label = None
+        if overlaps:
+            candidate = max(overlaps, key=lambda key: overlaps[key])
+            best = overlaps[candidate]
+            duration = max(0.001, segment.end - segment.start)
+            required = min(duration, max(MIN_SPEAKER_OVERLAP_SECONDS, MIN_SPEAKER_COVERAGE * duration))
+            if best >= required:
+                label = candidate
         matched.append(segment.model_copy(update={"speaker": label}))
     return matched
 
 
+def _run_generate(pipeline: Any, samples: Any, rate: int) -> list[dict[str, Any]]:
+    return pipeline.generate(
+        input=samples,
+        fs=rate,
+        batch_size_s=30,
+        disable_pbar=True,
+        sentence_timestamp=True,
+        return_spk_res=True,
+    )
+
+
+class FunASRParaformerBackend:
+    """Canonical Chinese Smart Transcribe backend using one large FunASR pass."""
+
+    id = "paraformer"
+    model = "funasr-paraformer-ct-punc-campplus"
+
+    def __init__(self) -> None:
+        self.speaker_error: str | None = None
+
+    def transcribe(
+        self,
+        audio: Path,
+        regions: list[SpeechRegion],
+        *,
+        language: str,
+    ) -> list[TranscriptSegment]:
+        if language not in {"zh", "zh-CN", "zh-cn"}:
+            raise ValueError("The FunASR Paraformer backend supports Chinese dialogue")
+        if not regions:
+            return []
+        start = min(region.start for region in regions)
+        end = max(region.end for region in regions)
+        duration = end - start
+        rate, samples = read_mono_pcm16(audio, start=start, duration=duration)
+        if rate != 16000:
+            raise ValueError("FunASR requires prepared 16 kHz analysis audio")
+        if samples.size == 0:
+            return []
+
+        with contextlib.redirect_stdout(sys.stderr):
+            models = resolve_models()
+            import torch
+
+            device = resolve_device(torch)
+            ncpu = _cpu_threads()
+            model_paths = tuple(models.items())
+            pipeline = _load_pipeline(model_paths, device, ncpu)
+            try:
+                result = _run_generate(pipeline, samples, rate)
+                segments = parse_sentences(
+                    result,
+                    start=start,
+                    duration=min(duration, len(samples) / rate),
+                )
+                self.speaker_error = None
+                return segments
+            except Exception as exc:
+                # CAM++/speaker post-processing is optional metadata. Retry with
+                # the same large Paraformer + FSMN-VAD + CT-Punc stack but no
+                # speaker model so recognized dialogue is still returned.
+                self.speaker_error = str(exc)
+                fallback = _load_asr_fallback(model_paths, device, ncpu)
+                result = fallback.generate(
+                    input=samples,
+                    fs=rate,
+                    batch_size_s=30,
+                    disable_pbar=True,
+                    sentence_timestamp=True,
+                )
+                return parse_sentences(
+                    result,
+                    start=start,
+                    duration=min(duration, len(samples) / rate),
+                )
+
+
 class FunASRSpeakerPipeline:
+    """Speaker helper retained for non-Paraformer backends such as SenseVoice."""
+
     def transcribe(
         self,
         audio: Path,
@@ -237,54 +348,13 @@ class FunASRSpeakerPipeline:
         duration: float,
         language: str,
     ) -> TranscriptionResult:
-        if language not in {"zh", "zh-CN", "zh-cn"}:
-            raise ValueError(
-                "The FunASR smart transcription pipeline supports Chinese dialogue"
-            )
-        rate, samples = read_mono_pcm16(audio, start=start, duration=duration)
-        if rate != 16000:
-            raise ValueError("FunASR requires prepared 16 kHz analysis audio")
-        if samples.size == 0:
-            return TranscriptionResult(
-                backend="paraformer",
-                model="funasr-paraformer-campplus",
-                language=language,
-                segments=[],
-            )
-
-        with contextlib.redirect_stdout(sys.stderr):
-            models = resolve_models()
-            import torch
-
-            device = resolve_device(torch)
-            ncpu = _cpu_threads()
-            pipeline = _load_pipeline(tuple(models.items()), device, ncpu)
-            try:
-                result = pipeline.generate(
-                    input=samples,
-                    fs=rate,
-                    batch_size_s=30,
-                    disable_pbar=True,
-                    sentence_timestamp=True,
-                    output_timestamp=True,
-                    return_time_stamps=True,
-                    return_spk_res=True,
-                )
-            except RuntimeError as exc:
-                if device == "cuda" and "out of memory" in str(exc).lower():
-                    raise RuntimeError(
-                        "FunASR ran out of GPU memory. Set CATTY_FUNASR_DEVICE=cpu and retry."
-                    ) from exc
-                raise
-
-        segments = parse_sentences(
-            result,
-            start=start,
-            duration=min(duration, len(samples) / rate),
-        )
+        backend = FunASRParaformerBackend()
+        regions = [SpeechRegion(start=start, end=start + duration)]
+        segments = backend.transcribe(audio, regions, language=language)
         return TranscriptionResult(
             backend="paraformer",
-            model=f"funasr-paraformer-campplus:{device}",
+            model=backend.model,
             language=language,
             segments=segments,
+            speaker_error=backend.speaker_error,
         )
