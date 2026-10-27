@@ -20,7 +20,10 @@ export function TimelineAudio({
   onError: (message: string) => void;
 }) {
   const ref = useRef<HTMLAudioElement>(null);
-  useClipMediaSync(ref, clip.sourceStart + currentTime - clip.start, playing, clip.id, onError);
+  useClipMediaSync(ref, clip.sourceStart + currentTime - clip.start, playing, clip.id, onError, 0, {
+    source: src,
+    offset: clip.sourceStart - clip.start,
+  });
   return (
     <audio hidden ref={ref} src={src} muted={muted} preload="auto" data-audio-clip={clip.id} />
   );

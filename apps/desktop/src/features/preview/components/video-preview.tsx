@@ -94,6 +94,9 @@ export function VideoPreview({
     activeVideo?.clip.id,
     reportPlaybackError,
     seekRevision,
+    activeVideo && src
+      ? { source: src, offset: activeVideo.clip.sourceStart - activeVideo.clip.start }
+      : undefined,
   );
   const togglePlayback = useCallback(() => {
     if (!ready) return;
