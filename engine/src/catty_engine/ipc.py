@@ -12,14 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
-from catty_engine.media.errors import (
-    AudioPreparationCancelled,
-    FFmpegError,
-    FFmpegNotFoundError,
-    FFprobeNotFoundError,
-    MediaError,
-    MediaProbeError,
-)
+from catty_engine.media.errors import AudioPreparationCancelled, FFmpegError, FFmpegNotFoundError, FFprobeNotFoundError, MediaError, MediaProbeError
 from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
 from catty_engine.project import ProjectService
@@ -29,27 +22,12 @@ from catty_engine.translation.base import ProviderError
 
 PROTOCOL_VERSION = 1
 EngineMethod = Literal[
-    "health",
-    "system.hello",
-    "system.shutdown",
-    "media.probe",
-    "audio.prepare",
-    "project.create",
-    "project.open",
-    "project.prepare_episode",
-    "project.rebuild_proxy",
-    "project.import_episode",
-    "project.dialogue_split",
-    "project.dialogue_merge_next",
-    "project.dialogue_restore",
-    "project.dialogue_update_text",
-    "project.dialogue_assign_speaker",
-    "speech.transcribe",
-    "settings.get",
-    "settings.update",
-    "translation.providers",
-    "translation.models",
-    "translation.test_connection",
+    "health", "system.hello", "system.shutdown", "media.probe", "audio.prepare",
+    "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy",
+    "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next",
+    "project.dialogue_restore", "project.dialogue_update_text", "project.dialogue_assign_speaker",
+    "speech.transcribe", "settings.get", "settings.update", "translation.providers",
+    "translation.models", "translation.test_connection", "translation.translate_episode",
 ]
 
 
@@ -143,35 +121,22 @@ class SpeechTranscribeParams(BaseModel):
     existing_asset: AudioAsset | None = None
 
 
+class TranslationEpisodeParams(ProjectPrepareEpisodeParams):
+    overwrite_manual: bool = False
+    batch_size: int = Field(default=12, ge=1, le=20)
+
+
 def _hello() -> dict[str, Any]:
     return {
-        "name": "catty-engine",
-        "version": "0.1.0",
-        "protocol_version": PROTOCOL_VERSION,
+        "name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION,
         "capabilities": [
-            "media.probe",
-            "audio.prepare",
-            "project.create",
-            "project.open",
-            "project.prepare_episode",
-            "project.rebuild_proxy",
-            "project.import_episode",
-            "project.dialogue_split",
-            "project.dialogue_merge_next",
-            "project.dialogue_restore",
-            "project.dialogue_update_text",
-            "project.dialogue_assign_speaker",
-            "speech.transcribe",
-            "settings.get",
-            "settings.update",
-            "translation.providers",
-            "translation.models",
-            "translation.test_connection",
-            "speakers.funasr-campplus",
-            "asr.paraformer",
-            "asr.sense-small",
-            "vad.silero",
-            "system.shutdown",
+            "media.probe", "audio.prepare", "project.create", "project.open",
+            "project.prepare_episode", "project.rebuild_proxy", "project.import_episode",
+            "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore",
+            "project.dialogue_update_text", "project.dialogue_assign_speaker", "speech.transcribe",
+            "settings.get", "settings.update", "translation.providers", "translation.models",
+            "translation.test_connection", "translation.translate_episode", "speakers.funasr-campplus",
+            "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown",
         ],
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
         "ffprobe_available": shutil.which("ffprobe") is not None,
@@ -180,11 +145,7 @@ def _hello() -> dict[str, Any]:
 
 def _open_or_create_project(directory: Path, name: str):
     service = ProjectService()
-    project = (
-        service.open_project(directory)
-        if (directory / "project.json").exists()
-        else service.create_project(directory, name)
-    )
+    project = service.open_project(directory) if (directory / "project.json").exists() else service.create_project(directory, name)
     return service, project
 
 
@@ -206,194 +167,95 @@ def handle_request(payload: Any) -> dict[str, Any]:
             if request.params:
                 raise ValueError("settings.get does not accept parameters")
             from catty_engine.settings.rpc import snapshot
-
             result = snapshot()
         elif request.method == "settings.update":
             from catty_engine.settings.rpc import update
-
             result = update(request.params)
         elif request.method == "translation.providers":
             if request.params:
                 raise ValueError("translation.providers does not accept parameters")
             from catty_engine.settings.rpc import providers
-
             result = providers()
         elif request.method == "translation.models":
             from catty_engine.settings.rpc import models
-
             result = models(request.params)
         elif request.method == "translation.test_connection":
             from catty_engine.settings.rpc import test_connection
-
             result = test_connection(request.params)
+        elif request.method == "translation.translate_episode":
+            params = TranslationEpisodeParams.model_validate(request.params)
+            from catty_engine.translation.service import TranslationService
+            result = TranslationService().translate_episode(
+                params.project_directory,
+                params.episode_id,
+                overwrite_manual=params.overwrite_manual,
+                batch_size=params.batch_size,
+            ).model_dump(mode="json")
         elif request.method == "project.create":
-            create_params = ProjectCreateParams.model_validate(request.params)
-            if (create_params.project_directory / "project.json").exists():
+            params = ProjectCreateParams.model_validate(request.params)
+            if (params.project_directory / "project.json").exists():
                 raise ValueError("A Catty project already exists in this folder")
-            result = (
-                ProjectService()
-                .create_project(create_params.project_directory, create_params.name)
-                .model_dump(mode="json")
-            )
+            result = ProjectService().create_project(params.project_directory, params.name).model_dump(mode="json")
         elif request.method == "project.open":
-            open_params = ProjectOpenParams.model_validate(request.params)
-            result = (
-                ProjectService()
-                .open_project(open_params.project_directory)
-                .model_dump(mode="json")
-            )
+            params = ProjectOpenParams.model_validate(request.params)
+            result = ProjectService().open_project(params.project_directory).model_dump(mode="json")
         elif request.method in {"project.prepare_episode", "project.rebuild_proxy"}:
-            prepare_params = ProjectPrepareEpisodeParams.model_validate(request.params)
+            params = ProjectPrepareEpisodeParams.model_validate(request.params)
             service = ProjectService()
-            project = service.open_project(prepare_params.project_directory)
+            project = service.open_project(params.project_directory)
             if request.method == "project.prepare_episode":
-                episode = service.prepare_episode_audio(
-                    prepare_params.project_directory,
-                    project,
-                    prepare_params.episode_id,
-                )
-                episode = service.prepare_episode_proxy(
-                    prepare_params.project_directory,
-                    project,
-                    episode.id,
-                )
+                episode = service.prepare_episode_audio(params.project_directory, project, params.episode_id)
+                episode = service.prepare_episode_proxy(params.project_directory, project, episode.id)
             else:
-                episode = service.prepare_episode_proxy(
-                    prepare_params.project_directory,
-                    project,
-                    prepare_params.episode_id,
-                    force=True,
-                )
+                episode = service.prepare_episode_proxy(params.project_directory, project, params.episode_id, force=True)
             result = episode.model_dump(mode="json")
         elif request.method == "project.import_episode":
-            import_params = ProjectImportEpisodeParams.model_validate(request.params)
-            service, project = _open_or_create_project(
-                import_params.project_directory,
-                import_params.project_name,
-            )
-            result = service.import_episode(
-                import_params.project_directory,
-                project,
-                import_params.source,
-                prepare_audio=True,
-            ).model_dump(mode="json")
+            params = ProjectImportEpisodeParams.model_validate(request.params)
+            service, project = _open_or_create_project(params.project_directory, params.project_name)
+            result = service.import_episode(params.project_directory, project, params.source, prepare_audio=True).model_dump(mode="json")
         elif request.method == "project.dialogue_assign_speaker":
-            speaker_params = DialogueSpeakerParams.model_validate(request.params)
+            params = DialogueSpeakerParams.model_validate(request.params)
             service = ProjectService()
-            project = service.open_project(speaker_params.project_directory)
-            result = service.assign_dialogue_speaker(
-                speaker_params.project_directory,
-                project,
-                speaker_params.episode_id,
-                speaker_params.segment_id,
-                speaker_params.speaker_id,
-                speaker_params.expected_speaker_id,
-                create_new=speaker_params.create_new,
-            ).model_dump(mode="json")
+            project = service.open_project(params.project_directory)
+            result = service.assign_dialogue_speaker(params.project_directory, project, params.episode_id, params.segment_id, params.speaker_id, params.expected_speaker_id, create_new=params.create_new).model_dump(mode="json")
         elif request.method == "project.dialogue_update_text":
-            text_params = DialogueTextParams.model_validate(request.params)
+            params = DialogueTextParams.model_validate(request.params)
             service = ProjectService()
-            project = service.open_project(text_params.project_directory)
-            result = service.update_dialogue_text(
-                text_params.project_directory,
-                project,
-                text_params.episode_id,
-                text_params.segment_id,
-                text_params.text,
-                text_params.expected_text,
-            ).model_dump(mode="json")
+            project = service.open_project(params.project_directory)
+            result = service.update_dialogue_text(params.project_directory, project, params.episode_id, params.segment_id, params.text, params.expected_text).model_dump(mode="json")
         elif request.method == "project.dialogue_split":
-            split_params = DialogueSplitParams.model_validate(request.params)
+            params = DialogueSplitParams.model_validate(request.params)
             service = ProjectService()
-            project = service.open_project(split_params.project_directory)
-            result = service.split_dialogue_segment(
-                split_params.project_directory,
-                project,
-                split_params.episode_id,
-                split_params.segment_id,
-                split_params.split_at,
-            ).model_dump(mode="json")
+            project = service.open_project(params.project_directory)
+            result = service.split_dialogue_segment(params.project_directory, project, params.episode_id, params.segment_id, params.split_at).model_dump(mode="json")
         elif request.method == "project.dialogue_merge_next":
-            edit_params = DialogueEditParams.model_validate(request.params)
+            params = DialogueEditParams.model_validate(request.params)
             service = ProjectService()
-            project = service.open_project(edit_params.project_directory)
-            result = service.merge_dialogue_segment_with_next(
-                edit_params.project_directory,
-                project,
-                edit_params.episode_id,
-                edit_params.segment_id,
-            ).model_dump(mode="json")
+            project = service.open_project(params.project_directory)
+            result = service.merge_dialogue_segment_with_next(params.project_directory, project, params.episode_id, params.segment_id).model_dump(mode="json")
         elif request.method == "project.dialogue_restore":
-            restore_params = DialogueRestoreParams.model_validate(request.params)
+            params = DialogueRestoreParams.model_validate(request.params)
             service = ProjectService()
-            project = service.open_project(restore_params.project_directory)
-            result = service.restore_dialogue(
-                restore_params.project_directory,
-                project,
-                restore_params.episode_id,
-                restore_params.expected_segments,
-                restore_params.dialogue_segments,
-                restore_params.speakers,
-                restore_params.dub_segments,
-            ).model_dump(mode="json")
+            project = service.open_project(params.project_directory)
+            result = service.restore_dialogue(params.project_directory, project, params.episode_id, params.expected_segments, params.dialogue_segments, params.speakers, params.dub_segments).model_dump(mode="json")
         elif request.method == "audio.prepare":
-            audio_params = AudioPrepareParams.model_validate(request.params)
-
+            params = AudioPrepareParams.model_validate(request.params)
             def cancelled() -> bool:
-                return (
-                    audio_params.cancel_file is not None
-                    and audio_params.cancel_file.exists()
-                )
-
+                return params.cancel_file is not None and params.cancel_file.exists()
             if cancelled():
                 raise AudioPreparationCancelled("Audio preparation cancelled")
-            result = (
-                AudioPreparationService(runner=FFmpegRunner(cancelled=cancelled))
-                .prepare_speech_audio(
-                    project_directory=audio_params.project_directory,
-                    episode_id=audio_params.episode_id,
-                    source=audio_params.source,
-                    existing_asset=audio_params.existing_asset,
-                )
-                .model_dump(mode="json")
-            )
+            result = AudioPreparationService(runner=FFmpegRunner(cancelled=cancelled)).prepare_speech_audio(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, existing_asset=params.existing_asset).model_dump(mode="json")
         elif request.method == "speech.transcribe":
-            transcribe_params = SpeechTranscribeParams.model_validate(request.params)
+            params = SpeechTranscribeParams.model_validate(request.params)
             from catty_engine.speech.runtime import create_transcription_service
-
-            transcription = create_transcription_service(
-                backend_id=transcribe_params.asr_backend,
-                asr_config=transcribe_params.asr_config,
-                vad_backend=transcribe_params.vad_backend,
-                vad_config=transcribe_params.vad_config,
-            ).transcribe(
-                project_directory=transcribe_params.project_directory,
-                episode_id=transcribe_params.episode_id,
-                source=transcribe_params.source,
-                backend_id=transcribe_params.asr_backend,
-                language=transcribe_params.language,
-                source_start=transcribe_params.source_start,
-                duration=transcribe_params.duration,
-                existing_asset=transcribe_params.existing_asset,
-            )
+            transcription = create_transcription_service(backend_id=params.asr_backend, asr_config=params.asr_config, vad_backend=params.vad_backend, vad_config=params.vad_config).transcribe(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, backend_id=params.asr_backend, language=params.language, source_start=params.source_start, duration=params.duration, existing_asset=params.existing_asset)
             service = ProjectService()
-            project = service.open_project(transcribe_params.project_directory)
-            service.replace_dialogue_segments(
-                transcribe_params.project_directory,
-                project,
-                transcribe_params.episode_id,
-                transcription.segments,
-                source_language=transcribe_params.language,
-                speaker_error=transcription.speaker_error,
-            )
+            project = service.open_project(params.project_directory)
+            service.replace_dialogue_segments(params.project_directory, project, params.episode_id, transcription.segments, source_language=params.language, speaker_error=transcription.speaker_error)
             result = transcription.model_dump(mode="json")
         else:
-            probe_params = ProbeParams.model_validate(request.params)
-            result = (
-                MediaProbeService()
-                .probe(probe_params.path)
-                .model_dump(mode="json")
-            )
+            params = ProbeParams.model_validate(request.params)
+            result = MediaProbeService().probe(params.path).model_dump(mode="json")
         response["result"] = result
     except AudioPreparationCancelled as exc:
         response["error"] = {"code": "CANCELLED", "message": str(exc)}
@@ -413,10 +275,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
         response["error"] = {"code": "INVALID_REQUEST", "message": str(exc)}
     except Exception:
         traceback.print_exc(file=sys.stderr)
-        response["error"] = {
-            "code": "ENGINE_ERROR",
-            "message": "The engine could not complete the request. See engine diagnostics.",
-        }
+        response["error"] = {"code": "ENGINE_ERROR", "message": "The engine could not complete the request. See engine diagnostics."}
     return response
 
 
@@ -425,14 +284,7 @@ def _write_response(response: dict[str, Any]) -> None:
 
 
 def _invalid_json_response() -> dict[str, Any]:
-    return {
-        "version": PROTOCOL_VERSION,
-        "id": None,
-        "error": {
-            "code": "INVALID_JSON",
-            "message": "Expected one JSON request per line.",
-        },
-    }
+    return {"version": PROTOCOL_VERSION, "id": None, "error": {"code": "INVALID_JSON", "message": "Expected one JSON request per line."}}
 
 
 def run_rpc() -> None:
@@ -455,9 +307,5 @@ def run_server() -> None:
         except (json.JSONDecodeError, UnicodeDecodeError):
             response = _invalid_json_response()
         _write_response(response)
-        if (
-            isinstance(payload, dict)
-            and payload.get("method") == "system.shutdown"
-            and "error" not in response
-        ):
+        if isinstance(payload, dict) and payload.get("method") == "system.shutdown" and "error" not in response:
             break
