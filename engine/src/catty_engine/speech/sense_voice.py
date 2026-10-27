@@ -75,7 +75,9 @@ class SenseVoiceBackend:
                 duration=region.end - region.start,
             )
             if sample_rate != 16_000:
-                raise ValueError(f"SenseVoice expects 16 kHz audio, got {sample_rate} Hz")
+                raise ValueError(
+                    f"SenseVoice expects 16 kHz audio, got {sample_rate} Hz"
+                )
             if samples.size == 0:
                 continue
             stream = recognizer.create_stream()

@@ -4,6 +4,7 @@ The pipeline owns Chinese VAD, ASR, punctuation and speaker diarization so one
 Transcribe action returns speaker-aware dialogue. Speaker labels are acoustic
 clusters, not character identities or gender labels.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -91,7 +92,9 @@ def resolve_models() -> dict[str, str]:
                         f"Could not download FunASR model {name}. Check the internet connection and retry."
                     ) from exc
         if not complete(directory):
-            raise ValueError(f"Incomplete FunASR model {name}; retry the model download")
+            raise ValueError(
+                f"Incomplete FunASR model {name}; retry the model download"
+            )
         resolved[name] = str(directory)
     return resolved
 
@@ -134,7 +137,9 @@ def resolve_device(torch: Any) -> str:
 
 
 @lru_cache(maxsize=2)
-def _load_pipeline(model_paths: tuple[tuple[str, str], ...], device: str, ncpu: int) -> Any:
+def _load_pipeline(
+    model_paths: tuple[tuple[str, str], ...], device: str, ncpu: int
+) -> Any:
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     import torch
     from funasr import AutoModel
@@ -221,7 +226,9 @@ class FunASRSpeakerPipeline:
         language: str,
     ) -> TranscriptionResult:
         if language not in {"zh", "zh-CN", "zh-cn"}:
-            raise ValueError("The FunASR smart transcription pipeline supports Chinese dialogue")
+            raise ValueError(
+                "The FunASR smart transcription pipeline supports Chinese dialogue"
+            )
         rate, samples = read_mono_pcm16(audio, start=start, duration=duration)
         if rate != 16000:
             raise ValueError("FunASR requires prepared 16 kHz analysis audio")

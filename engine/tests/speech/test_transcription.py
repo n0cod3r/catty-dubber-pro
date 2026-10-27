@@ -42,7 +42,9 @@ class FakeAsr:
         ]
 
 
-def test_transcribe_selection_uses_selected_backend_and_source_range(tmp_path: Path) -> None:
+def test_transcribe_selection_uses_selected_backend_and_source_range(
+    tmp_path: Path,
+) -> None:
     registry = AsrBackendRegistry()
     registry.register(FakeAsr())
     service = TranscriptionService(

@@ -90,7 +90,12 @@ class ModelManager:
         target = self.root / spec.directory
         model = target / spec.model_file
         tokens = target / "tokens.txt"
-        if model.is_file() and model.stat().st_size > 0 and tokens.is_file() and tokens.stat().st_size > 0:
+        if (
+            model.is_file()
+            and model.stat().st_size > 0
+            and tokens.is_file()
+            and tokens.stat().st_size > 0
+        ):
             return target
 
         archive = self.root / spec.archive
@@ -105,8 +110,13 @@ class ModelManager:
             with tarfile.open(archive, "r:bz2") as bundle:
                 bundle.extractall(staging, filter="data")
             extracted = staging / spec.directory
-            if not (extracted / spec.model_file).is_file() or not (extracted / "tokens.txt").is_file():
-                raise RuntimeError(f"Downloaded model archive is incomplete: {spec.directory}")
+            if (
+                not (extracted / spec.model_file).is_file()
+                or not (extracted / "tokens.txt").is_file()
+            ):
+                raise RuntimeError(
+                    f"Downloaded model archive is incomplete: {spec.directory}"
+                )
             os.replace(extracted, target)
         finally:
             archive.unlink(missing_ok=True)
@@ -119,8 +129,13 @@ class ModelManager:
         temporary = target.with_suffix(target.suffix + ".part")
         temporary.unlink(missing_ok=True)
         try:
-            request = urllib.request.Request(url, headers={"User-Agent": "Catty-Dubber-Pro/0.1"})
-            with urllib.request.urlopen(request, timeout=60) as response, temporary.open("wb") as output:
+            request = urllib.request.Request(
+                url, headers={"User-Agent": "Catty-Dubber-Pro/0.1"}
+            )
+            with (
+                urllib.request.urlopen(request, timeout=60) as response,
+                temporary.open("wb") as output,
+            ):
                 shutil.copyfileobj(response, output, length=1024 * 1024)
             if temporary.stat().st_size == 0:
                 raise RuntimeError(f"Downloaded model is empty: {url}")

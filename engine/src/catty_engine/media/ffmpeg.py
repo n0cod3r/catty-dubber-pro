@@ -22,7 +22,9 @@ class FFmpegRunner:
     def _run(self, command: list[str], *, operation: str) -> None:
         process: subprocess.Popen[str] | None = None
         try:
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
             started = time.monotonic()
             while True:
                 if self._cancelled():
@@ -37,7 +39,9 @@ class FFmpegRunner:
             if process.returncode != 0:
                 raise FFmpegError(stderr.strip() or f"{operation} failed")
         except FileNotFoundError as exc:
-            raise FFmpegNotFoundError(f"FFmpeg executable not found: {self._executable}") from exc
+            raise FFmpegNotFoundError(
+                f"FFmpeg executable not found: {self._executable}"
+            ) from exc
         finally:
             if process is not None and process.poll() is None:
                 process.terminate()

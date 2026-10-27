@@ -16,6 +16,7 @@ class ProbeRunner(Protocol):
         source: Path,
     ) -> dict[str, Any]: ...
 
+
 class MediaProbeService:
     def __init__(
         self,
@@ -51,18 +52,10 @@ class MediaProbeService:
             width=self._optional_int(video_stream.get("width")),
             height=self._optional_int(video_stream.get("height")),
             fps=self._fps(video_stream),
-            video_codec=self._optional_string(
-                video_stream.get("codec_name")
-            ),
-            audio_codec=self._optional_string(
-                audio_stream.get("codec_name")
-            ),
-            sample_rate=self._optional_int(
-                audio_stream.get("sample_rate")
-            ),
-            channels=self._optional_int(
-                audio_stream.get("channels")
-            ),
+            video_codec=self._optional_string(video_stream.get("codec_name")),
+            audio_codec=self._optional_string(audio_stream.get("codec_name")),
+            sample_rate=self._optional_int(audio_stream.get("sample_rate")),
+            channels=self._optional_int(audio_stream.get("channels")),
         )
 
     @staticmethod
@@ -71,10 +64,7 @@ class MediaProbeService:
         codec_type: str,
     ) -> dict[str, Any]:
         for stream in streams:
-            if (
-                isinstance(stream, dict)
-                and stream.get("codec_type") == codec_type
-            ):
+            if isinstance(stream, dict) and stream.get("codec_type") == codec_type:
                 return stream
 
         return {}

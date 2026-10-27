@@ -61,7 +61,9 @@ class ParaformerBackend:
                 duration=duration,
             )
             if sample_rate != 16_000:
-                raise ValueError(f"Paraformer expects 16 kHz audio, got {sample_rate} Hz")
+                raise ValueError(
+                    f"Paraformer expects 16 kHz audio, got {sample_rate} Hz"
+                )
             if samples.size == 0:
                 continue
             stream = self._recognizer.create_stream()

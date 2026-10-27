@@ -43,7 +43,9 @@ def split_long_speech_regions(
 
 
 class SpeakerPipeline(Protocol):
-    def transcribe(self, audio: Path, *, start: float, duration: float, language: str) -> TranscriptionResult: ...
+    def transcribe(
+        self, audio: Path, *, start: float, duration: float, language: str
+    ) -> TranscriptionResult: ...
 
 
 class TranscriptionService:
@@ -88,7 +90,9 @@ class TranscriptionService:
         audio = Path(speech_asset.path)
         speaker_result = None
         if self._speaker_pipeline is not None:
-            speaker_result = self._speaker_pipeline.transcribe(audio, start=source_start, duration=duration, language=language)
+            speaker_result = self._speaker_pipeline.transcribe(
+                audio, start=source_start, duration=duration, language=language
+            )
             if backend_id == "paraformer":
                 return speaker_result
         regions = self._vad.detect(
@@ -101,6 +105,7 @@ class TranscriptionService:
         segments = backend.transcribe(audio, regions, language=language)
         if speaker_result is not None:
             from catty_engine.speakers.funasr import match_speakers
+
             segments = match_speakers(segments, speaker_result.segments)
         return TranscriptionResult(
             backend=backend.id,

@@ -12,7 +12,10 @@ from catty_engine.speech.wav import WaveFormatError, read_mono_pcm16
 
 def write_wave(path: Path, *, channels: int = 1) -> None:
     sample_rate = 16_000
-    values = [int(10_000 * math.sin(2 * math.pi * 440 * i / sample_rate)) for i in range(sample_rate)]
+    values = [
+        int(10_000 * math.sin(2 * math.pi * 440 * i / sample_rate))
+        for i in range(sample_rate)
+    ]
     with wave.open(str(path), "wb") as output:
         output.setnchannels(channels)
         output.setsampwidth(2)

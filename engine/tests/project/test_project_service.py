@@ -28,22 +28,34 @@ def test_create_and_reload_project(tmp_path: Path) -> None:
 
 
 def test_import_multiple_episodes(tmp_path: Path) -> None:
-    service = project_service_without_ffprobe(); project_dir = tmp_path / "my-drama"
+    service = project_service_without_ffprobe()
+    project_dir = tmp_path / "my-drama"
     project = service.create_project(directory=project_dir, name="My Drama")
     paths = [tmp_path / f"EP0{index}.mp4" for index in range(1, 4)]
-    for path in paths: path.touch()
-    imported = service.import_episodes(directory=project_dir, project=project, source_paths=[str(path) for path in paths])
+    for path in paths:
+        path.touch()
+    imported = service.import_episodes(
+        directory=project_dir,
+        project=project,
+        source_paths=[str(path) for path in paths],
+    )
     assert [episode.name for episode in imported] == ["EP01", "EP02", "EP03"]
     assert [episode.order for episode in imported] == [0, 1, 2]
     assert len(service.open_project(project_dir).episodes) == 3
 
 
 def test_duplicate_episode_is_not_imported(tmp_path: Path) -> None:
-    service = project_service_without_ffprobe(); project_dir = tmp_path / "my-drama"
+    service = project_service_without_ffprobe()
+    project_dir = tmp_path / "my-drama"
     project = service.create_project(directory=project_dir, name="My Drama")
-    episode = tmp_path / "EP01.mp4"; episode.touch()
-    service.import_episodes(directory=project_dir, project=project, source_paths=[str(episode)])
-    imported_again = service.import_episodes(directory=project_dir, project=project, source_paths=[str(episode)])
+    episode = tmp_path / "EP01.mp4"
+    episode.touch()
+    service.import_episodes(
+        directory=project_dir, project=project, source_paths=[str(episode)]
+    )
+    imported_again = service.import_episodes(
+        directory=project_dir, project=project, source_paths=[str(episode)]
+    )
     assert imported_again == []
     assert len(project.episodes) == 1
 
@@ -52,41 +64,74 @@ def test_reimport_after_reload_reuses_episode_id(tmp_path: Path) -> None:
     class FakeAudioPreparation:
         def prepare_speech_audio(self, **kwargs):
             from catty_engine.media.audio import AudioAsset, AudioAssetKind
-            return AudioAsset(path=str(tmp_path / "speech.wav"), kind=AudioAssetKind.SPEECH, sample_rate=16000, channels=1, source_fingerprint="stable")
+
+            return AudioAsset(
+                path=str(tmp_path / "speech.wav"),
+                kind=AudioAssetKind.SPEECH,
+                sample_rate=16000,
+                channels=1,
+                source_fingerprint="stable",
+            )
+
     class FakeVideoProxy:
         def prepare_playback_proxy(self, **kwargs):
             return str(tmp_path / "proxy.mp4")
-    service = ProjectService(media_probe=FakeProbe(), audio_preparation=FakeAudioPreparation(), video_proxy=FakeVideoProxy())  # type: ignore[arg-type]
-    project_dir = tmp_path / "my-drama"; project = service.create_project(directory=project_dir, name="My Drama")
-    source = tmp_path / "EP01.mp4"; source.write_bytes(b"video")
-    first = service.import_episode(directory=project_dir, project=project, source_path=str(source))
+
+    service = ProjectService(
+        media_probe=FakeProbe(),
+        audio_preparation=FakeAudioPreparation(),
+        video_proxy=FakeVideoProxy(),
+    )  # type: ignore[arg-type]
+    project_dir = tmp_path / "my-drama"
+    project = service.create_project(directory=project_dir, name="My Drama")
+    source = tmp_path / "EP01.mp4"
+    source.write_bytes(b"video")
+    first = service.import_episode(
+        directory=project_dir, project=project, source_path=str(source)
+    )
     reloaded = service.open_project(project_dir)
-    second = service.import_episode(directory=project_dir, project=reloaded, source_path=str(source))
+    second = service.import_episode(
+        directory=project_dir, project=reloaded, source_path=str(source)
+    )
     assert second.id == first.id
     assert len(reloaded.episodes) == 1
 
 
 def test_split_dialogue_segment_persists_timing_and_text(tmp_path: Path) -> None:
-    service = ProjectService(); project_dir = tmp_path / "my-drama"
+    service = ProjectService()
+    project_dir = tmp_path / "my-drama"
     project = service.create_project(project_dir, "My Drama")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
-    segment = DialogueSegment(start=2.0, end=10.0, source_language="zh", source_text="你好世界")
+    segment = DialogueSegment(
+        start=2.0, end=10.0, source_language="zh", source_text="你好世界"
+    )
     episode.dialogue_segments = [segment]
     service.save_project(project_dir, project)
-    updated = service.split_dialogue_segment(project_dir, project, episode.id, segment.id, 6.0)
-    assert [(item.start, item.end, item.source_text) for item in updated.dialogue_segments] == [(2.0, 6.0, "你好"), (6.0, 10.0, "世界")]
+    updated = service.split_dialogue_segment(
+        project_dir, project, episode.id, segment.id, 6.0
+    )
+    assert [
+        (item.start, item.end, item.source_text) for item in updated.dialogue_segments
+    ] == [(2.0, 6.0, "你好"), (6.0, 10.0, "世界")]
     assert len(service.open_project(project_dir).episodes[0].dialogue_segments) == 2
 
 
 def test_merge_dialogue_segment_with_next_persists(tmp_path: Path) -> None:
-    service = ProjectService(); project_dir = tmp_path / "my-drama"
+    service = ProjectService()
+    project_dir = tmp_path / "my-drama"
     project = service.create_project(project_dir, "My Drama")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
-    first = DialogueSegment(start=1.0, end=3.0, source_language="zh", source_text="你好", confidence=0.8)
-    second = DialogueSegment(start=3.2, end=5.0, source_language="zh", source_text="世界", confidence=1.0)
+    first = DialogueSegment(
+        start=1.0, end=3.0, source_language="zh", source_text="你好", confidence=0.8
+    )
+    second = DialogueSegment(
+        start=3.2, end=5.0, source_language="zh", source_text="世界", confidence=1.0
+    )
     episode.dialogue_segments = [first, second]
     service.save_project(project_dir, project)
-    updated = service.merge_dialogue_segment_with_next(project_dir, project, episode.id, first.id)
+    updated = service.merge_dialogue_segment_with_next(
+        project_dir, project, episode.id, first.id
+    )
     assert len(updated.dialogue_segments) == 1
     merged = updated.dialogue_segments[0]
     assert (merged.start, merged.end, merged.source_text) == (1.0, 5.0, "你好世界")
@@ -101,17 +146,31 @@ def test_split_restores_speaker_references_after_reopen(tmp_path: Path) -> None:
     project = service.create_project(tmp_path, "Speakers")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
     speaker = EpisodeSpeaker(name="A")
-    segment = DialogueSegment(start=0, end=4, source_language="zh", source_text="你好世界", speaker_id=speaker.id)
-    untouched = DialogueSegment(start=5, end=6, source_language="zh", source_text="好", speaker_id=speaker.id)
+    segment = DialogueSegment(
+        start=0,
+        end=4,
+        source_language="zh",
+        source_text="你好世界",
+        speaker_id=speaker.id,
+    )
+    untouched = DialogueSegment(
+        start=5, end=6, source_language="zh", source_text="好", speaker_id=speaker.id
+    )
     speaker.segment_ids = [segment.id, untouched.id]
     episode.speakers = [speaker]
     episode.dialogue_segments = [segment, untouched]
     service.save_project(tmp_path, project)
     service.split_dialogue_segment(tmp_path, project, episode.id, segment.id, 2)
     restored = service.open_project(tmp_path).episodes[0]
-    assert set(restored.speakers[0].segment_ids) == {item.id for item in restored.dialogue_segments}
+    assert set(restored.speakers[0].segment_ids) == {
+        item.id for item in restored.dialogue_segments
+    }
     assert segment.id not in restored.speakers[0].segment_ids
-    assert [(item.start, item.end) for item in restored.dialogue_segments] == [(0, 2), (2, 4), (5, 6)]
+    assert [(item.start, item.end) for item in restored.dialogue_segments] == [
+        (0, 2),
+        (2, 4),
+        (5, 6),
+    ]
 
 
 def test_merge_restores_same_speaker_reference_after_reopen(tmp_path: Path) -> None:
@@ -121,8 +180,12 @@ def test_merge_restores_same_speaker_reference_after_reopen(tmp_path: Path) -> N
     project = service.create_project(tmp_path, "Speakers")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
     speaker = EpisodeSpeaker(name="A")
-    first = DialogueSegment(start=0, end=2, source_language="zh", source_text="你好", speaker_id=speaker.id)
-    second = DialogueSegment(start=2, end=4, source_language="zh", source_text="世界", speaker_id=speaker.id)
+    first = DialogueSegment(
+        start=0, end=2, source_language="zh", source_text="你好", speaker_id=speaker.id
+    )
+    second = DialogueSegment(
+        start=2, end=4, source_language="zh", source_text="世界", speaker_id=speaker.id
+    )
     speaker.segment_ids = [first.id, second.id]
     episode.speakers = [speaker]
     episode.dialogue_segments = [first, second]
@@ -142,8 +205,20 @@ def test_merge_different_speakers_clears_obsolete_references(tmp_path: Path) -> 
     project = service.create_project(tmp_path, "Speakers")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
     speakers = [EpisodeSpeaker(name="A"), EpisodeSpeaker(name="B")]
-    first = DialogueSegment(start=0, end=2, source_language="zh", source_text="你好", speaker_id=speakers[0].id)
-    second = DialogueSegment(start=2, end=4, source_language="zh", source_text="世界", speaker_id=speakers[1].id)
+    first = DialogueSegment(
+        start=0,
+        end=2,
+        source_language="zh",
+        source_text="你好",
+        speaker_id=speakers[0].id,
+    )
+    second = DialogueSegment(
+        start=2,
+        end=4,
+        source_language="zh",
+        source_text="世界",
+        speaker_id=speakers[1].id,
+    )
     speakers[0].segment_ids = [first.id]
     speakers[1].segment_ids = [second.id]
     episode.speakers = speakers
@@ -155,15 +230,26 @@ def test_merge_different_speakers_clears_obsolete_references(tmp_path: Path) -> 
     assert all(not speaker.segment_ids for speaker in restored.speakers)
 
 
-def test_merge_undo_redo_persist_original_ids_speakers_and_translation(tmp_path: Path) -> None:
+def test_merge_undo_redo_persist_original_ids_speakers_and_translation(
+    tmp_path: Path,
+) -> None:
     from catty_engine.project.models import EpisodeSpeaker, Translation
 
     service = ProjectService()
     project = service.create_project(tmp_path, "Undo")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
     speaker = EpisodeSpeaker(name="A")
-    first = DialogueSegment(start=0, end=2, source_language="zh", source_text="你好", speaker_id=speaker.id, translation=Translation(text="សួស្តី"))
-    second = DialogueSegment(start=2, end=4, source_language="zh", source_text="世界", speaker_id=speaker.id)
+    first = DialogueSegment(
+        start=0,
+        end=2,
+        source_language="zh",
+        source_text="你好",
+        speaker_id=speaker.id,
+        translation=Translation(text="សួស្តី"),
+    )
+    second = DialogueSegment(
+        start=2, end=4, source_language="zh", source_text="世界", speaker_id=speaker.id
+    )
     speaker.segment_ids = [first.id, second.id]
     episode.speakers = [speaker]
     episode.dialogue_segments = [first, second]
@@ -171,32 +257,59 @@ def test_merge_undo_redo_persist_original_ids_speakers_and_translation(tmp_path:
     before = episode.model_copy(deep=True)
     service.merge_dialogue_segment_with_next(tmp_path, project, episode.id, first.id)
     after = episode.model_copy(deep=True)
-    service.restore_dialogue(tmp_path, project, episode.id, after.dialogue_segments, before.dialogue_segments, before.speakers, before.dub_segments)
+    service.restore_dialogue(
+        tmp_path,
+        project,
+        episode.id,
+        after.dialogue_segments,
+        before.dialogue_segments,
+        before.speakers,
+        before.dub_segments,
+    )
     restored = service.open_project(tmp_path).episodes[0]
     assert restored.dialogue_segments == before.dialogue_segments
     assert restored.dialogue_segments[0].translation.text == "សួស្តី"
     assert restored.speakers == before.speakers
-    service.restore_dialogue(tmp_path, project, episode.id, before.dialogue_segments, after.dialogue_segments, after.speakers, after.dub_segments)
-    assert service.open_project(tmp_path).episodes[0].dialogue_segments == after.dialogue_segments
+    service.restore_dialogue(
+        tmp_path,
+        project,
+        episode.id,
+        before.dialogue_segments,
+        after.dialogue_segments,
+        after.speakers,
+        after.dub_segments,
+    )
+    assert (
+        service.open_project(tmp_path).episodes[0].dialogue_segments
+        == after.dialogue_segments
+    )
 
 
-def test_dialogue_undo_rejects_stale_history_without_overwriting_project(tmp_path: Path) -> None:
+def test_dialogue_undo_rejects_stale_history_without_overwriting_project(
+    tmp_path: Path,
+) -> None:
     import pytest
 
     service = ProjectService()
     project = service.create_project(tmp_path, "Undo")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
-    segment = DialogueSegment(start=0, end=4, source_language="zh", source_text="你好世界")
+    segment = DialogueSegment(
+        start=0, end=4, source_language="zh", source_text="你好世界"
+    )
     episode.dialogue_segments = [segment]
     service.save_project(tmp_path, project)
     before = episode.model_copy(deep=True)
     service.split_dialogue_segment(tmp_path, project, episode.id, segment.id, 2)
     with pytest.raises(ValueError, match="changed since"):
-        service.restore_dialogue(tmp_path, project, episode.id, before.dialogue_segments, [], [], [])
+        service.restore_dialogue(
+            tmp_path, project, episode.id, before.dialogue_segments, [], [], []
+        )
     assert len(service.open_project(tmp_path).episodes[0].dialogue_segments) == 2
 
 
-def test_dialogue_undo_accepts_json_float_rounding_but_rejects_real_edits(tmp_path: Path) -> None:
+def test_dialogue_undo_accepts_json_float_rounding_but_rejects_real_edits(
+    tmp_path: Path,
+) -> None:
     import math
     from datetime import timedelta
     import pytest
@@ -204,14 +317,22 @@ def test_dialogue_undo_accepts_json_float_rounding_but_rejects_real_edits(tmp_pa
     service = ProjectService()
     project = service.create_project(tmp_path, "JSON undo")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
-    segment = DialogueSegment(start=1.123456789123, end=4.987654321987, source_language="zh", source_text="你好世界", confidence=0.876543210987)
+    segment = DialogueSegment(
+        start=1.123456789123,
+        end=4.987654321987,
+        source_language="zh",
+        source_text="你好世界",
+        confidence=0.876543210987,
+    )
     episode.dialogue_segments = [segment]
     service.save_project(tmp_path, project)
     expected = segment.model_copy(deep=True)
     expected.start = math.nextafter(expected.start, math.inf)
     expected.confidence = math.nextafter(expected.confidence, math.inf)
     expected.updated_at += timedelta(microseconds=1)
-    service.restore_dialogue(tmp_path, project, episode.id, [expected], [segment], [], [])
+    service.restore_dialogue(
+        tmp_path, project, episode.id, [expected], [segment], [], []
+    )
     changed = expected.model_copy(deep=True)
     changed.source_text = "Changed text"
     with pytest.raises(ValueError, match="changed since"):
@@ -222,38 +343,76 @@ def test_dialogue_undo_accepts_json_float_rounding_but_rejects_real_edits(tmp_pa
         service.restore_dialogue(tmp_path, project, episode.id, [changed], [], [], [])
 
 
-def test_edit_dialogue_text_persists_and_undo_restores_derived_data(tmp_path: Path) -> None:
+def test_edit_dialogue_text_persists_and_undo_restores_derived_data(
+    tmp_path: Path,
+) -> None:
     from uuid import uuid4
     from catty_engine.project.models import Translation, DubSegment
 
     service = ProjectService()
     project = service.create_project(tmp_path, "Edit text")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
-    first = DialogueSegment(start=1, end=4, source_language="zh", source_text="你好世间", translation=Translation(text="សួស្តី"))
+    first = DialogueSegment(
+        start=1,
+        end=4,
+        source_language="zh",
+        source_text="你好世间",
+        translation=Translation(text="សួស្តី"),
+    )
     second = DialogueSegment(start=5, end=7, source_language="zh", source_text="再见")
     episode.dialogue_segments = [first, second]
-    dub = DubSegment(dialogue_segment_id=first.id, voice_profile_id=uuid4(), target_duration=3)
-    other_dub = DubSegment(dialogue_segment_id=second.id, voice_profile_id=uuid4(), target_duration=2)
+    dub = DubSegment(
+        dialogue_segment_id=first.id, voice_profile_id=uuid4(), target_duration=3
+    )
+    other_dub = DubSegment(
+        dialogue_segment_id=second.id, voice_profile_id=uuid4(), target_duration=2
+    )
     episode.dub_segments = [dub, other_dub]
     service.save_project(tmp_path, project)
     before = episode.model_copy(deep=True)
-    service.update_dialogue_text(tmp_path, project, episode.id, first.id, "  你好世界！\n你好吗？  ", "你好世间")
+    service.update_dialogue_text(
+        tmp_path, project, episode.id, first.id, "  你好世界！\n你好吗？  ", "你好世间"
+    )
     edited = service.open_project(tmp_path).episodes[0]
     assert edited.dialogue_segments[0].source_text == "你好世界！\n你好吗？"
-    assert (edited.dialogue_segments[0].id, edited.dialogue_segments[0].start, edited.dialogue_segments[0].end) == (first.id, 1, 4)
+    assert (
+        edited.dialogue_segments[0].id,
+        edited.dialogue_segments[0].start,
+        edited.dialogue_segments[0].end,
+    ) == (first.id, 1, 4)
     assert edited.dialogue_segments[0].translation is None
     assert edited.dub_segments == [other_dub]
     assert edited.dialogue_segments[1] == before.dialogue_segments[1]
-    service.restore_dialogue(tmp_path, project, episode.id, edited.dialogue_segments, before.dialogue_segments, before.speakers, before.dub_segments)
+    service.restore_dialogue(
+        tmp_path,
+        project,
+        episode.id,
+        edited.dialogue_segments,
+        before.dialogue_segments,
+        before.speakers,
+        before.dub_segments,
+    )
     restored = service.open_project(tmp_path).episodes[0]
     assert restored.dialogue_segments == before.dialogue_segments
     assert restored.dub_segments == before.dub_segments
-    service.restore_dialogue(tmp_path, project, episode.id, before.dialogue_segments, edited.dialogue_segments, edited.speakers, edited.dub_segments)
-    assert service.open_project(tmp_path).episodes[0].dialogue_segments == edited.dialogue_segments
+    service.restore_dialogue(
+        tmp_path,
+        project,
+        episode.id,
+        before.dialogue_segments,
+        edited.dialogue_segments,
+        edited.speakers,
+        edited.dub_segments,
+    )
+    assert (
+        service.open_project(tmp_path).episodes[0].dialogue_segments
+        == edited.dialogue_segments
+    )
 
 
 def test_edit_dialogue_text_rejects_empty_and_stale_changes(tmp_path: Path) -> None:
     import pytest
+
     service = ProjectService()
     project = service.create_project(tmp_path, "Edit text")
     episode = project.add_episode(str(tmp_path / "EP01.mp4"))
@@ -263,33 +422,73 @@ def test_edit_dialogue_text_rejects_empty_and_stale_changes(tmp_path: Path) -> N
     original = (tmp_path / "project.json").read_bytes()
     for text, expected in [(" \n ", "你好"), ("新文字", "旧文字")]:
         with pytest.raises(ValueError):
-            service.update_dialogue_text(tmp_path, project, episode.id, segment.id, text, expected)
+            service.update_dialogue_text(
+                tmp_path, project, episode.id, segment.id, text, expected
+            )
         assert (tmp_path / "project.json").read_bytes() == original
-    service.update_dialogue_text(tmp_path, project, episode.id, segment.id, "你好", "你好")
+    service.update_dialogue_text(
+        tmp_path, project, episode.id, segment.id, "你好", "你好"
+    )
     assert (tmp_path / "project.json").read_bytes() == original
 
 
-def test_detected_speakers_replace_cleanly_and_correction_undo_redo(tmp_path: Path) -> None:
+def test_detected_speakers_replace_cleanly_and_correction_undo_redo(
+    tmp_path: Path,
+) -> None:
     from catty_engine.speech.models import TranscriptSegment
+
     service = project_service_without_ffprobe()
     project = service.create_project(tmp_path, "Speakers")
     episode = project.add_episode("episode.mp4")
-    transcripts = [TranscriptSegment(start=0, end=2, text="你好", speaker="A"), TranscriptSegment(start=2, end=4, text="世界", speaker="B")]
-    service.replace_dialogue_segments(tmp_path, project, episode.id, transcripts, source_language="zh")
+    transcripts = [
+        TranscriptSegment(start=0, end=2, text="你好", speaker="A"),
+        TranscriptSegment(start=2, end=4, text="世界", speaker="B"),
+    ]
+    service.replace_dialogue_segments(
+        tmp_path, project, episode.id, transcripts, source_language="zh"
+    )
     before = service.open_project(tmp_path).episodes[0]
     assert [s.name for s in before.speakers] == ["S1", "S2"]
     first, second = before.dialogue_segments
-    service.assign_dialogue_speaker(tmp_path, project, episode.id, first.id, second.speaker_id, first.speaker_id)
+    service.assign_dialogue_speaker(
+        tmp_path, project, episode.id, first.id, second.speaker_id, first.speaker_id
+    )
     after = service.open_project(tmp_path).episodes[0]
     assert after.speakers[0].segment_ids == []
     assert after.speakers[1].segment_ids == [first.id, second.id]
-    service.restore_dialogue(tmp_path, project, episode.id, after.dialogue_segments, before.dialogue_segments, before.speakers, before.dub_segments)
+    service.restore_dialogue(
+        tmp_path,
+        project,
+        episode.id,
+        after.dialogue_segments,
+        before.dialogue_segments,
+        before.speakers,
+        before.dub_segments,
+    )
     assert service.open_project(tmp_path).episodes[0].speakers == before.speakers
-    service.restore_dialogue(tmp_path, project, episode.id, before.dialogue_segments, after.dialogue_segments, after.speakers, after.dub_segments)
+    service.restore_dialogue(
+        tmp_path,
+        project,
+        episode.id,
+        before.dialogue_segments,
+        after.dialogue_segments,
+        after.speakers,
+        after.dub_segments,
+    )
     assert service.open_project(tmp_path).episodes[0].speakers == after.speakers
-    service.assign_dialogue_speaker(tmp_path, project, episode.id, first.id, None, second.speaker_id, create_new=True)
+    service.assign_dialogue_speaker(
+        tmp_path,
+        project,
+        episode.id,
+        first.id,
+        None,
+        second.speaker_id,
+        create_new=True,
+    )
     assert len(service.open_project(tmp_path).episodes[0].speakers) == 3
-    service.replace_dialogue_segments(tmp_path, project, episode.id, transcripts, source_language="zh")
+    service.replace_dialogue_segments(
+        tmp_path, project, episode.id, transcripts, source_language="zh"
+    )
     restored = service.open_project(tmp_path).episodes[0]
     assert len(restored.speakers) == 2
     assert len(restored.dialogue_segments) == 2

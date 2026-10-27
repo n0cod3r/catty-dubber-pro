@@ -19,14 +19,10 @@ class FFprobeRunner:
         source = source.expanduser().resolve()
 
         if not source.exists():
-            raise MediaProbeError(
-                f"Media file does not exist: {source}"
-            )
+            raise MediaProbeError(f"Media file does not exist: {source}")
 
         if not source.is_file():
-            raise MediaProbeError(
-                f"Media source is not a file: {source}"
-            )
+            raise MediaProbeError(f"Media source is not a file: {source}")
 
         command = [
             self._executable,
@@ -54,16 +50,12 @@ class FFprobeRunner:
                 f"ffprobe executable not found: {self._executable}"
             ) from exc
         except OSError as exc:
-            raise MediaProbeError(
-                f"Could not start ffprobe: {exc}"
-            ) from exc
+            raise MediaProbeError(f"Could not start ffprobe: {exc}") from exc
 
         if result.returncode != 0:
             message = result.stderr.strip() or "Unknown ffprobe error"
 
-            raise MediaProbeError(
-                f"ffprobe failed for {source}: {message}"
-            )
+            raise MediaProbeError(f"ffprobe failed for {source}: {message}")
 
         try:
             payload = json.loads(result.stdout)
@@ -73,8 +65,6 @@ class FFprobeRunner:
             ) from exc
 
         if not isinstance(payload, dict):
-            raise MediaProbeError(
-                f"ffprobe returned unexpected data for {source}"
-            )
+            raise MediaProbeError(f"ffprobe returned unexpected data for {source}")
 
         return payload

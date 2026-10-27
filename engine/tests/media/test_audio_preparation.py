@@ -37,9 +37,7 @@ def test_prepare_speech_audio(
 
     runner = FakeAudioExtractor()
 
-    service = AudioPreparationService(
-        runner=runner
-    )
+    service = AudioPreparationService(runner=runner)
 
     episode_id = uuid4()
 
@@ -71,9 +69,7 @@ def test_reuses_valid_cached_audio(
 
     runner = FakeAudioExtractor()
 
-    service = AudioPreparationService(
-        runner=runner
-    )
+    service = AudioPreparationService(runner=runner)
 
     episode_id = uuid4()
     project_directory = tmp_path / "project"
@@ -163,9 +159,7 @@ def test_source_change_invalidates_cache(
 
     runner = FakeAudioExtractor()
 
-    service = AudioPreparationService(
-        runner=runner
-    )
+    service = AudioPreparationService(runner=runner)
 
     episode_id = uuid4()
     project_directory = tmp_path / "project"
@@ -176,9 +170,7 @@ def test_source_change_invalidates_cache(
         source=source,
     )
 
-    source.write_bytes(
-        b"version-two-with-different-size"
-    )
+    source.write_bytes(b"version-two-with-different-size")
 
     second = service.prepare_speech_audio(
         project_directory=project_directory,
@@ -189,10 +181,7 @@ def test_source_change_invalidates_cache(
 
     assert runner.calls == 2
 
-    assert (
-        second.source_fingerprint
-        != first.source_fingerprint
-    )
+    assert second.source_fingerprint != first.source_fingerprint
     assert second.path != first.path
 
 
@@ -204,9 +193,7 @@ def test_missing_cached_file_regenerates_audio(
 
     runner = FakeAudioExtractor()
 
-    service = AudioPreparationService(
-        runner=runner
-    )
+    service = AudioPreparationService(runner=runner)
 
     episode_id = uuid4()
     project_directory = tmp_path / "project"
