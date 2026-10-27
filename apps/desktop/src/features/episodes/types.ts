@@ -1,6 +1,7 @@
 export type EpisodeMedia = {
   id: string;
   path: string;
+  playbackPath?: string | null;
   name: string;
   extension: string;
   durationSeconds: number | null;

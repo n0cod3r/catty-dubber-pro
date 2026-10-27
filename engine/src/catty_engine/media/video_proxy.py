@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from .ffmpeg import FFmpegRunner
+from .fingerprint import source_fingerprint
+
+PLAYBACK_PROXY_FILE_NAME = "playback-proxy.mp4"
+
+
+class VideoProxyService:
+    """Create a lightweight, seek-friendly H.264 proxy for editor playback."""
+
+    def __init__(self, runner: FFmpegRunner | None = None) -> None:
+        self._runner = runner or FFmpegRunner()
+
+    def prepare_playback_proxy(
+        self,
+        *,
+        project_directory: Path,
+        source: str | Path,
+        existing_path: str | None = None,
+    ) -> str:
+        source_path = Path(source).expanduser().resolve()
+        fingerprint = source_fingerprint(source_path)
+        destination = (
+            project_directory
+            / "assets"
+            / "media"
+            / fingerprint
+            / "video"
+            / PLAYBACK_PROXY_FILE_NAME
+        ).resolve()
+
+        if existing_path:
+            existing = Path(existing_path).expanduser().resolve()
+            if existing == destination and self._valid(destination):
+                return str(destination)
+        if self._valid(destination):
+            return str(destination)
+
+        self._runner.create_playback_proxy(source_path, destination)
+        return str(destination)
+
+    @staticmethod
+    def _valid(path: Path) -> bool:
+        return path.is_file() and path.stat().st_size > 0
