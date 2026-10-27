@@ -22,3 +22,4 @@ class TranscriptionResult(BaseModel):
     model: str
     language: str
     segments: list[TranscriptSegment]
+    speaker_error: str | None = None
