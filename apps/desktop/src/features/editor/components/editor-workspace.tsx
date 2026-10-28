@@ -17,7 +17,6 @@ import { useTranslation } from "../hooks/use-translation";
 import { useTts } from "../hooks/use-tts";
 import { EditorPanels } from "./editor-panels";
 import { Inspector } from "./inspector";
-import { VoiceGenerationPanel } from "./voice-generation-panel";
 
 type EditorWorkspaceProps = {
   episode: EpisodeMedia | null;
@@ -105,6 +104,17 @@ function WorkspaceContent({
             projectDirectory,
             progress: dialogue.progress,
           }}
+          translation={{
+            active: translation.translating,
+            progress: translation.progress,
+          }}
+          dubbing={{
+            active: tts.generating,
+            progress: tts.progress,
+            pendingSegmentIds: tts.pendingSegmentIds,
+            failedSegmentId: tts.failedSegmentId,
+          }}
+          projectDirectory={projectDirectory}
         />
       }
       preview={
@@ -128,19 +138,15 @@ function WorkspaceContent({
         />
       }
       inspector={
-        <div className="flex min-h-0 flex-1 flex-col">
-          <VoiceGenerationPanel episode={episode} tts={tts} />
-          <div className="flex min-h-0 flex-1">
-            <Inspector
-              episode={episode}
-              currentTime={playback.currentTime}
-              followTimeline={followPlayhead}
-              onSeek={playback.seek}
-              dialogue={dialogue}
-              translation={translation}
-            />
-          </div>
-        </div>
+        <Inspector
+          episode={episode}
+          currentTime={playback.currentTime}
+          followTimeline={followPlayhead}
+          onSeek={playback.seek}
+          dialogue={dialogue}
+          translation={translation}
+          tts={tts}
+        />
       }
     />
   );

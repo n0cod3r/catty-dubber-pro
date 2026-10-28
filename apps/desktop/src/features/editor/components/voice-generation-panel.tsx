@@ -1,21 +1,55 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { DubStatus } from "@catty/contracts";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { LoaderCircle, Play, RotateCcw, Square, Volume2 } from "lucide-react";
+import {
+  ChevronRight,
+  LoaderCircle,
+  Mic,
+  Play,
+  RotateCcw,
+  Settings2,
+  Square,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 import { cn } from "@/lib/utils";
 
+import type { TranslationEditing } from "../hooks/use-translation";
 import type { TtsEditing, TtsTuning } from "../hooks/use-tts";
+import {
+  DEFAULT_TTS_TUNING,
+  EDGE_VOICE_PRESETS,
+  matchingVoicePreset,
+} from "../utils/voice-presets";
 
-const DEFAULT_TUNING: TtsTuning = { speed: 1, pitch: 0, volume: 0 };
+type RowStatus = DubStatus | "missing";
+
+const STATUS_STYLE: Record<RowStatus, string> = {
+  ready: "bg-primary/10 text-primary",
+  generating: "bg-primary/10 text-primary",
+  pending: "text-muted-foreground",
+  outdated: "text-amber-500",
+  failed: "text-destructive",
+  missing: "text-muted-foreground",
+};
 
 export function VoiceGenerationPanel({
   episode,
+  translation,
   tts,
 }: {
   episode: EpisodeMedia | null;
+  translation: TranslationEditing;
   tts: TtsEditing;
 }) {
   const rows = useMemo(
@@ -25,201 +59,448 @@ export function VoiceGenerationPanel({
       ) ?? [],
     [episode?.dialogueSegments],
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
-  const existing = selected ? tts.dubByDialogue.get(selected.id) : undefined;
-  const [tuning, setTuning] = useState<TtsTuning>(DEFAULT_TUNING);
+  const speakerNames = useMemo(
+    () => new Map((episode?.speakers ?? []).map((s) => [s.id, s.name])),
+    [episode?.speakers],
+  );
+  const voice = tts.voices.find((item) => item.id === tts.voiceId);
+  const [tuning, setTuning] = useState<TtsTuning>(DEFAULT_TTS_TUNING);
+  const [preferredPreset, setPreferredPreset] = useState("normal");
+  const presetId = matchingVoicePreset(tuning, voice?.gender, preferredPreset);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(
+    null,
+  );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const mounted = useRef(true);
 
   useEffect(() => {
-    if (!selected) return;
-    const dub = tts.dubByDialogue.get(selected.id);
-    setTuning(
-      dub
-        ? { speed: dub.speed, pitch: dub.pitch, volume: dub.volume }
-        : DEFAULT_TUNING,
-    );
-  }, [selected, tts.dubByDialogue]);
+    setTuning(DEFAULT_TTS_TUNING);
+    setPreferredPreset("normal");
+    setPreviewingId(null);
+    setEditing(null);
+  }, [episode?.id]);
 
-  const preview = async () => {
-    if (!selected) return;
-    const path = await tts.preview(selected.id, tuning);
-    if (path) void new Audio(convertFileSrc(path)).play();
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  const readyCount = rows.filter(
+    (row) => tts.dubByDialogue.get(row.id)?.status === "ready",
+  ).length;
+
+  const preview = async (segmentId: string) => {
+    if (tts.previewing) return;
+    setPreviewingId(segmentId);
+    try {
+      const path = await tts.preview(segmentId, tuning);
+      if (!path || !mounted.current) return;
+      audioRef.current?.pause();
+      const audio = new Audio(convertFileSrc(path));
+      audioRef.current = audio;
+      void audio.play();
+    } finally {
+      setPreviewingId(null);
+    }
+  };
+
+  const beginEdit = (segmentId: string, text: string) => {
+    if (tts.generating || translation.busy) return;
+    setEditing({ id: segmentId, text });
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const current = rows.find((row) => row.id === editing.id);
+    const saved = await translation.updateText(
+      editing.id,
+      editing.text,
+      current?.translation?.text ?? null,
+    );
+    if (saved) setEditing(null);
   };
 
   if (!episode) return null;
   return (
     <section
-      className="shrink-0 border-b bg-card"
+      className="flex min-h-0 flex-1 flex-col"
       aria-label="Voice generation"
     >
-      <div className="flex h-8 items-center gap-2 border-b px-2">
-        <Volume2 className="size-3 text-primary" />
-        <span className="text-[10px] font-medium">Voice Generation</span>
-        <span className="ml-auto text-[9px] text-muted-foreground">
-          {episode.dubbingStatus ?? "idle"}
-        </span>
-      </div>
-      <div className="space-y-2 p-2">
-        <label className="block text-[9px] text-muted-foreground">
-          Khmer voice
-        </label>
-        <select
-          className="h-7 w-full rounded-md border bg-background px-2 text-[10px]"
-          value={tts.voiceId ?? ""}
-          disabled={tts.generating}
-          onChange={(event) => tts.setVoiceId(event.target.value || null)}
-        >
-          {tts.voices.map((voice) => (
-            <option key={voice.id} value={voice.id}>
-              {voice.name} · {voice.gender}
-            </option>
-          ))}
-        </select>
-
-        <div className="grid grid-cols-3 gap-1.5">
-          <NumberControl
-            label="Speed"
-            value={tuning.speed}
-            min={0.5}
-            max={2}
-            step={0.05}
-            onChange={(speed) => setTuning((value) => ({ ...value, speed }))}
-          />
-          <NumberControl
-            label="Pitch"
-            value={tuning.pitch}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(pitch) => setTuning((value) => ({ ...value, pitch }))}
-          />
-          <NumberControl
-            label="Volume"
-            value={tuning.volume}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(volume) => setTuning((value) => ({ ...value, volume }))}
-          />
-        </div>
-
-        <div className="max-h-24 overflow-auto rounded-md border">
-          {rows.map((row, index) => {
-            const dub = tts.dubByDialogue.get(row.id);
-            const active = row.id === selected?.id;
-            return (
-              <button
-                key={row.id}
-                type="button"
-                className={cn(
-                  "flex w-full items-center gap-2 border-b px-2 py-1 text-left text-[9px] last:border-b-0 hover:bg-muted/40",
-                  active && "bg-primary/10",
-                )}
-                onClick={() => setSelectedId(row.id)}
-              >
-                <span className="w-5 text-muted-foreground">{index + 1}</span>
-                <span className="min-w-0 flex-1 truncate">
-                  {row.translation?.text}
-                </span>
-                <span
-                  className={cn(
-                    "rounded px-1 text-[8px]",
-                    dub?.status === "ready"
-                      ? "bg-primary/10 text-primary"
-                      : dub?.status === "failed"
-                        ? "text-destructive"
-                        : "text-muted-foreground",
-                  )}
-                >
-                  {dub?.status ?? "missing"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {tts.generating && tts.progress && (
-          <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
-            <LoaderCircle className="size-3 animate-spin text-primary" />
-            <span>
-              {tts.progress.completed}/{tts.progress.total}
-            </span>
-            <progress
-              className="h-1.5 flex-1 accent-primary"
-              max={Math.max(1, tts.progress.total)}
-              value={tts.progress.completed}
+      <details className="group shrink-0 border-b">
+        <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 px-2 text-[10px] outline-none select-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <Settings2 className="size-3 shrink-0 text-muted-foreground" />
+          <span className="shrink-0 font-medium">Voice</span>
+          <span
+            className="min-w-0 flex-1 truncate text-muted-foreground"
+            title={voice?.name}
+          >
+            {voice?.name ?? "No voice selected"}
+          </span>
+          <span className="shrink-0 text-[8px] tabular-nums text-muted-foreground">
+            {tuning.speed.toFixed(2)}× · p{tuning.pitch} · v{tuning.volume}
+          </span>
+          <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="space-y-1.5 border-t px-2 py-2">
+          <Select
+            value={tts.voiceId}
+            onValueChange={(value) => tts.setVoiceId(value || null)}
+            disabled={tts.generating}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label="Khmer voice"
+              className="w-full text-[10px]"
+            >
+              <SelectValue placeholder="Select a voice" />
+            </SelectTrigger>
+            <SelectContent align="start" className="min-w-72">
+              <SelectGroup>
+                {tts.voices.map((item) => (
+                  <SelectItem
+                    key={item.id}
+                    value={item.id}
+                    className="text-[11px]"
+                  >
+                    {item.name} · {item.gender}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select
+            value={presetId}
+            disabled={tts.generating}
+            onValueChange={(id) => {
+              const preset = EDGE_VOICE_PRESETS.find((item) => item.id === id);
+              if (!preset) return;
+              if (
+                preset.gender &&
+                voice?.gender.toLowerCase() !== preset.gender
+              ) {
+                const matchingVoice = tts.voices.find(
+                  (item) => item.gender.toLowerCase() === preset.gender,
+                );
+                if (!matchingVoice) return;
+                tts.setVoiceId(matchingVoice.id);
+              }
+              setPreferredPreset(preset.id);
+              setTuning({ ...DEFAULT_TTS_TUNING, pitch: preset.pitch });
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label="Edge voice preset"
+              className="w-full text-[10px]"
+            >
+              <SelectValue placeholder="Voice preset">
+                {EDGE_VOICE_PRESETS.find((preset) => preset.id === presetId)
+                  ?.label ?? "Custom"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectGroup>
+                {EDGE_VOICE_PRESETS.map((preset) => (
+                  <SelectItem
+                    key={preset.id}
+                    value={preset.id}
+                    disabled={
+                      !!preset.gender &&
+                      !tts.voices.some(
+                        (item) => item.gender.toLowerCase() === preset.gender,
+                      )
+                    }
+                    className="text-[11px]"
+                  >
+                    {preset.label} · {preset.pitch > 0 ? "+" : ""}
+                    {preset.pitch} Hz · 1.25×
+                  </SelectItem>
+                ))}
+                <SelectItem value="custom" disabled className="text-[11px]">
+                  Custom
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1">
+            <NumberControl
+              label="Speed"
+              value={tuning.speed}
+              min={0.5}
+              max={2}
+              step={0.05}
+              disabled={tts.generating}
+              onChange={(speed) => setTuning((value) => ({ ...value, speed }))}
+            />
+            <NumberControl
+              label="Pitch"
+              value={tuning.pitch}
+              min={-100}
+              max={100}
+              step={1}
+              disabled={tts.generating}
+              onChange={(pitch) => setTuning((value) => ({ ...value, pitch }))}
+            />
+            <NumberControl
+              label="Volume"
+              value={tuning.volume}
+              min={-100}
+              max={100}
+              step={1}
+              disabled={tts.generating}
+              onChange={(volume) =>
+                setTuning((value) => ({ ...value, volume }))
+              }
             />
           </div>
-        )}
+        </div>
+      </details>
 
-        <div className="flex flex-wrap gap-1">
-          <Button
-            size="xs"
-            variant="outline"
-            className="h-6 text-[9px]"
-            disabled={
-              !selected || !tts.voiceId || tts.previewing || tts.generating
-            }
-            onClick={() => void preview()}
-          >
-            {tts.previewing ? (
-              <LoaderCircle className="animate-spin" />
-            ) : (
-              <Play />
-            )}
-            Preview selected
-          </Button>
-          <Button
-            size="xs"
-            variant="outline"
-            className="h-6 text-[9px]"
-            disabled={!selected || !tts.voiceId || tts.generating}
-            onClick={() =>
-              selected && void tts.generate("selected", [selected.id], tuning)
-            }
-          >
-            <RotateCcw /> Regenerate selected
-          </Button>
-          <Button
-            size="xs"
-            variant="outline"
-            className="h-6 text-[9px]"
-            disabled={!tts.voiceId || tts.generating || rows.length === 0}
-            onClick={() => void tts.generate("missing", [], tuning)}
-          >
-            Generate missing
-          </Button>
-          <Button
-            size="xs"
-            className="h-6 text-[9px]"
-            disabled={!tts.voiceId || tts.generating || rows.length === 0}
-            onClick={() => void tts.generate("all", [], tuning)}
-          >
-            Regenerate all
-          </Button>
-          {tts.generating && (
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b px-2 py-1.5">
+        <Button
+          size="xs"
+          variant="outline"
+          className="h-6 shrink-0 text-[9px]"
+          disabled={
+            !tts.voiceId ||
+            tts.generating ||
+            translation.busy ||
+            !!editing ||
+            rows.length === 0
+          }
+          onClick={() => void tts.generate("missing", [], tuning)}
+        >
+          <Mic /> Generate missing
+        </Button>
+        {tts.generating ? (
+          <>
+            <LoaderCircle className="size-3 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+            <span className="shrink-0 text-[9px] tabular-nums text-muted-foreground">
+              {tts.progress?.completed ?? 0}/
+              {tts.progress?.total ?? rows.length}
+            </span>
+            <progress
+              aria-label="Voice generation progress"
+              className="h-1.5 min-w-6 flex-1 accent-primary"
+              max={Math.max(1, tts.progress?.total ?? rows.length)}
+              value={tts.progress?.completed ?? 0}
+            />
             <Button
               size="xs"
               variant="destructive"
-              className="h-6 text-[9px]"
+              className="h-6 shrink-0 text-[9px]"
               onClick={() => void tts.cancel()}
             >
               <Square /> Cancel
             </Button>
-          )}
-        </div>
-        {existing && (
-          <p className="text-[8px] text-muted-foreground">
-            Selected: {existing.status} · {existing.speed.toFixed(2)}× · pitch{" "}
-            {existing.pitch} · volume {existing.volume}
-          </p>
-        )}
-        {tts.error && (
-          <p role="alert" className="text-[9px] text-destructive">
-            {tts.error}
-          </p>
+          </>
+        ) : (
+          <span className="ml-auto shrink-0 text-[9px] tabular-nums text-muted-foreground">
+            {readyCount}/{rows.length} ready
+          </span>
         )}
       </div>
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        {rows.length === 0 && (
+          <p className="p-3 text-[10px] text-muted-foreground">
+            Translate dialogue to Khmer first — voice generation uses translated
+            lines.
+          </p>
+        )}
+        {rows.map((row, index) => {
+          const dub = tts.dubByDialogue.get(row.id);
+          const pending = tts.pendingSegmentIds.includes(row.id);
+          const status: RowStatus = pending
+            ? "generating"
+            : tts.failedSegmentId === row.id
+              ? "failed"
+              : (dub?.status ?? "missing");
+          const speaker = row.speakerId
+            ? (speakerNames.get(row.speakerId) ?? "Speaker")
+            : null;
+          const isEditing = editing?.id === row.id;
+          const canEdit = !tts.generating && !translation.busy;
+          return (
+            <div
+              key={row.id}
+              className={cn(
+                "border-b border-l-2 border-l-transparent px-2 py-1.5 last:border-b-0",
+                dub?.status === "ready" && "border-l-primary/40",
+                isEditing && "border-l-primary bg-primary/5",
+                !isEditing && "hover:bg-muted/40",
+              )}
+            >
+              <div className="flex items-center gap-1">
+                <span className="w-4 shrink-0 text-[8px] tabular-nums text-muted-foreground">
+                  {index + 1}
+                </span>
+                {speaker && (
+                  <span
+                    className="max-w-20 shrink-0 truncate rounded border px-1 text-[8px] text-muted-foreground"
+                    title={speaker}
+                  >
+                    {speaker}
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    "flex shrink-0 items-center gap-0.5 rounded px-1 text-[8px]",
+                    STATUS_STYLE[status],
+                  )}
+                >
+                  {status === "generating" && (
+                    <LoaderCircle className="size-2.5 animate-spin motion-reduce:animate-none" />
+                  )}
+                  {status}
+                </span>
+                <span className="ml-auto flex shrink-0 items-center gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Preview line ${index + 1}`}
+                    title={`Preview line ${index + 1} with current voice`}
+                    disabled={
+                      !tts.voiceId ||
+                      tts.generating ||
+                      tts.previewing ||
+                      translation.busy ||
+                      !!editing
+                    }
+                    onClick={() => void preview(row.id)}
+                  >
+                    {previewingId === row.id ? (
+                      <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <Play />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`${dub ? "Regenerate" : "Generate"} line ${index + 1}`}
+                    title={
+                      dub
+                        ? `Regenerate line ${index + 1}`
+                        : `Generate line ${index + 1}`
+                    }
+                    disabled={
+                      !tts.voiceId ||
+                      tts.generating ||
+                      translation.busy ||
+                      pending ||
+                      !!editing
+                    }
+                    onClick={() =>
+                      void tts.generate("selected", [row.id], tuning)
+                    }
+                  >
+                    {pending ? (
+                      <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+                    ) : dub ? (
+                      <RotateCcw />
+                    ) : (
+                      <Mic />
+                    )}
+                  </Button>
+                </span>
+              </div>
+              {isEditing ? (
+                <div className="mt-1 space-y-1">
+                  <textarea
+                    autoFocus
+                    lang="km"
+                    rows={2}
+                    value={editing.text}
+                    maxLength={100000}
+                    disabled={translation.busy}
+                    aria-label={`Edit Khmer line ${index + 1}`}
+                    className="w-full resize-y rounded-md border bg-background px-1.5 py-1 text-[10px] leading-snug outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    onChange={(event) => {
+                      const text = event.currentTarget.value;
+                      setEditing((value) =>
+                        value ? { ...value, text } : value,
+                      );
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing) return;
+                      if (event.key === "Escape" && !translation.busy) {
+                        event.preventDefault();
+                        setEditing(null);
+                      }
+                      if (
+                        (event.metaKey || event.ctrlKey) &&
+                        event.key === "Enter"
+                      ) {
+                        event.preventDefault();
+                        void saveEdit();
+                      }
+                    }}
+                  />
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[8px] text-muted-foreground">
+                      ⌘ / Ctrl + Enter to save · Esc to cancel
+                    </span>
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="h-6 text-[9px]"
+                        disabled={translation.busy}
+                        onClick={() => setEditing(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="xs"
+                        className="h-6 text-[9px]"
+                        disabled={
+                          translation.busy ||
+                          !editing.text.trim() ||
+                          editing.text.trim() === (row.translation?.text ?? "")
+                        }
+                        onClick={() => void saveEdit()}
+                      >
+                        {translation.busy ? "Saving…" : "Save"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-0.5 block w-full text-left text-[10px] leading-snug outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default"
+                  title={canEdit ? "Click to edit Khmer text" : undefined}
+                  disabled={!canEdit}
+                  onClick={() => beginEdit(row.id, row.translation?.text ?? "")}
+                >
+                  <span className="line-clamp-2">{row.translation?.text}</span>
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {(tts.error || translation.error) && (
+        <div className="shrink-0 space-y-1 border-t px-2 py-1.5">
+          {tts.error && (
+            <p role="alert" className="text-[9px] text-destructive">
+              {tts.error}
+            </p>
+          )}
+          {translation.error && (
+            <p role="alert" className="text-[9px] text-destructive">
+              {translation.error}
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -230,6 +511,7 @@ function NumberControl({
   min,
   max,
   step,
+  disabled,
   onChange,
 }: {
   label: string;
@@ -237,15 +519,21 @@ function NumberControl({
   min: number;
   max: number;
   step: number;
+  disabled?: boolean;
   onChange: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   return (
-    <label className="text-[8px] text-muted-foreground">
+    <label
+      className="flex h-7 shrink-0 items-center gap-1 rounded-[min(var(--radius-md),10px)] border border-input pl-1.5 pr-1 text-[8px] text-muted-foreground transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 has-[:disabled]:opacity-50"
+      title={label}
+    >
       {label}
       <input
-        className="mt-0.5 h-6 w-full rounded border bg-background px-1 text-[9px] text-foreground"
+        className="h-5 w-6 min-w-0 appearance-none rounded bg-transparent text-right text-[10px] text-foreground outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         type="number"
+        aria-label={label}
+        disabled={disabled}
         value={draft ?? String(value)}
         min={min}
         max={max}

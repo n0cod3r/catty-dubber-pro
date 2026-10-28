@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { TranscriptionProgress } from "@catty/contracts";
+import type {
+  TranscriptionProgress,
+  TranslationProgress,
+  TtsProgress,
+} from "@catty/contracts";
 import { Flag, Plus } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -27,9 +31,15 @@ import { clipEditGroup, splitCandidates } from "../stores/timeline-edits";
 import type { Layer, TimelineClip, TrackKind } from "../types";
 import { dialogueSplitTarget } from "../utils/dialogue-split";
 import { snapTime, visibleTicks } from "../utils/geometry";
+import {
+  dubbingTimelineClips,
+  scopedProgress,
+  translationTimelineClips,
+} from "../utils/pipeline-clips";
 import { clipRenderWindow, thumbnailTiles } from "../utils/render-window";
 import { trackStyles } from "../utils/tracks";
 import { activeTranscriptionPreview } from "../utils/transcription-preview";
+import { PipelineTrack } from "./pipeline-track";
 import { TimelineToolbar } from "./timeline-toolbar";
 import { TimelineTrack } from "./timeline-track";
 import { TranscriptionPreviewTrack } from "./transcription-preview-track";
@@ -42,6 +52,14 @@ type TimelineProps = {
   onMuteChange: (muted: boolean) => void;
   followPlayhead: boolean;
   duration: number;
+  projectDirectory?: string;
+  translation?: { active: boolean; progress: TranslationProgress | null };
+  dubbing?: {
+    active: boolean;
+    progress: TtsProgress | null;
+    pendingSegmentIds: string[];
+    failedSegmentId: string | null;
+  };
   transcription?: {
     active: boolean;
     projectDirectory: string;
@@ -65,7 +83,56 @@ export function Timeline({
   duration: projectDuration,
   dialogueEditing,
   transcription,
+  projectDirectory = "",
+  translation,
+  dubbing,
 }: TimelineProps) {
+  const translationProgress = scopedProgress(
+    translation?.progress,
+    projectDirectory,
+    episode?.id,
+  );
+  const ttsProgress = scopedProgress(
+    dubbing?.progress,
+    projectDirectory,
+    episode?.id,
+  );
+  const translating =
+    !!translation?.active &&
+    !!translationProgress &&
+    !["completed", "failed"].includes(translationProgress.phase);
+  const generating =
+    !!dubbing?.active &&
+    (!dubbing.progress || !!ttsProgress) &&
+    !["completed", "failed", "cancelled"].includes(ttsProgress?.phase ?? "");
+  const translatedClips = useMemo(
+    () =>
+      translationTimelineClips(
+        episode,
+        translating ? translationProgress : null,
+      ),
+    [episode, translating, translationProgress],
+  );
+  const dubClips = useMemo(
+    () =>
+      dubbingTimelineClips(
+        episode,
+        generating ? ttsProgress : null,
+        generating ? (dubbing?.pendingSegmentIds ?? []) : [],
+        dubbing?.failedSegmentId ?? null,
+      ),
+    [
+      episode,
+      generating,
+      ttsProgress,
+      dubbing?.pendingSegmentIds,
+      dubbing?.failedSegmentId,
+    ],
+  );
+  const showTranslation =
+    !!translation?.active ||
+    translatedClips.some((clip) => clip.status !== "Pending");
+  const showDubbing = dubClips.length > 0;
   const transcriptionPreview = activeTranscriptionPreview(
     transcription?.progress,
     transcription?.active ?? false,
@@ -296,6 +363,39 @@ export function Timeline({
     viewport.setScrubbing,
   );
 
+  const pipelineProps = {
+    duration: timelineDuration,
+    width: viewport.width,
+    scrollLeft: viewport.scrollLeft,
+    viewportWidth: viewport.viewportWidth,
+    projectDirectory,
+    onSeek,
+  };
+  // Preserve any manual clips on the existing dub layer. Engine results get an
+  // additional row in that case; otherwise reuse the empty default dub row.
+  const dubSlot =
+    document.layers.some((layer) => layer.id === "dub") &&
+    !document.clips.some((clip) => clip.trackId === "dub");
+  const extraDubTrack = showDubbing && !dubSlot;
+  const visibleTrackCount =
+    document.layers.length +
+    Number(!!transcriptionPreview) +
+    Number(showTranslation) +
+    Number(extraDubTrack);
+  const dubTrack = showDubbing ? (
+    <PipelineTrack
+      key={`dub:${projectDirectory}:${episode?.id}`}
+      name="Khmer dub"
+      status={
+        generating
+          ? `Generating · ${ttsProgress?.completed ?? 0}/${ttsProgress?.total ?? dubbing?.pendingSegmentIds.length ?? 0}`
+          : `${dubClips.filter((clip) => clip.status === "Ready").length}/${dubClips.length} ready${ttsProgress?.phase === "cancelled" ? " · cancelled" : ttsProgress?.phase === "failed" ? " · failed" : ""}`
+      }
+      clips={dubClips}
+      {...pipelineProps}
+    />
+  ) : null;
+
   return (
     <section
       className="flex h-full min-h-0 flex-col bg-background select-none"
@@ -425,13 +525,13 @@ export function Timeline({
           style={{
             gridTemplateColumns: `${TIMELINE.headerWidth}px ${viewport.width}px`,
             width: TIMELINE.headerWidth + viewport.width,
-            gridTemplateRows: `${TIMELINE.rulerHeight}px repeat(${document.layers.length + (transcriptionPreview ? 1 : 0)}, ${TIMELINE.trackHeight}px) minmax(24px, 1fr)`,
+            gridTemplateRows: `${TIMELINE.rulerHeight}px repeat(${visibleTrackCount}, ${TIMELINE.trackHeight}px) minmax(24px, 1fr)`,
           }}
         >
           <div className="sticky top-0 left-0 z-40 flex items-center border-r border-b bg-card px-3 text-[9px] font-medium tracking-widest text-muted-foreground">
             TRACKS{" "}
             <span className="ml-auto rounded border px-1 text-[9px]">
-              {document.layers.length}
+              {visibleTrackCount}
             </span>
           </div>
           <div
@@ -480,27 +580,52 @@ export function Timeline({
               onSeek={onSeek}
             />
           )}
-          {document.layers.map((layer) => (
-            <TimelineTrack
-              key={layer.id}
-              layer={layer}
-              clips={clipsByLayer.get(layer.id) ?? []}
-              sourceDuration={mediaDuration}
-              timelineDuration={timelineDuration}
+          {showTranslation && (
+            <PipelineTrack
+              key={`translation:${projectDirectory}:${episode?.id}`}
+              name="Khmer translation"
+              status={
+                translation?.active && !translationProgress
+                  ? "Preparing translation…"
+                  : translating
+                    ? `Translating · ${translationProgress.completed}/${translationProgress.total}`
+                    : `${translatedClips.filter((clip) => clip.status === "Ready").length}/${translatedClips.length} translated${translationProgress?.phase === "failed" ? " · stopped" : ""}`
+              }
+              clips={translatedClips}
+              duration={timelineDuration}
               width={viewport.width}
-              viewportWidth={viewport.viewportWidth}
               scrollLeft={viewport.scrollLeft}
-              ticks={ticks}
-              selected={selected}
-              muted={muted}
-              visuals={visuals}
-              canEditClip={canEditClip}
-              onMuteChange={onMuteChange}
-              onSelect={setSelected}
+              viewportWidth={viewport.viewportWidth}
+              projectDirectory={projectDirectory}
               onSeek={onSeek}
-              onAddClip={addClip}
             />
-          ))}
+          )}
+          {extraDubTrack && dubTrack}
+          {document.layers.map((layer) =>
+            layer.id === "dub" && showDubbing && dubSlot ? (
+              dubTrack
+            ) : (
+              <TimelineTrack
+                key={layer.id}
+                layer={layer}
+                clips={clipsByLayer.get(layer.id) ?? []}
+                sourceDuration={mediaDuration}
+                timelineDuration={timelineDuration}
+                width={viewport.width}
+                viewportWidth={viewport.viewportWidth}
+                scrollLeft={viewport.scrollLeft}
+                ticks={ticks}
+                selected={selected}
+                muted={muted}
+                visuals={visuals}
+                canEditClip={canEditClip}
+                onMuteChange={onMuteChange}
+                onSelect={setSelected}
+                onSeek={onSeek}
+                onAddClip={addClip}
+              />
+            ),
+          )}
           <div className="sticky left-0 z-30 border-r bg-card" />
           <div className="bg-muted/5" />
           {enabled && (

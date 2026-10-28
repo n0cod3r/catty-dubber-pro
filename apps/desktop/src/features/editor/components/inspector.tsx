@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   MessageSquareText,
   Sparkles,
+  Volume2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -17,16 +18,19 @@ import { formatTime } from "@/shared/utils/time";
 
 import type { DialogueEditing } from "../hooks/use-dialogue-editing";
 import type { TranslationEditing } from "../hooks/use-translation";
+import type { TtsEditing } from "../hooks/use-tts";
 import {
   activeDialogueId,
   dialogueScrollDelta,
 } from "../utils/dialogue-follow";
 import { isMergeDialogueShortcut } from "../utils/dialogue-shortcuts";
 import { DialogueTextEditor } from "./dialogue-text-editor";
+import { VoiceGenerationPanel } from "./voice-generation-panel";
 
 const tabs = [
   { id: "source", label: "Dialogue", icon: MessageSquareText },
   { id: "translation", label: "Khmer", icon: Languages },
+  { id: "voice", label: "Voice", icon: Volume2 },
   { id: "properties", label: "Media", icon: Film },
 ] as const;
 const transcriptionEngines = [
@@ -66,6 +70,7 @@ export function Inspector({
   onSeek,
   dialogue,
   translation,
+  tts,
 }: {
   episode: EpisodeMedia | null;
   currentTime: number;
@@ -73,6 +78,7 @@ export function Inspector({
   onSeek: (time: number) => void;
   dialogue: DialogueEditing;
   translation: TranslationEditing;
+  tts: TtsEditing;
 }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("source");
   const [engine, setEngine] = useState<TranscriptionEngine>(
@@ -204,7 +210,11 @@ export function Inspector({
       <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-[11px] font-medium">
         Inspector
         <span className="rounded border px-1.5 py-0.5 text-[9px] font-normal text-muted-foreground">
-          {tab === "properties" ? "Source" : `${segments.length} lines`}
+          {tab === "properties"
+            ? "Source"
+            : tab === "voice"
+              ? (episode?.dubbingStatus ?? "idle")
+              : `${segments.length} lines`}
         </span>
       </div>
       <div
@@ -221,7 +231,7 @@ export function Inspector({
             aria-controls={`inspector-panel-${id}`}
             tabIndex={tab === id ? 0 : -1}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 border-b-2 border-transparent text-[10px] text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
+              "flex min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 border-transparent px-1 text-[10px] text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
               tab === id && "border-primary bg-background/40 text-foreground",
             )}
             onClick={() => setTab(id)}
@@ -244,8 +254,12 @@ export function Inspector({
               }
             }}
           >
-            <Icon className="size-3" />
-            {label}
+            {id === "voice" && tts.generating ? (
+              <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Icon className="size-3 shrink-0" />
+            )}
+            <span className="truncate">{label}</span>
           </button>
         ))}
       </div>
@@ -254,12 +268,21 @@ export function Inspector({
         id={`inspector-panel-${tab}`}
         aria-labelledby={`inspector-tab-${tab}`}
         tabIndex={0}
-        className="flex min-h-0 flex-1 flex-col overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+        className={cn(
+          "flex min-h-0 flex-1 flex-col outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
+          tab === "voice" ? "overflow-hidden" : "overflow-auto",
+        )}
       >
         {tab === "source" && transcribing && (
           <TranscriptionStatus dialogue={dialogue} />
         )}
-        {tab === "properties" && episode ? (
+        {tab === "voice" ? (
+          <VoiceGenerationPanel
+            episode={episode}
+            translation={translation}
+            tts={tts}
+          />
+        ) : tab === "properties" && episode ? (
           <dl className="space-y-4 p-4 text-[11px]">
             {[
               ["File", episode.name],

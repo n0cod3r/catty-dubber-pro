@@ -15,8 +15,10 @@ import {
   prepareTtsCancel,
   requestEngine,
 } from "../deps/engine";
+import { isCurrentTtsProgress, ttsTargetIds } from "../utils/tts-progress";
+import { DEFAULT_TTS_TUNING, type TtsTuning } from "../utils/voice-presets";
 
-export type TtsTuning = { speed: number; pitch: number; volume: number };
+export type { TtsTuning } from "../utils/voice-presets";
 export type TtsEditing = ReturnType<typeof useTts>;
 
 export function useTts(
@@ -31,6 +33,26 @@ export function useTts(
   const [progress, setProgress] = useState<TtsProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const operationRef = useRef<string | null>(null);
+  const revision = useRef(0);
+  const unsubscribe = useRef<(() => void) | null>(null);
+  const [pendingSegmentIds, setPendingSegmentIds] = useState<string[]>([]);
+  const [failedSegmentId, setFailedSegmentId] = useState<string | null>(null);
+  useEffect(() => {
+    revision.current += 1;
+    operationRef.current = null;
+    setGenerating(false);
+    setPreviewing(false);
+    setProgress(null);
+    setPendingSegmentIds([]);
+    setFailedSegmentId(null);
+    setError(null);
+    return () => {
+      revision.current += 1;
+      operationRef.current = null;
+      unsubscribe.current?.();
+      unsubscribe.current = null;
+    };
+  }, [episode?.id, projectDirectory]);
 
   useEffect(() => {
     let active = true;
@@ -57,29 +79,6 @@ export function useTts(
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    let unlisten: (() => void) | undefined;
-    void listenTtsProgress((event) => {
-      if (
-        event.episode_id !== episode?.id ||
-        event.operation_id !== operationRef.current
-      )
-        return;
-      setProgress(event);
-      if (event.episode) onEpisodePersisted(event.episode);
-      if (["completed", "cancelled", "failed"].includes(event.phase))
-        setGenerating(false);
-    }).then((stop) => {
-      if (active) unlisten = stop;
-      else stop();
-    });
-    return () => {
-      active = false;
-      unlisten?.();
-    };
-  }, [episode?.id, onEpisodePersisted]);
-
   const dubByDialogue = useMemo(
     () =>
       new Map(
@@ -95,20 +94,55 @@ export function useTts(
     async (
       mode: TtsGenerationMode,
       segmentIds: string[] = [],
-      tuning: TtsTuning = { speed: 1, pitch: 0, volume: 0 },
+      tuning: TtsTuning = DEFAULT_TTS_TUNING,
     ) => {
-      if (!episode || !voiceId || generating) return;
+      if (!episode || !voiceId || operationRef.current) return;
+      const targets = ttsTargetIds(episode, mode, segmentIds);
+      if (!targets.length) return;
       setError(null);
       setGenerating(true);
       setProgress(null);
+      setFailedSegmentId(null);
+      setPendingSegmentIds(targets);
+      const ticket = revision.current;
       const operationId = crypto.randomUUID();
       operationRef.current = operationId;
+      const current = () =>
+        revision.current === ticket && operationRef.current === operationId;
+      let unlisten: (() => void) | undefined;
+      let activeSegmentId: string | null = null;
       try {
+        unlisten = await listenTtsProgress((event) => {
+          if (
+            !current() ||
+            !isCurrentTtsProgress(
+              event,
+              operationId,
+              projectDirectory,
+              episode.id,
+            )
+          )
+            return;
+          setProgress(event);
+          if (event.phase === "generating") activeSegmentId = event.segment_id;
+          if (event.phase === "saved" && event.segment_id) {
+            setPendingSegmentIds((ids) =>
+              ids.filter((id) => id !== event.segment_id),
+            );
+            activeSegmentId = null;
+          }
+          if (event.phase === "failed") setFailedSegmentId(activeSegmentId);
+          if (event.episode) onEpisodePersisted(event.episode);
+        });
+        if (!current()) return;
+        unsubscribe.current = unlisten;
         const cancelFile = await prepareTtsCancel(operationId);
+        if (!current()) return;
         const profile = await requestEngine("tts.ensure_voice", {
           project_directory: projectDirectory,
           voice_id: voiceId,
         });
+        if (!current()) return;
         const persisted = await requestEngine("tts.generate", {
           operation_id: operationId,
           project_directory: projectDirectory,
@@ -121,16 +155,33 @@ export function useTts(
           volume: tuning.volume,
           cancel_file: cancelFile,
         });
-        onEpisodePersisted(persisted);
+        if (current()) onEpisodePersisted(persisted);
       } catch (cause) {
+        if (!current()) return;
+        setFailedSegmentId(activeSegmentId);
         setError(
           cause instanceof Error ? cause.message : "មិនអាចបង្កើតសំឡេងបានទេ។",
         );
+        try {
+          const latest = await requestEngine("project.open", {
+            project_directory: projectDirectory,
+          });
+          const saved = latest.episodes.find((item) => item.id === episode.id);
+          if (current() && saved) onEpisodePersisted(saved);
+        } catch {
+          /* Keep the generation error visible. */
+        }
       } finally {
-        setGenerating(false);
+        unlisten?.();
+        if (current()) {
+          operationRef.current = null;
+          unsubscribe.current = null;
+          setGenerating(false);
+          setPendingSegmentIds([]);
+        }
       }
     },
-    [episode, generating, onEpisodePersisted, projectDirectory, voiceId],
+    [episode, onEpisodePersisted, projectDirectory, voiceId],
   );
 
   const cancel = useCallback(async () => {
@@ -139,15 +190,15 @@ export function useTts(
     try {
       await cancelTts(operationId);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "មិនអាច cancel បានទេ។");
+      if (operationRef.current === operationId)
+        setError(
+          cause instanceof Error ? cause.message : "មិនអាច cancel បានទេ។",
+        );
     }
   }, [generating]);
 
   const preview = useCallback(
-    async (
-      segmentId: string,
-      tuning: TtsTuning = { speed: 1, pitch: 0, volume: 0 },
-    ) => {
+    async (segmentId: string, tuning: TtsTuning = DEFAULT_TTS_TUNING) => {
       if (!episode || !voiceId || previewing) return null;
       const segment = episode.dialogueSegments?.find(
         (item) => item.id === segmentId,
@@ -157,6 +208,7 @@ export function useTts(
         setError("Segment នេះមិនទាន់មាន Khmer translation ទេ។");
         return null;
       }
+      const ticket = revision.current;
       setPreviewing(true);
       setError(null);
       try {
@@ -168,14 +220,15 @@ export function useTts(
           pitch: tuning.pitch,
           volume: tuning.volume,
         });
-        return result.path;
+        return ticket === revision.current ? result.path : null;
       } catch (cause) {
+        if (ticket !== revision.current) return null;
         setError(
           cause instanceof Error ? cause.message : "មិនអាច preview សំឡេងបានទេ។",
         );
         return null;
       } finally {
-        setPreviewing(false);
+        if (ticket === revision.current) setPreviewing(false);
       }
     },
     [episode, previewing, projectDirectory, voiceId],
@@ -188,6 +241,8 @@ export function useTts(
     generating,
     previewing,
     progress,
+    pendingSegmentIds,
+    failedSegmentId,
     error,
     clearError: () => setError(null),
     dubByDialogue,
