@@ -80,8 +80,12 @@ def preview(params: dict[str, Any]) -> dict[str, str]:
 def generate(params: dict[str, Any]) -> dict[str, Any]:
     parsed = TTSGenerateParams.model_validate(params)
     service = TTSService()
+    last_completed = 0
+    last_total = 0
 
     def progress(phase, completed, total, segment_id, segment) -> None:
+        nonlocal last_completed, last_total
+        last_completed, last_total = completed, total
         if parsed.operation_id is None:
             return
         emit_tts_progress(
@@ -95,7 +99,7 @@ def generate(params: dict[str, Any]) -> dict[str, Any]:
                 "segment_id": str(segment_id) if segment_id else None,
                 "segment": segment.model_dump(mode="json") if segment else None,
                 "episode": _episode(parsed.project_directory, parsed.episode_id)
-                if phase in {"saved", "completed", "cancelled"}
+                if phase in {"saved", "completed", "cancelled", "failed"}
                 else None,
             }
         )
@@ -114,7 +118,8 @@ def generate(params: dict[str, Any]) -> dict[str, Any]:
             on_progress=progress,
         )
     except TTSGenerationCancelled:
-        # Cancellation is a successful partial operation: already generated
-        # segments remain durable and the caller receives the latest episode.
         pass
+    except Exception:
+        progress("failed", last_completed, last_total, None, None)
+        raise
     return _episode(parsed.project_directory, parsed.episode_id) or {}
