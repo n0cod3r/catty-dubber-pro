@@ -25,29 +25,14 @@ export type TranslationProviderSettings = { selected_model: string | null; crede
 export type AppSettings = {
   schema_version: number;
   general: { language: string; follow_playhead: boolean };
-  translation: {
-    provider: TranslationProviderId;
-    target_language: string;
-    style: TranslationStyle;
-    use_context: boolean;
-    use_speaker_context: boolean;
-    duration_aware: boolean;
-    providers: {
-      local: TranslationProviderSettings;
-      gemini: TranslationProviderSettings;
-      deepseek: TranslationProviderSettings;
-      google: TranslationProviderSettings;
-      baidu: TranslationProviderSettings;
-      openai_compatible: TranslationProviderSettings & { base_url: string };
-    };
-  };
+  translation: { provider: TranslationProviderId; target_language: string; style: TranslationStyle; use_context: boolean; use_speaker_context: boolean; duration_aware: boolean; providers: { local: TranslationProviderSettings; gemini: TranslationProviderSettings; deepseek: TranslationProviderSettings; google: TranslationProviderSettings; baidu: TranslationProviderSettings; openai_compatible: TranslationProviderSettings & { base_url: string } } };
   tts: { engine: "edge" | "voxcpm2"; voice: string | null };
   voice_clone: { model: string; reference_audio: string | null };
   performance: { device: ComputeDevice; cpu_threads: number | null };
   storage: { projects_directory: string | null; models_directory: string | null; exports_directory: string | null };
 };
 export type TranslationProviderInfo = { id: TranslationProviderId; name: string; offline: boolean; requires_credentials: boolean; supports_model_discovery: boolean; contextual: boolean; credential_configured: boolean; selected_model: string | null };
-export type TranslationModel = { id: string; name: string; description?: string | null };
+export type TranslationModel = { id: string; name: string; description?: string | null; kind?: string; repository?: string; license?: string; approximate_size_mb?: number; installed?: boolean; path?: string | null };
 export type ConnectionTestResult = { ok: boolean; message: string };
 export type SettingsSnapshot = { settings: AppSettings; credentials: Partial<Record<TranslationProviderId, boolean>>; credential_ids?: Partial<Record<TranslationProviderId, string[]>> };
 
