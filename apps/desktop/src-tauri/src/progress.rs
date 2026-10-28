@@ -13,6 +13,7 @@ fn progress_event(line: &str) -> Option<(&'static str, Value)> {
         "translation" => "catty:translation-progress",
         "transcription" => "catty:transcription-progress",
         "tts" => "catty:tts-progress",
+        "compact-inference" => "catty:compact-inference",
         _ => return None,
     };
     let payload = &value["payload"];

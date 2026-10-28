@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 import {
   AlertCircle,
@@ -20,7 +20,7 @@ import {
 import { useDesktopShutdown } from "@/features/engine";
 import { useEpisode } from "@/features/episodes";
 import { ProjectHome, useProject } from "@/features/projects";
-import { SettingsDialog } from "@/features/settings";
+import { SettingsDialog, type SettingsPage } from "@/features/settings";
 
 export function App() {
   const projects = useProject();
@@ -31,6 +31,11 @@ export function App() {
   const closing = useDesktopShutdown();
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPage, setSettingsPage] = useState<SettingsPage | null>(null);
+  const openSettings = useCallback((page?: SettingsPage) => {
+    setSettingsPage(page ?? null);
+    setSettingsOpen(true);
+  }, []);
   const onImport = () => void source.openEpisode();
   const rebuildProxy = source.rebuildProxy;
   useEffect(() => {
@@ -115,7 +120,7 @@ export function App() {
                 size="icon-xs"
                 aria-label="បើកការកំណត់ Catty"
                 title="Settings"
-                onClick={() => setSettingsOpen(true)}
+                onClick={() => openSettings()}
               >
                 <Settings2 />
               </Button>
@@ -150,6 +155,7 @@ export function App() {
               onImport={onImport}
               onMetadata={source.updateMetadata}
               onEpisodePersisted={source.applyPersistedEpisode}
+              onOpenModels={() => openSettings("models")}
               followPlayhead={followPlayhead}
             />
           </main>
@@ -165,7 +171,14 @@ export function App() {
               event.currentTarget.value = "";
             }}
           />
-          <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+          <SettingsDialog
+            open={settingsOpen}
+            initialPage={settingsPage ?? undefined}
+            onOpenChange={(open) => {
+              setSettingsOpen(open);
+              if (!open) setSettingsPage(null);
+            }}
+          />
         </SidebarProvider>
       </TooltipProvider>
     </EditorErrorBoundary>

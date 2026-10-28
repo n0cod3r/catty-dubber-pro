@@ -1,1 +1,7 @@
-export { VideoPreview } from "@/features/preview";
+export {
+  VideoPreview,
+  dubMixClips,
+  mixClipSourceTime,
+  nearbyMixClips,
+  type MixDubClip,
+} from "@/features/preview";

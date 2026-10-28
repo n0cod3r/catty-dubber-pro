@@ -18,6 +18,7 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 
+from catty_engine.models.download import download
 from catty_engine.settings.paths import app_data_dir
 
 logger = logging.getLogger("catty_engine.models")
@@ -34,6 +35,10 @@ class ModelSpec:
     approximate_size_mb: int
     allow_patterns: tuple[str, ...]
     runtime: str
+    # Release-hosted weights are fetched directly instead of through the Hub.
+    download_url: str | None = None
+    sha256: str | None = None
+    file_name: str | None = None
 
 
 @dataclass
@@ -95,7 +100,45 @@ VOXCPM2_MODEL = ModelSpec(
     allow_patterns=("config.json", "model.safetensors", "audiovae.pth", "tokenizer*.json", "special_tokens_map.json", "tokenization_voxcpm2.py"),
     runtime="voxcpm2",
 )
-_REGISTRY = {spec.id: spec for spec in (*LOCAL_TRANSLATION_MODELS, VOXCPM2_MODEL)}
+VOXCPM2_COMPACT_MODEL = ModelSpec(
+    id="voxcpm2-compact", name="VoxCPM2 Compact · 1.94 GB", kind="tts",
+    repository="Uddom/voxcpm2-khmer-webgpu", license="Apache-2.0",
+    description="Q4/F16 ONNX voice cloning in Catty's WebGPU worker. Requires a float16-capable WebGPU device. Model files stay in Catty's managed folder.",
+    approximate_size_mb=1848,
+    allow_patterns=("manifest.json", "q4f16/*.onnx*", "vae/*.onnx*", "embed_tokens.f16.bin", "tokenizer*.json", "special_tokens_map.json", "LICENSE", "NOTICE"),
+    runtime="voxcpm2_webgpu",
+)
+SEPARATION_MODEL_ID = "uvr-mdx-inst-hq3"
+SEPARATION_MODEL_FILE = "UVR-MDX-NET-Inst_HQ_3.onnx"
+SEPARATION_MODEL = ModelSpec(
+    id=SEPARATION_MODEL_ID,
+    name="UVR MDX-Net · Dialogue removal",
+    kind="separation",
+    repository="TRvlvr/model_repo",
+    license="UVR public model",
+    description=(
+        "Separates the original speaker from music and effects so dubbed dialogue can "
+        "replace the voice track. Runs on CPU with ONNX Runtime."
+    ),
+    approximate_size_mb=64,
+    allow_patterns=(),
+    runtime="mdx_onnx",
+    download_url=(
+        "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/"
+        f"{SEPARATION_MODEL_FILE}"
+    ),
+    sha256="317554b07fe1ea5279a77f2b1520a41ea4b93432560c4ffd08792c30fddf9adc",
+    file_name=SEPARATION_MODEL_FILE,
+)
+_REGISTRY = {
+    spec.id: spec
+    for spec in (
+        *LOCAL_TRANSLATION_MODELS,
+        VOXCPM2_MODEL,
+        VOXCPM2_COMPACT_MODEL,
+        SEPARATION_MODEL,
+    )
+}
 
 
 def preferred_local_translation_model() -> ModelSpec:
@@ -125,7 +168,21 @@ def _directory_size(path: Path) -> int:
 
 
 def _download_command(spec: ModelSpec, staging: Path, token: str = "") -> list[str]:
-    """Run snapshot_download out-of-process so Cancel can stop an active HTTP transfer."""
+    """Run the download out-of-process so Cancel can stop an active HTTP transfer."""
+    if spec.download_url is not None:
+        if not spec.file_name or not spec.sha256:
+            raise ValueError(f"Model {spec.id} needs file_name and sha256 for direct download")
+        command = [
+            sys.executable,
+            "-m",
+            "catty_engine.models.download",
+            spec.download_url,
+            str(staging / spec.file_name),
+            spec.sha256,
+        ]
+        if token:
+            command.append(f"--catty-download-token={token}")
+        return command
     script = (
         "import json,sys; from huggingface_hub import snapshot_download; "
         "snapshot_download(repo_id=sys.argv[1], local_dir=sys.argv[2], "
@@ -444,7 +501,12 @@ class ModelManager:
         self._stop_stale_download(model_id)
         staging.mkdir(parents=True, exist_ok=True)
         logger.info("Synchronous model download started: %s", model_id)
-        snapshot_download(repo_id=spec.repository, local_dir=staging, allow_patterns=list(spec.allow_patterns))
+        if spec.download_url is not None:
+            if not spec.file_name or not spec.sha256:
+                raise ValueError(f"Model {spec.id} needs file_name and sha256 for direct download")
+            download(spec.download_url, staging / spec.file_name, spec.sha256)
+        else:
+            snapshot_download(repo_id=spec.repository, local_dir=staging, allow_patterns=list(spec.allow_patterns))
         (staging / ".catty-installed").write_text(spec.repository, encoding="utf-8")
         shutil.rmtree(target, ignore_errors=True)
         staging.replace(target)

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EdgeVoice, TranscriptSegment } from "@catty/contracts";
 import {
   AlertTriangle,
+  AudioLines,
   Film,
   Languages,
   LoaderCircle,
@@ -21,10 +22,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
+import type { MixDubClip } from "@/features/editor/deps/preview";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/shared/utils/time";
 
 import type { DialogueEditing } from "../hooks/use-dialogue-editing";
+import type { SeparationEditing } from "../hooks/use-separation";
 import type { TranslationEditing } from "../hooks/use-translation";
 import type { TtsEditing } from "../hooks/use-tts";
 import { useVoiceAssignments } from "../hooks/use-voice-assignments";
@@ -33,13 +36,16 @@ import {
   dialogueScrollDelta,
 } from "../utils/dialogue-follow";
 import { isMergeDialogueShortcut } from "../utils/dialogue-shortcuts";
+import { separationPhase } from "../utils/separation";
 import { DialogueTextEditor } from "./dialogue-text-editor";
+import { MixPanel } from "./mix-panel";
 import { VoiceGenerationPanel } from "./voice-generation-panel";
 
 const tabs = [
   { id: "source", label: "Dialogue", icon: MessageSquareText },
   { id: "translation", label: "Khmer", icon: Languages },
   { id: "voice", label: "Voice", icon: Volume2 },
+  { id: "mix", label: "Mix", icon: AudioLines },
   { id: "properties", label: "Media", icon: Film },
 ] as const;
 const transcriptionEngines = [
@@ -82,6 +88,11 @@ export function Inspector({
   dialogue,
   translation,
   tts,
+  separation,
+  mixClips,
+  mixEnabled,
+  onMixChange,
+  onOpenModels,
 }: {
   episode: EpisodeMedia | null;
   projectDirectory: string;
@@ -91,12 +102,21 @@ export function Inspector({
   dialogue: DialogueEditing;
   translation: TranslationEditing;
   tts: TtsEditing;
+  separation: SeparationEditing;
+  mixClips: MixDubClip[];
+  mixEnabled: boolean;
+  onMixChange: (enabled: boolean) => void;
+  onOpenModels: () => void;
 }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("source");
   const [engine, setEngine] = useState<TranscriptionEngine>(
     readTranscriptionEngine,
   );
   const { busy, transcribing, error, historyCounts } = dialogue;
+  const mixPhase = separationPhase(
+    episode?.separationStatus,
+    !!separation.background,
+  );
   const speakerWarning =
     dialogue.speakerWarning ?? episode?.speakerError ?? null;
   const [segments, setSegments] = useState<DialogueRow[]>(() =>
@@ -227,7 +247,11 @@ export function Inspector({
             ? "Source"
             : tab === "voice"
               ? (episode?.dubbingStatus ?? "idle")
-              : `${segments.length} lines`}
+              : tab === "mix"
+                ? separation.separating
+                  ? "separating"
+                  : mixPhase
+                : `${segments.length} lines`}
         </span>
       </div>
       <div
@@ -269,6 +293,8 @@ export function Inspector({
           >
             {id === "voice" && tts.generating ? (
               <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
+            ) : id === "mix" && separation.separating ? (
+              <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
             ) : (
               <Icon className="size-3 shrink-0" />
             )}
@@ -283,7 +309,9 @@ export function Inspector({
         tabIndex={0}
         className={cn(
           "flex min-h-0 flex-1 flex-col outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
-          tab === "voice" ? "overflow-hidden" : "overflow-auto",
+          tab === "voice" || tab === "mix"
+            ? "overflow-hidden"
+            : "overflow-auto",
         )}
       >
         {tab === "source" && transcribing && (
@@ -295,6 +323,15 @@ export function Inspector({
             translation={translation}
             tts={tts}
             speakerVoices={voiceAssignments}
+          />
+        ) : tab === "mix" ? (
+          <MixPanel
+            episode={episode}
+            separation={separation}
+            mixClips={mixClips}
+            mixEnabled={mixEnabled}
+            onMixChange={onMixChange}
+            onOpenModels={onOpenModels}
           />
         ) : tab === "properties" && episode ? (
           <dl className="space-y-4 p-4 text-[11px]">

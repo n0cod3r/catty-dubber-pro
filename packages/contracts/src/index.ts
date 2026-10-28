@@ -294,6 +294,10 @@ export type EngineMethods = {
     params: { project_directory: string; episode_id: string };
     result: PersistedEpisode;
   };
+  "project.separate_audio": {
+    params: { project_directory: string; episode_id: string };
+    result: PersistedEpisode;
+  };
   "project.import_episode": {
     params: { project_directory: string; project_name: string; source: string };
     result: PersistedEpisode;

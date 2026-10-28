@@ -17,7 +17,7 @@ fn request_with_control(method: &str, params: Value, control: Option<(&AtomicBoo
     let id = format!("{}-{}", std::process::id(), REQUEST_ID.fetch_add(1, Ordering::Relaxed));
     let payload = json!({"version": 1, "id": id, "method": method, "params": params});
     crate::logs::record("rust", "INFO", &format!("[{id}] Request {method}"));
-    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode" | "project.prepare_episode" | "project.rebuild_proxy" | "translation.translate_episode" | "tts.generate" | "tts.library_list" | "tts.library_create" | "tts.library_preview" | "tts.library_remove" | "tts.library_use" | "tts.assign_segment_voice") { Duration::from_secs(3605) } else { Duration::from_secs(35) };
+    let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode" | "project.prepare_episode" | "project.rebuild_proxy" | "project.separate_audio" | "translation.translate_episode" | "tts.generate" | "tts.library_list" | "tts.library_create" | "tts.library_preview" | "tts.library_remove" | "tts.library_use" | "tts.assign_segment_voice") { Duration::from_secs(3605) } else { Duration::from_secs(35) };
     let (cancelled, cancel_file) = control.map(|(flag, path)| (Some(flag), Some(path))).unwrap_or((None, None));
     let response = persistent_engine::request(&payload, cancelled, if method == "audio.prepare" { cancel_file } else { None }, timeout).inspect_err(|message| crate::logs::record("rust", "ERROR", &format!("[{id}] {method} transport failed: {message}"))).map_err(|message| match message.as_str() { "CANCELLED" => EngineError::new("CANCELLED", "Engine request cancelled"), "ENGINE_TIMEOUT" => EngineError::new("ENGINE_TIMEOUT", "The engine request timed out"), _ if message.contains("not installed") => EngineError::new("ENGINE_NOT_INSTALLED", message), _ => EngineError::new("ENGINE_IO_ERROR", message) })?;
     if response.get("version") != Some(&json!(1)) || response.get("id") != Some(&json!(id)) { return Err(EngineError::new("ENGINE_PROTOCOL_ERROR", "Engine response version or request ID does not match")); }
@@ -39,7 +39,7 @@ fn prune_jobs(active: &mut HashMap<String, JobToken>) { active.retain(|_, token|
 fn validate_job_id(id: &str) -> Result<(), EngineError> { if id.len() != 36 || !id.bytes().all(|byte| byte.is_ascii_hexdigit() || byte == b'-') { return Err(EngineError::new("INVALID_JOB_ID", "Expected a UUID job identifier")); } Ok(()) }
 
 fn is_engine_method_allowed(method: &str) -> bool {
-    matches!(method, "health" | "system.hello" | "media.probe" | "project.create" | "project.open" | "project.prepare_episode" | "project.rebuild_proxy" | "project.import_episode" | "project.dialogue_split" | "project.dialogue_merge_next" | "project.dialogue_restore" | "project.dialogue_update_text" | "project.dialogue_update_translation" | "project.dialogue_assign_speaker" | "speech.transcribe" | "settings.get" | "settings.update" | "settings.credential_add" | "settings.credential_remove" | "translation.providers" | "translation.models" | "translation.test_connection" | "translation.translate_episode" | "models.list" | "models.install" | "models.install_status" | "models.remove" | "tts.voices" | "tts.ensure_voice" | "tts.preview" | "tts.generate" | "tts.library_list" | "tts.library_create" | "tts.library_preview" | "tts.library_remove" | "tts.library_use" | "tts.assign_segment_voice")
+    matches!(method, "health" | "system.hello" | "media.probe" | "project.create" | "project.open" | "project.prepare_episode" | "project.rebuild_proxy" | "project.separate_audio" | "project.import_episode" | "project.dialogue_split" | "project.dialogue_merge_next" | "project.dialogue_restore" | "project.dialogue_update_text" | "project.dialogue_update_translation" | "project.dialogue_assign_speaker" | "speech.transcribe" | "settings.get" | "settings.update" | "settings.credential_add" | "settings.credential_remove" | "translation.providers" | "translation.models" | "translation.test_connection" | "translation.translate_episode" | "models.list" | "models.install" | "models.install_status" | "models.remove" | "tts.voices" | "tts.ensure_voice" | "tts.preview" | "tts.generate" | "tts.library_list" | "tts.library_create" | "tts.library_preview" | "tts.library_remove" | "tts.library_use" | "tts.assign_segment_voice")
 }
 
 #[tauri::command]
@@ -77,4 +77,10 @@ fn voice_library_methods_are_allowed() {
 #[test]
 fn segment_voice_method_is_allowed() {
     assert!(is_engine_method_allowed("tts.assign_segment_voice"));
+}
+
+#[cfg(test)]
+#[test]
+fn separation_method_is_allowed() {
+    assert!(is_engine_method_allowed("project.separate_audio"));
 }

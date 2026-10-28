@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 
 import { requestEngine } from "../deps/engine";
+import { checkCompactRuntime } from "../deps/voice-runtime";
 
 const NO_BASE_VOICE = "__no_base_voice__";
 
@@ -49,6 +50,7 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [compactStatus, setCompactStatus] = useState<string | null>(null);
   const [modelsBusy, setModelsBusy] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   const mounted = useRef(false);
@@ -65,9 +67,20 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
     void requestEngine("models.list", {})
       .then((items) => {
         if (!mounted.current) return;
-        const model = items.find((item) => item.id === "voxcpm2");
-        setInstalled(Boolean(model?.installed));
-        setModelsBusy(isModelDownloading(model));
+        setInstalled(
+          items.some(
+            (item) =>
+              ["voxcpm2", "voxcpm2-compact"].includes(item.id) &&
+              item.installed,
+          ),
+        );
+        setModelsBusy(
+          items.some(
+            (item) =>
+              ["voxcpm2", "voxcpm2-compact"].includes(item.id) &&
+              isModelDownloading(item),
+          ),
+        );
       })
       .catch(() => undefined);
     return () => {
@@ -84,9 +97,20 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
       void requestEngine("models.list", {})
         .then((items) => {
           if (cancelled) return;
-          const model = items.find((item) => item.id === "voxcpm2");
-          setInstalled(Boolean(model?.installed));
-          setModelsBusy(isModelDownloading(model));
+          setInstalled(
+            items.some(
+              (item) =>
+                ["voxcpm2", "voxcpm2-compact"].includes(item.id) &&
+                item.installed,
+            ),
+          );
+          setModelsBusy(
+            items.some(
+              (item) =>
+                ["voxcpm2", "voxcpm2-compact"].includes(item.id) &&
+                isModelDownloading(item),
+            ),
+          );
         })
         .catch(() => undefined);
     }, 2000);
@@ -174,6 +198,33 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
           Create voice
         </Button>
       </div>
+      {engine === "voxcpm2" && (
+        <div className="space-y-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!!busy}
+            onClick={() =>
+              void run("gpu-check", async () => {
+                const result = await checkCompactRuntime();
+                if (mounted.current)
+                  setCompactStatus(
+                    result.available
+                      ? "Compact GPU worker is available on this device."
+                      : "Compact GPU worker unavailable.",
+                  );
+              })
+            }
+          >
+            Check compact GPU support
+          </Button>
+          {compactStatus && (
+            <p role="status" className="text-xs text-muted-foreground">
+              {compactStatus}
+            </p>
+          )}
+        </div>
+      )}
       {engine === "voxcpm2" && (
         <p className="rounded border p-3 text-xs text-muted-foreground">
           {installed

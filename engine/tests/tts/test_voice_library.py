@@ -114,7 +114,11 @@ def test_voxcpm_loads_only_local_weights_once_and_keeps_stdout_clean(tmp_path, m
     monkeypatch.setattr(vox_module, "_model", None)
     monkeypatch.setattr(vox_module, "_model_key", None)
     monkeypatch.setattr(vox_module, "ModelManager", lambda: SimpleNamespace(installed=lambda _: True, path_for=lambda _: tmp_path))
-    monkeypatch.setattr(vox_module, "SettingsService", lambda: SimpleNamespace(get=lambda: SimpleNamespace(performance=SimpleNamespace(device="cpu"))))
+    settings = SimpleNamespace(
+        performance=SimpleNamespace(device="cpu"),
+        voice_clone=SimpleNamespace(model="voxcpm2"),
+    )
+    monkeypatch.setattr(vox_module, "SettingsService", lambda: SimpleNamespace(get=lambda: settings))
     monkeypatch.setitem(sys.modules, "voxcpm", SimpleNamespace(VoxCPM=Loader))
     monkeypatch.setitem(sys.modules, "soundfile", SimpleNamespace(write=lambda path, *args, **kwargs: Path(path).write_bytes(b"audio")))
     reference = wav(tmp_path / "reference.wav")

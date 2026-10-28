@@ -6,6 +6,7 @@ from catty_engine.logging import logged_process
 
 from pathlib import Path
 from math import isclose
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from catty_engine.media.audio import AudioAssetKind
@@ -14,6 +15,9 @@ from catty_engine.media.fingerprint import source_fingerprint
 from catty_engine.media.probe import MediaProbeService
 from catty_engine.media.video_proxy import VideoProxyService
 from catty_engine.speech.models import TranscriptSegment
+
+if TYPE_CHECKING:
+    from catty_engine.separation import AudioSeparationService
 
 from .models import (
     DialogueSegment,
@@ -40,11 +44,23 @@ class ProjectService:
         media_probe: MediaProbeService | None = None,
         audio_preparation: AudioPreparationService | None = None,
         video_proxy: VideoProxyService | None = None,
+        audio_separation: AudioSeparationService | None = None,
     ) -> None:
         self._store = store or ProjectStore()
         self._media_probe = media_probe or MediaProbeService()
         self._audio_preparation = audio_preparation or AudioPreparationService()
         self._video_proxy = video_proxy or VideoProxyService()
+        self._audio_separation = audio_separation
+
+    @property
+    def _separation(self) -> AudioSeparationService:
+        # Separation pulls in torch and the ONNX runtime; keep project opening
+        # and dialogue editing free of that import cost.
+        if self._audio_separation is None:
+            from catty_engine.separation import AudioSeparationService
+
+            self._audio_separation = AudioSeparationService()
+        return self._audio_separation
 
     @logged_process
     def create_project(self, directory: Path, name: str) -> Project:
@@ -153,6 +169,29 @@ class ProjectService:
             force=force,
         )
         self._store.save(directory=directory, project=project)
+        return episode
+
+    @logged_process
+    def prepare_episode_background(self, directory: Path, project: Project, episode_id: UUID) -> Episode:
+        episode = self._episode(project, episode_id)
+        # A persisted PROCESSING status can be left behind by a crash or a killed
+        # engine. IPC requests are serial, so retrying is always safe here.
+        episode.processing.separation = ProcessingStatus.PROCESSING
+        self._touch_and_save(directory, project, episode)
+        try:
+            asset = self._separation.prepare_background_audio(
+                project_directory=directory,
+                episode_id=episode.id,
+                source=episode.media.source_path,
+                existing_asset=episode.audio_asset(AudioAssetKind.BACKGROUND),
+            )
+        except Exception:
+            episode.processing.separation = ProcessingStatus.FAILED
+            self._touch_and_save(directory, project, episode)
+            raise
+        episode.set_audio_asset(asset)
+        episode.processing.separation = ProcessingStatus.COMPLETED
+        self._touch_and_save(directory, project, episode)
         return episode
 
     @logged_process

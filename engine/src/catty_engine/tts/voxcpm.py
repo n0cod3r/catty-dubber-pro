@@ -17,6 +17,17 @@ _model: Any = None
 _model_key: tuple[str, str] | None = None
 
 
+def select_runtime(selected: str, *, pytorch_installed: bool, compact_installed: bool) -> str:
+    """Compact is opt-in; unavailable PyTorch weights fall back to an installed compact model."""
+    if selected == "voxcpm2-compact":
+        return "compact"
+    if pytorch_installed:
+        return "pytorch"
+    if compact_installed:
+        return "compact"
+    return "pytorch"
+
+
 class VoxCPM2Provider:
     def synthesize(self, text: str, output: Path, *, reference: Path | None = None,
                    reference_text: str | None = None, style: str = "") -> Path:
@@ -24,6 +35,15 @@ class VoxCPM2Provider:
         if not text.strip():
             raise ValueError("Speech text cannot be empty")
         manager = ModelManager()
+        runtime = select_runtime(
+            SettingsService().get().voice_clone.model,
+            pytorch_installed=manager.installed("voxcpm2"),
+            compact_installed=manager.installed("voxcpm2-compact"),
+        )
+        if runtime == "compact":
+            from .compact import CompactVoxCPM2Provider
+            return CompactVoxCPM2Provider().synthesize(text, output, reference=reference,
+                reference_text=reference_text, style=style)
         if not manager.installed("voxcpm2"):
             raise ValueError("Download VoxCPM2 in Settings → Models before generating a voice.")
         path = manager.path_for("voxcpm2")

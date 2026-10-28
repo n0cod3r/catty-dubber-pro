@@ -36,6 +36,8 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
     audioCodec: episode.media.audio_codec,
     sampleRate: episode.media.sample_rate,
     channels: episode.media.channels,
+    audioAssets: episode.audio_assets,
+    separationStatus: episode.processing?.separation ?? "idle",
     speakers: episode.speakers,
     speakerError:
       episode.processing?.speaker_error ??

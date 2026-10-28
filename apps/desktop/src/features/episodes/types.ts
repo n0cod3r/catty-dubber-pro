@@ -1,10 +1,13 @@
 import type {
+  AudioAsset,
   DubSegment,
   EpisodeSpeaker,
   PersistedTranslation,
 } from "@catty/contracts";
 
 export type EpisodeMedia = {
+  audioAssets?: AudioAsset[];
+  separationStatus?: string;
   speakers?: EpisodeSpeaker[];
   speakerError?: string | null;
   translationStatus?: string;

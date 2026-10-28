@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { PersistedEpisode } from "@catty/contracts";
 
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 import { usePlayback } from "@/features/editor/deps/playback";
-import { VideoPreview } from "@/features/editor/deps/preview";
+import { dubMixClips, VideoPreview } from "@/features/editor/deps/preview";
 import {
   documentDuration,
   Timeline,
@@ -13,6 +13,7 @@ import {
 } from "@/features/editor/deps/timeline";
 
 import { useDialogueEditing } from "../hooks/use-dialogue-editing";
+import { useSeparation } from "../hooks/use-separation";
 import { useTranslation } from "../hooks/use-translation";
 import { useTts } from "../hooks/use-tts";
 import { EditorPanels } from "./editor-panels";
@@ -24,6 +25,7 @@ type EditorWorkspaceProps = {
   importing: boolean;
   onImport: () => void;
   onEpisodePersisted: (episode: PersistedEpisode) => void;
+  onOpenModels: () => void;
   followPlayhead: boolean;
   onMetadata: (
     id: string,
@@ -47,6 +49,7 @@ function WorkspaceContent({
   followPlayhead,
   onMetadata,
   onEpisodePersisted,
+  onOpenModels,
 }: EditorWorkspaceProps) {
   const dialogue = useDialogueEditing(
     episode,
@@ -59,6 +62,16 @@ function WorkspaceContent({
     onEpisodePersisted,
   );
   const tts = useTts(episode, projectDirectory, onEpisodePersisted);
+  const separation = useSeparation(
+    episode,
+    projectDirectory,
+    onEpisodePersisted,
+  );
+  const mixClips = useMemo(() => dubMixClips(episode), [episode]);
+  const [mixEnabled, setMixEnabled] = useState(false);
+  useEffect(() => {
+    if (!separation.background) setMixEnabled(false);
+  }, [separation.background]);
   const [muted, setMuted] = useState(false);
   const history = useTimelineStore((state) => state.history);
   const initialize = useTimelineStore((state) => state.initialize);
@@ -121,6 +134,10 @@ function WorkspaceContent({
         <VideoPreview
           episode={episode}
           document={history.present}
+          projectDirectory={projectDirectory}
+          backgroundPath={separation.background?.path ?? null}
+          mixClips={mixClips}
+          mixEnabled={mixEnabled}
           currentTime={playback.currentTime}
           duration={duration}
           playing={playback.playing}
@@ -147,6 +164,11 @@ function WorkspaceContent({
           dialogue={dialogue}
           translation={translation}
           tts={tts}
+          separation={separation}
+          mixClips={mixClips}
+          mixEnabled={mixEnabled}
+          onMixChange={setMixEnabled}
+          onOpenModels={onOpenModels}
         />
       }
     />

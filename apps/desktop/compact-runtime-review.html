@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Catty Compact Runtime Check</title>
+  </head>
+  <body
+    style="
+      background: #171410;
+      color: #eee;
+      font: 16px system-ui;
+      padding: 32px;
+    "
+  >
+    <h1>Catty Compact Runtime Check</h1>
+    <p>Actual Tauri webview · Python persistence · WebGPU worker</p>
+    <pre id="result">Checking desktop worker…</pre>
+    <button id="generate">Generate compact Khmer voice</button
+    ><button id="clone">Clone cached Edge Man sample</button>
+    <pre id="voice"></pre>
+    <audio id="audio" controls></audio>
+    <script type="module">
+      import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
+
+      import {
+        checkCompactRuntime,
+        initializeCompactRuntime,
+      } from "./src/features/voice-runtime/index.ts";
+
+      initializeCompactRuntime();
+      const request = (method, params = {}) =>
+        invoke("engine_request", { method, params });
+      try {
+        const result = await checkCompactRuntime();
+        document.querySelector("#result").textContent = JSON.stringify(
+          { nativeTauri: isTauri(), float16OnnxInference: true, ...result },
+          null,
+          2,
+        );
+      } catch (error) {
+        document.querySelector("#result").textContent = JSON.stringify(
+          { nativeTauri: isTauri(), error: String(error) },
+          null,
+          2,
+        );
+      }
+      async function generate(params) {
+        document.querySelector("#voice").textContent =
+          "Generating compact speech…";
+        const started = performance.now();
+        try {
+          const result = await request("tts.library_preview", params);
+          document.querySelector("#voice").textContent = JSON.stringify(
+            {
+              path: result.path,
+              seconds: (performance.now() - started) / 1000,
+            },
+            null,
+            2,
+          );
+          document.querySelector("#audio").src = convertFileSrc(result.path);
+        } catch (error) {
+          document.querySelector("#voice").textContent = String(error);
+        }
+      }
+      document.querySelector("#generate").onclick = () =>
+        generate({ voice_id: "builtin-voxcpm2-man" });
+      document.querySelector("#clone").onclick = () =>
+        generate({
+          draft: {
+            name: "Compact clone test",
+            engine: "voxcpm2",
+            speed: 1,
+            reference_audio_path:
+              "/Users/mac/Library/Application Support/Catty Dubber Pro/voices/previews/builtin-edge-man.mp3",
+          },
+        });
+    </script>
+  </body>
+</html>

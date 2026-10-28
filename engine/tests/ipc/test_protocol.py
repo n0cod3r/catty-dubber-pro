@@ -20,6 +20,7 @@ def test_health_lists_available_operations() -> None:
         "project.open",
         "project.prepare_episode",
         "project.rebuild_proxy",
+        "project.separate_audio",
         "project.import_episode",
         "project.dialogue_split",
         "project.dialogue_merge_next",

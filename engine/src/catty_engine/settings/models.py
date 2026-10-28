@@ -64,7 +64,7 @@ class TtsSettings(SettingsModel):
 
 
 class VoiceCloneSettings(SettingsModel):
-    model: str = "VoxCPM2"
+    model: str = "voxcpm2"
     reference_audio: str | None = None
 
 

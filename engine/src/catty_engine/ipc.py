@@ -26,6 +26,7 @@ PROTOCOL_VERSION = 1
 EngineMethod = Literal[
     "health", "system.hello", "system.shutdown", "media.probe", "audio.prepare",
     "project.create", "project.open", "project.prepare_episode", "project.rebuild_proxy",
+    "project.separate_audio",
     "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next",
     "project.dialogue_restore", "project.dialogue_update_text", "project.dialogue_update_translation",
     "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
@@ -131,8 +132,8 @@ def _hello() -> dict[str, Any]:
         "name": "catty-engine", "version": "0.1.0", "protocol_version": PROTOCOL_VERSION,
         "capabilities": [
             "media.probe", "audio.prepare", "project.create", "project.open",
-            "project.prepare_episode", "project.rebuild_proxy", "project.import_episode",
-            "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore",
+            "project.prepare_episode", "project.rebuild_proxy", "project.separate_audio",
+            "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore",
             "project.dialogue_update_text", "project.dialogue_update_translation",
             "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
             "settings.credential_add", "settings.credential_remove",
@@ -251,6 +252,20 @@ def handle_request(payload: Any) -> dict[str, Any]:
             else:
                 episode = service.prepare_episode_proxy(prepare_params.project_directory, project, prepare_params.episode_id, force=True)
             result = episode.model_dump(mode="json")
+        elif request.method == "project.separate_audio":
+            separate_params = ProjectPrepareEpisodeParams.model_validate(request.params)
+            from catty_engine.separation.errors import SeparationError, SeparationModelMissing
+            try:
+                service = ProjectService()
+                project = service.open_project(separate_params.project_directory)
+                separated = service.prepare_episode_background(separate_params.project_directory, project, separate_params.episode_id)
+            except SeparationModelMissing as exc:
+                response["error"] = {"code": "SEPARATION_MODEL_MISSING", "message": str(exc)}
+                return response
+            except SeparationError as exc:
+                response["error"] = {"code": "SEPARATION_FAILED", "message": str(exc)}
+                return response
+            result = separated.model_dump(mode="json")
         elif request.method == "project.import_episode":
             import_params = ProjectImportEpisodeParams.model_validate(request.params)
             service, project = _open_or_create_project(import_params.project_directory, import_params.project_name)

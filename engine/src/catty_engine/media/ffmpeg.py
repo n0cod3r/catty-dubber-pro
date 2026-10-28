@@ -62,17 +62,56 @@ class FFmpegRunner:
         sample_rate: int = 16_000,
         channels: int = 1,
     ) -> None:
+        self._extract_audio(
+            source,
+            destination,
+            sample_rate=sample_rate,
+            channels=channels,
+            codec="pcm_s16le",
+            prefix=".speech-",
+            operation="Audio preparation",
+        )
+
+    def decode_stereo_audio(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        sample_rate: int = 44_100,
+    ) -> None:
+        """Decode the first audio stream to float WAV for signal processing."""
+        self._extract_audio(
+            source,
+            destination,
+            sample_rate=sample_rate,
+            channels=2,
+            codec="pcm_f32le",
+            prefix=".decoded-",
+            operation="Audio decoding",
+        )
+
+    def _extract_audio(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        sample_rate: int,
+        channels: int,
+        codec: str,
+        prefix: str,
+        operation: str,
+    ) -> None:
         source = source.expanduser().resolve()
         destination = destination.expanduser().resolve()
         if source == destination:
-            raise FFmpegError("Prepared audio must not overwrite its source file")
+            raise FFmpegError(f"{operation} must not overwrite its source file")
         if not source.is_file():
             raise FFmpegError(f"Media source is not a file: {source}")
         if self._cancelled():
-            raise AudioPreparationCancelled("Audio preparation cancelled")
+            raise AudioPreparationCancelled(f"{operation} cancelled")
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
-            prefix=".speech-", suffix=".wav", dir=destination.parent, delete=False
+            prefix=prefix, suffix=".wav", dir=destination.parent, delete=False
         ) as staged:
             temporary = Path(staged.name)
         try:
@@ -94,16 +133,16 @@ class FFmpegRunner:
                     "-ar",
                     str(sample_rate),
                     "-c:a",
-                    "pcm_s16le",
+                    codec,
                     str(temporary),
                 ],
-                operation="Audio preparation",
+                operation=operation,
             )
             if temporary.stat().st_size == 0:
                 raise FFmpegError("FFmpeg created an empty audio file")
             temporary.replace(destination)
         except OSError as exc:
-            raise FFmpegError(f"Could not prepare audio: {exc}") from exc
+            raise FFmpegError(f"Could not {operation.lower()}: {exc}") from exc
         finally:
             temporary.unlink(missing_ok=True)
 

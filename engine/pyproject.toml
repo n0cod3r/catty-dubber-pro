@@ -18,6 +18,7 @@ dependencies = [
   "edge-tts>=7.2,<8",
   "voxcpm>=2.0.3,<3",
   "soundfile>=0.13,<1",
+  "onnxruntime>=1.20,<2",
 ]
 
 [project.scripts]
@@ -35,5 +36,5 @@ dev = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["sherpa_onnx", "funasr", "transformers", "edge_tts", "voxcpm", "soundfile"]
+module = ["sherpa_onnx", "funasr", "transformers", "edge_tts", "voxcpm", "soundfile", "onnxruntime"]
 ignore_missing_imports = true

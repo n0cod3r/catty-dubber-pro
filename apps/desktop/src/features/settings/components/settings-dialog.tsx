@@ -55,6 +55,7 @@ const pages = [
   ["about", "អំពី Catty", "About", Info],
 ] as const;
 type PageId = (typeof pages)[number][0];
+export type SettingsPage = PageId;
 const providerLabels: Record<TranslationProviderId, string> = {
   local: "Local",
   gemini: "Gemini",
@@ -78,10 +79,14 @@ const computeDeviceItems = ["auto", "cpu", "cuda", "mps"].map((device) => ({
   label: device.toUpperCase(),
   value: device,
 }));
-type Props = { open: boolean; onOpenChange: (open: boolean) => void };
+type Props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialPage?: SettingsPage;
+};
 
-export function SettingsDialog({ open, onOpenChange }: Props) {
-  const [page, setPage] = useState<PageId>("translation");
+export function SettingsDialog({ open, onOpenChange, initialPage }: Props) {
+  const [page, setPage] = useState<PageId>(initialPage ?? "translation");
   const [query, setQuery] = useState("");
   const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null);
   const [draft, setDraft] = useState<AppSettings | null>(null);
@@ -138,6 +143,10 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
       cancelled = true;
     };
   }, [open, loadRevision]);
+
+  useEffect(() => {
+    if (open && initialPage) setPage(initialPage);
+  }, [open, initialPage]);
 
   const modelsBusy = localModels.some(
     (model) =>
@@ -459,6 +468,7 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
               ) : page === "models" ? (
                 <ModelsPage
                   models={localModels}
+                  selectedVoiceModel={draft.voice_clone.model}
                   selectedModel={
                     draft.translation.providers.local.selected_model
                   }
@@ -466,7 +476,17 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
                   modelActionId={modelActionId}
                   onInstall={(id) => void modelAction(id, "install")}
                   onRemove={(id) => void modelAction(id, "remove")}
-                  onSelect={(id) =>
+                  onSelect={(id) => {
+                    if (
+                      localModels.find((model) => model.id === id)?.kind ===
+                      "tts"
+                    ) {
+                      setDraft({
+                        ...draft,
+                        voice_clone: { ...draft.voice_clone, model: id },
+                      });
+                      return;
+                    }
                     setDraft({
                       ...draft,
                       translation: {
@@ -479,8 +499,8 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
                           },
                         },
                       },
-                    })
-                  }
+                    });
+                  }}
                 />
               ) : page === "tts" || page === "clone" ? (
                 <VoiceLibrary key={page} clone={page === "clone"} />
@@ -555,6 +575,7 @@ function LoadError({ error, retry }: { error: string; retry: () => void }) {
 
 function ModelsPage({
   models,
+  selectedVoiceModel,
   selectedModel,
   busy,
   modelActionId,
@@ -563,6 +584,7 @@ function ModelsPage({
   onSelect,
 }: {
   models: TranslationModel[];
+  selectedVoiceModel: string;
   selectedModel: string | null;
   busy: string | null;
   modelActionId: string | null;
@@ -570,15 +592,32 @@ function ModelsPage({
   onRemove: (id: string) => void;
   onSelect: (id: string) => void;
 }) {
+  // Mirrors the engine: compact is opt-in, PyTorch is used whenever it is installed.
+  const savedVoiceModel =
+    selectedVoiceModel === "VoxCPM2" ? "voxcpm2" : selectedVoiceModel;
+  const voiceModel =
+    savedVoiceModel === "voxcpm2-compact"
+      ? savedVoiceModel
+      : models.some((model) => model.id === "voxcpm2" && model.installed)
+        ? "voxcpm2"
+        : models.some(
+              (model) => model.id === "voxcpm2-compact" && model.installed,
+            )
+          ? "voxcpm2-compact"
+          : savedVoiceModel;
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Section
         title="Local AI Models"
-        description="Download translation and voice models. Downloads continue when Settings is closed."
+        description="Download translation, voice and dialogue-removal models. Downloads continue when Settings is closed."
       >
         <div className="space-y-2">
           {models.map((model) => {
-            const active = selectedModel === model.id;
+            const selectable =
+              model.kind === "translation" || model.kind === "tts";
+            const active =
+              selectable &&
+              (model.kind === "tts" ? voiceModel : selectedModel) === model.id;
             const acting =
               busy === "model-action" && modelActionId === model.id;
             const downloading = model.install_status === "downloading";
@@ -674,22 +713,18 @@ function ModelsPage({
                   <div className="flex shrink-0 gap-1">
                     {model.installed ? (
                       <>
-                        <Button
-                          size="sm"
-                          variant={active ? "secondary" : "outline"}
-                          className="h-7 text-[9px]"
-                          disabled={
-                            busy !== null || active || model.kind === "tts"
-                          }
-                          onClick={() => onSelect(model.id)}
-                        >
-                          {active ? <CheckIcon /> : null}
-                          {model.kind === "tts"
-                            ? "Installed"
-                            : active
-                              ? "Using"
-                              : "Use"}
-                        </Button>
+                        {selectable && (
+                          <Button
+                            size="sm"
+                            variant={active ? "secondary" : "outline"}
+                            className="h-7 text-[9px]"
+                            disabled={busy !== null || active}
+                            onClick={() => onSelect(model.id)}
+                          >
+                            {active ? <CheckIcon /> : null}
+                            {active ? "Using" : "Use"}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"

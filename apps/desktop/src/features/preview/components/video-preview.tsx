@@ -20,13 +20,24 @@ import type { TimelineDocument } from "@/features/preview/deps/timeline";
 import { formatTime } from "@/shared/utils/time";
 
 import { useClipMediaSync } from "../hooks/use-clip-media-sync";
+import { assetAudioUrl } from "../utils/audio-url";
+import {
+  mixClipSourceTime,
+  nearbyMixClips,
+  type MixDubClip,
+} from "../utils/dub-mix";
 import { activeVideoAt } from "../utils/video-geometry";
+import { MixAudio } from "./mix-audio";
 import { PreviewFrame } from "./preview-frame";
 import { PreviewLayers } from "./preview-layers";
 
 type VideoPreviewProps = {
   document: TimelineDocument;
   episode: EpisodeMedia | null;
+  projectDirectory: string;
+  backgroundPath: string | null;
+  mixClips: MixDubClip[];
+  mixEnabled: boolean;
   currentTime: number;
   duration: number;
   playing: boolean;
@@ -45,6 +56,10 @@ type VideoPreviewProps = {
 export function VideoPreview({
   episode,
   document,
+  projectDirectory,
+  backgroundPath,
+  mixClips,
+  mixEnabled,
   currentTime,
   duration,
   playing,
@@ -75,6 +90,15 @@ export function VideoPreview({
   );
   const pictureVisible = activeVideo !== null;
   const activeClip = activeVideo?.clip;
+  const backgroundSrc = backgroundPath
+    ? assetAudioUrl(backgroundPath, projectDirectory)
+    : null;
+  const mixActive = mixEnabled && !!backgroundSrc;
+  const backgroundTime =
+    mixActive && activeVideo
+      ? activeVideo.clip.sourceStart + currentTime - activeVideo.clip.start
+      : null;
+  const mixDubs = mixActive ? nearbyMixClips(mixClips, currentTime) : [];
   useEffect(() => {
     onMediaClock(() => {
       const video = videoRef.current;
@@ -183,6 +207,11 @@ export function VideoPreview({
             PROXY A/V
           </span>
         )}
+        {mixActive && (
+          <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[9px] text-emerald-400">
+            MIX
+          </span>
+        )}
         <span className="ml-auto truncate text-[10px] text-muted-foreground">
           {episode
             ? episode.width && episode.height
@@ -200,7 +229,7 @@ export function VideoPreview({
                   ref={videoRef}
                   src={src}
                   preload="auto"
-                  muted={muted}
+                  muted={muted || mixActive}
                   playsInline
                   aria-label={episode?.name}
                   className="size-full object-contain"
@@ -237,6 +266,30 @@ export function VideoPreview({
                   width={frameWidth}
                   frontVideoIndex={activeVideo?.layerIndex ?? -1}
                 />
+                {mixActive && backgroundSrc && (
+                  <MixAudio
+                    key={`mix-background:${backgroundSrc}`}
+                    id="background"
+                    src={backgroundSrc}
+                    sourceTime={backgroundTime}
+                    playing={playing}
+                    muted={muted}
+                    seekRevision={seekRevision}
+                    onError={reportPlaybackError}
+                  />
+                )}
+                {mixDubs.map((clip) => (
+                  <MixAudio
+                    key={`mix:${clip.id}:${clip.version}`}
+                    id={clip.id}
+                    src={assetAudioUrl(clip.audioPath, projectDirectory)}
+                    sourceTime={mixClipSourceTime(clip, currentTime)}
+                    playing={playing}
+                    muted={muted}
+                    seekRevision={seekRevision}
+                    onError={reportPlaybackError}
+                  />
+                ))}
               </>
             )}
           </PreviewFrame>
