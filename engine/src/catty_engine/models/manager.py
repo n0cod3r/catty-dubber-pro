@@ -79,6 +79,25 @@ _JOBS: dict[str, InstallJob] = {}
 _JOBS_LOCK = threading.Lock()
 
 
+def _directory_size(path: Path) -> int:
+    """Return bytes currently present in a model staging directory.
+
+    Hugging Face writes partial downloads into the local staging tree, so this also
+    counts in-progress shard bytes without coupling Catty to downloader internals.
+    """
+    if not path.exists():
+        return 0
+    total = 0
+    for item in path.rglob("*"):
+        if not item.is_file() or item.name == ".catty-installed":
+            continue
+        try:
+            total += item.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
 class ModelManager:
     def root(self) -> Path:
         path = app_data_dir() / "models"
@@ -88,6 +107,10 @@ class ModelManager:
     def path_for(self, model_id: str) -> Path:
         self.spec(model_id)
         return self.root() / model_id
+
+    def staging_path_for(self, model_id: str) -> Path:
+        target = self.path_for(model_id)
+        return target.with_name(f".{target.name}.downloading")
 
     def spec(self, model_id: str) -> ModelSpec:
         try:
@@ -106,16 +129,36 @@ class ModelManager:
             spec for spec in _REGISTRY.values() if kind is None or spec.kind == kind
         ]
 
+    def _progress_snapshot(self, spec: ModelSpec, status: str) -> dict[str, object]:
+        total_bytes = spec.approximate_size_mb * 1024 * 1024
+        if status == "installed":
+            downloaded_bytes = total_bytes
+            progress = 100
+        else:
+            downloaded_bytes = _directory_size(self.staging_path_for(spec.id))
+            progress = min(99, round(downloaded_bytes * 100 / total_bytes)) if total_bytes else 0
+        return {
+            "downloaded_bytes": downloaded_bytes,
+            "total_bytes": total_bytes,
+            "progress": progress,
+        }
+
     def _job_snapshot(self, model_id: str) -> dict[str, object]:
+        spec = self.spec(model_id)
         with _JOBS_LOCK:
             job = _JOBS.get(model_id)
         if job is None:
-            return {
+            status = "installed" if self.installed(model_id) else "idle"
+            result: dict[str, object] = {
                 "model_id": model_id,
-                "status": "installed" if self.installed(model_id) else "idle",
+                "status": status,
                 "error": None,
             }
-        return {"model_id": model_id, "status": job.status, "error": job.error}
+        else:
+            status = job.status
+            result = {"model_id": model_id, "status": status, "error": job.error}
+        result.update(self._progress_snapshot(spec, status))
+        return result
 
     def _snapshot(self, spec: ModelSpec) -> dict[str, object]:
         path = self.path_for(spec.id)
@@ -133,6 +176,9 @@ class ModelManager:
             "path": str(path) if installed else None,
             "install_status": job["status"],
             "install_error": job["error"],
+            "downloaded_bytes": job["downloaded_bytes"],
+            "total_bytes": job["total_bytes"],
+            "download_progress": job["progress"],
         }
 
     def install_status(self, model_id: str | None = None) -> list[dict[str, object]]:
@@ -163,7 +209,7 @@ class ModelManager:
     def _install_worker(self, model_id: str) -> None:
         spec = self.spec(model_id)
         target = self.path_for(model_id)
-        staging = target.with_name(f".{target.name}.downloading")
+        staging = self.staging_path_for(model_id)
         staging.mkdir(parents=True, exist_ok=True)
         try:
             snapshot_download(
@@ -187,7 +233,7 @@ class ModelManager:
         """Synchronous install retained for callers/tests that need completion."""
         spec = self.spec(model_id)
         target = self.path_for(model_id)
-        staging = target.with_name(f".{target.name}.downloading")
+        staging = self.staging_path_for(model_id)
         if self.installed(model_id):
             return self._snapshot(spec)
         staging.mkdir(parents=True, exist_ok=True)
@@ -211,8 +257,5 @@ class ModelManager:
                 raise ValueError("Cannot remove a model while it is downloading")
             _JOBS.pop(model_id, None)
         shutil.rmtree(self.path_for(model_id), ignore_errors=True)
-        shutil.rmtree(
-            self.path_for(model_id).with_name(f".{model_id}.downloading"),
-            ignore_errors=True,
-        )
+        shutil.rmtree(self.staging_path_for(model_id), ignore_errors=True)
         return self._snapshot(spec)
