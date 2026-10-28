@@ -59,6 +59,18 @@ def _hy_mt2_prompt(segment: TranslationInput, request: TranslationBatchRequest) 
 _contextual_prompt = _hy_mt2_prompt
 
 
+def _chat_prompt(tokenizer: Any, prompt: str) -> str:
+    """Render HY-MT2 input with the model's native chat template."""
+    rendered = tokenizer.apply_chat_template(
+        [{"role": "user", "content": prompt}],
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+    if not isinstance(rendered, str):
+        raise ProviderError("HY-MT2 tokenizer returned an invalid chat prompt.")
+    return rendered
+
+
 def _torch_device() -> str:
     import torch
     if torch.cuda.is_available():
@@ -121,7 +133,8 @@ def _load_mlx_model(model_id: str, manager: ModelManager) -> tuple[Any, Any]:
     mlx_lm = _mlx_runtime()
     model_path = manager.path_for(model_id)
     _normalize_mlx_tokenizer_config(model_path)
-    model, tokenizer = mlx_lm.load(
+    load: Any = getattr(mlx_lm, "load")
+    model, tokenizer = load(
         str(model_path),
         tokenizer_config=dict(_MLX_TOKENIZER_CONFIG),
     )
@@ -167,10 +180,25 @@ class LocalProvider:
         tokenizer, model, device = _load_transformers_model(self.selected_model, self.manager)
         outputs: list[TranslationOutput] = []
         for segment in request.segments:
-            encoded = tokenizer(_hy_mt2_prompt(segment, request), add_special_tokens=False, return_tensors="pt", truncation=True, max_length=2048)
+            prompt = _chat_prompt(tokenizer, _hy_mt2_prompt(segment, request))
+            encoded = tokenizer(
+                prompt,
+                add_special_tokens=False,
+                return_tensors="pt",
+                truncation=True,
+                max_length=2048,
+            )
+            # HY-MT2's tokenizer can emit token_type_ids, but its causal LM does
+            # not accept them during generation.
+            encoded.pop("token_type_ids", None)
             encoded = {key: value.to(device) for key, value in encoded.items()}
             with torch.inference_mode():
-                generated = model.generate(**encoded, do_sample=False, max_new_tokens=256, repetition_penalty=1.05)
+                generated = model.generate(
+                    **encoded,
+                    do_sample=False,
+                    max_new_tokens=256,
+                    repetition_penalty=1.05,
+                )
             input_length = encoded["input_ids"].shape[1]
             text = tokenizer.decode(generated[0][input_length:], skip_special_tokens=True).strip()
             if not text:
@@ -184,7 +212,14 @@ class LocalProvider:
         generate: Any = getattr(mlx_lm, "generate")
         outputs: list[TranslationOutput] = []
         for segment in request.segments:
-            text = generate(model, tokenizer, prompt=_hy_mt2_prompt(segment, request), max_tokens=256, verbose=False).strip()
+            prompt = _chat_prompt(tokenizer, _hy_mt2_prompt(segment, request))
+            text = generate(
+                model,
+                tokenizer,
+                prompt=prompt,
+                max_tokens=256,
+                verbose=False,
+            ).strip()
             if not text:
                 raise ProviderError(f"{self.selected_model} returned an empty translation for {segment.id}.")
             outputs.append(TranslationOutput(id=segment.id, text=text))
