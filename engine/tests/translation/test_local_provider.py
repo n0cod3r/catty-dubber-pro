@@ -9,6 +9,7 @@ from catty_engine.translation.models import (
 )
 from catty_engine.translation.providers.other import (
     LocalProvider,
+    _MLX_TOKENIZER_CONFIG,
     _hy_mt2_prompt,
     _normalize_mlx_tokenizer_config,
 )
@@ -29,6 +30,10 @@ def test_local_models_only_include_hy_mt2_choices() -> None:
 def test_removed_model_selection_migrates_to_recommended_model() -> None:
     provider = LocalProvider(selected_model="m2m100-1.2b")
     assert provider.selected_model == "hy-mt2-7b-q4"
+
+
+def test_mlx_tokenizer_enables_mistral_regex_compatibility() -> None:
+    assert _MLX_TOKENIZER_CONFIG == {"fix_mistral_regex": True}
 
 
 def test_normalize_mlx_tokenizer_config_repairs_tokenizers_backend(tmp_path) -> None:
