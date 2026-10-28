@@ -84,6 +84,7 @@ class EpisodeSpeaker(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
     character_id: UUID | None = None
+    voice_profile_id: UUID | None = None
     segment_ids: list[UUID] = Field(default_factory=list)
 
 
@@ -147,7 +148,9 @@ class Episode(BaseModel):
         return next((asset for asset in self.audio_assets if asset.kind == kind), None)
 
     def set_audio_asset(self, asset: AudioAsset) -> None:
-        self.audio_assets = [current for current in self.audio_assets if current.kind != asset.kind]
+        self.audio_assets = [
+            current for current in self.audio_assets if current.kind != asset.kind
+        ]
         self.audio_assets.append(asset)
         self.updated_at = utc_now()
 
@@ -185,14 +188,22 @@ class Project(BaseModel):
         return next((episode for episode in self.episodes if episode.id == episode_id), None)
 
     def character(self, character_id: UUID) -> Character | None:
-        return next((character for character in self.characters if character.id == character_id), None)
+        return next(
+            (character for character in self.characters if character.id == character_id), None
+        )
 
     def voice_profile(self, voice_profile_id: UUID) -> VoiceProfile | None:
-        return next((voice for voice in self.voice_profiles if voice.id == voice_profile_id), None)
+        return next(
+            (voice for voice in self.voice_profiles if voice.id == voice_profile_id), None
+        )
 
     def add_episode(self, source_path: str) -> Episode:
         path = Path(source_path)
-        episode = Episode(name=path.stem, order=len(self.episodes), media=MediaInfo(source_path=str(path)))
+        episode = Episode(
+            name=path.stem,
+            order=len(self.episodes),
+            media=MediaInfo(source_path=str(path)),
+        )
         self.episodes.append(episode)
         self.updated_at = utc_now()
         return episode
