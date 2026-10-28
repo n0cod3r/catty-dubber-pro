@@ -1,5 +1,10 @@
 export type VoiceEngine = "edge" | "voxcpm2";
-export type DubStatus = "pending" | "generating" | "ready" | "stale" | "failed";
+export type DubStatus =
+  | "pending"
+  | "generating"
+  | "ready"
+  | "outdated"
+  | "failed";
 export type TtsGenerationMode = "missing" | "all" | "selected";
 
 export type VoiceProfile = {
@@ -8,7 +13,8 @@ export type VoiceProfile = {
   engine: VoiceEngine;
   language: string;
   engine_voice_id: string | null;
-  reference_audio: string | null;
+  reference_audio_path: string | null;
+  created_at: string;
 };
 
 export type EdgeVoice = {
@@ -36,16 +42,22 @@ export type TtsProgress = {
   operation_id: string;
   project_directory: string;
   episode_id: string;
-  phase: "started" | "generating" | "saved" | "completed" | "cancelled" | "failed";
+  phase:
+    | "started"
+    | "generating"
+    | "saved"
+    | "completed"
+    | "cancelled"
+    | "failed";
   completed: number;
   total: number;
   segment_id: string | null;
   segment: DubSegment | null;
-  episode: unknown | null;
+  episode: import("./index").PersistedEpisode | null;
 };
 
 export type TtsGenerateParams = {
-  operation_id: string;
+  operation_id?: string;
   project_directory: string;
   episode_id: string;
   voice_profile_id: string;
