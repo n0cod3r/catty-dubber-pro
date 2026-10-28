@@ -74,5 +74,12 @@ export function usePlayback(duration: number) {
     return () => cancelAnimationFrame(frame);
   }, [duration, playing]);
 
-  return { currentTime, playing, setPlaying, seek, setMediaClock, seekRevision };
+  return {
+    currentTime,
+    playing,
+    setPlaying,
+    seek,
+    setMediaClock,
+    seekRevision,
+  };
 }

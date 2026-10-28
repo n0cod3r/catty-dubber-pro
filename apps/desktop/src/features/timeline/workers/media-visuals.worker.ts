@@ -1,4 +1,10 @@
-import { ALL_FORMATS, AudioSampleSink, CanvasSink, Input, UrlSource } from "mediabunny";
+import {
+  ALL_FORMATS,
+  AudioSampleSink,
+  CanvasSink,
+  Input,
+  UrlSource,
+} from "mediabunny";
 
 import { accumulatePeaks } from "../services/peaks";
 import type { VisualRequest, VisualResponse } from "../types/media-visuals";
@@ -46,7 +52,14 @@ async function audio() {
       const low = min.slice(sent, end),
         high = max.slice(sent, end);
       scope.postMessage(
-        { type: "audio-chunk", start: sent, min: low, max: high, progress: end / bins, peak },
+        {
+          type: "audio-chunk",
+          start: sent,
+          min: low,
+          max: high,
+          progress: end / bins,
+          peak,
+        },
         [low.buffer, high.buffer],
       );
       sent = end;
@@ -63,13 +76,23 @@ async function audio() {
         );
         peak = Math.max(
           peak,
-          accumulatePeaks(min, max, channels, sample.timestamp, sample.sampleRate, rate),
+          accumulatePeaks(
+            min,
+            max,
+            channels,
+            sample.timestamp,
+            sample.sampleRate,
+            rate,
+          ),
         );
         if (performance.now() - lastUpdate > 200) {
           emit(
             Math.min(
               bins,
-              Math.max(0, Math.floor((sample.timestamp + sample.duration) * rate) - 1),
+              Math.max(
+                0,
+                Math.floor((sample.timestamp + sample.duration) * rate) - 1,
+              ),
             ),
           );
           lastUpdate = performance.now();
@@ -83,7 +106,8 @@ async function audio() {
   } catch (cause) {
     scope.postMessage({
       type: "audio-error",
-      message: cause instanceof Error ? cause.message : "Waveform decoding failed.",
+      message:
+        cause instanceof Error ? cause.message : "Waveform decoding failed.",
     });
   } finally {
     input.dispose();
@@ -102,12 +126,19 @@ async function thumbnails() {
       const track = await videoInput.getPrimaryVideoTrack();
       if (!track || !(await track.canDecode()))
         throw new Error("Video thumbnails are unavailable for this codec.");
-      videoSink = new CanvasSink(track, { width: 160, height: 90, fit: "contain", poolSize: 1 });
+      videoSink = new CanvasSink(track, {
+        width: 160,
+        height: 90,
+        fit: "contain",
+        poolSize: 1,
+      });
     }
     while (thumbnailQueue.length) {
       const time = thumbnailQueue.shift();
       if (time === undefined) break;
-      const frame = await videoSink.getCanvas(Math.min(time, Math.max(0, duration - 0.05)));
+      const frame = await videoSink.getCanvas(
+        Math.min(time, Math.max(0, duration - 0.05)),
+      );
       if (!frame) continue;
       const bitmap = await createImageBitmap(frame.canvas);
       scope.postMessage({ type: "thumbnail", time, bitmap }, [bitmap]);
@@ -119,7 +150,8 @@ async function thumbnails() {
     videoSink = null;
     scope.postMessage({
       type: "video-error",
-      message: cause instanceof Error ? cause.message : "Thumbnail decoding failed.",
+      message:
+        cause instanceof Error ? cause.message : "Thumbnail decoding failed.",
     });
   } finally {
     videoRunning = false;

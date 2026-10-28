@@ -2,7 +2,11 @@ import { memo, useEffect, useRef } from "react";
 
 import type { MediaVisuals } from "../hooks/use-media-visuals";
 import type { TimelineClip } from "../types";
-import { clipRenderWindow, THUMB_WIDTH, thumbnailTiles } from "../utils/render-window";
+import {
+  clipRenderWindow,
+  THUMB_WIDTH,
+  thumbnailTiles,
+} from "../utils/render-window";
 
 type Props = {
   clip: TimelineClip;
@@ -66,7 +70,10 @@ export const ClipMediaCanvas = memo(function ClipMediaCanvas({
         const from = Math.max(0, Math.floor(time * wave.rate));
         const to = Math.min(
           wave.min.length,
-          Math.max(from + 1, Math.ceil((time + 2 / pixelsPerSecond) * wave.rate)),
+          Math.max(
+            from + 1,
+            Math.ceil((time + 2 / pixelsPerSecond) * wave.rate),
+          ),
         );
         let low = 0,
           high = 0;
@@ -96,7 +103,11 @@ export const ClipMediaCanvas = memo(function ClipMediaCanvas({
   return (
     <canvas
       ref={canvasRef}
-      aria-label={clip.kind === "video" ? "Video frame thumbnails" : "Decoded audio waveform"}
+      aria-label={
+        clip.kind === "video"
+          ? "Video frame thumbnails"
+          : "Decoded audio waveform"
+      }
       data-media-canvas={clip.kind}
       data-ready={
         clip.kind === "video"

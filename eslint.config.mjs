@@ -6,14 +6,26 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/target/**", "**/node_modules/**", "**/.venv/**", "**/.cache/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/target/**",
+      "**/node_modules/**",
+      "**/.venv/**",
+      "**/.cache/**",
+    ],
+  },
   {
     files: ["**/*.{ts,tsx}"],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     rules: {
       "@typescript-eslint/consistent-type-imports": [
         "error",
-        { prefer: "type-imports", fixStyle: "inline-type-imports", disallowTypeAnnotations: false },
+        {
+          prefer: "type-imports",
+          fixStyle: "inline-type-imports",
+          disallowTypeAnnotations: false,
+        },
       ],
     },
   },
@@ -24,7 +36,10 @@ export default tseslint.config(
     rules: {
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
-      "react-refresh/only-export-components": ["error", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "error",
+        { allowConstantExport: true },
+      ],
     },
   },
   {

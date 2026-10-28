@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'vite-plus/test'
-import { createScrubThrottleState, shouldCommitScrubFrame } from './scrub-throttle'
+import { describe, expect, it } from "vite-plus/test";
 
-describe('shouldCommitScrubFrame', () => {
-  it('rate-limits large frame jumps on an extremely zoomed-out overview', () => {
-    const state = createScrubThrottleState({ pointerX: 0, frame: 0, nowMs: 0 })
+import {
+  createScrubThrottleState,
+  shouldCommitScrubFrame,
+} from "./scrub-throttle";
+
+describe("shouldCommitScrubFrame", () => {
+  it("rate-limits large frame jumps on an extremely zoomed-out overview", () => {
+    const state = createScrubThrottleState({ pointerX: 0, frame: 0, nowMs: 0 });
 
     expect(
       shouldCommitScrubFrame({
@@ -14,7 +18,7 @@ describe('shouldCommitScrubFrame', () => {
         nowMs: 16,
         overview: true,
       }),
-    ).toBe(false)
+    ).toBe(false);
 
     expect(
       shouldCommitScrubFrame({
@@ -25,11 +29,11 @@ describe('shouldCommitScrubFrame', () => {
         nowMs: 50,
         overview: true,
       }),
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
-  it('keeps the responsive frame-delta bypass for a standard timeline', () => {
-    const state = createScrubThrottleState({ pointerX: 0, frame: 0, nowMs: 0 })
+  it("keeps the responsive frame-delta bypass for a standard timeline", () => {
+    const state = createScrubThrottleState({ pointerX: 0, frame: 0, nowMs: 0 });
 
     expect(
       shouldCommitScrubFrame({
@@ -39,11 +43,11 @@ describe('shouldCommitScrubFrame', () => {
         pixelsPerSecond: 0.5,
         nowMs: 1,
       }),
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
-  it('returns overview timelines to the normal cadence when sufficiently zoomed in', () => {
-    const state = createScrubThrottleState({ pointerX: 0, frame: 0, nowMs: 0 })
+  it("returns overview timelines to the normal cadence when sufficiently zoomed in", () => {
+    const state = createScrubThrottleState({ pointerX: 0, frame: 0, nowMs: 0 });
 
     expect(
       shouldCommitScrubFrame({
@@ -54,6 +58,6 @@ describe('shouldCommitScrubFrame', () => {
         nowMs: 1,
         overview: true,
       }),
-    ).toBe(true)
-  })
-})
+    ).toBe(true);
+  });
+});

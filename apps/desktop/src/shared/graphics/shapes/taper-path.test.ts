@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { getTaperStrokeSegments, getTaperWidthScale, hasActiveTaper } from "./taper-path";
+import {
+  getTaperStrokeSegments,
+  getTaperWidthScale,
+  hasActiveTaper,
+} from "./taper-path";
 
 describe("taper path", () => {
   it("keeps the default stroke neutral", () => {

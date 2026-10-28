@@ -79,13 +79,16 @@ function springEasing(t: number, params: SpringParameters): number {
     value =
       1 -
       Math.exp(-zeta * omega0 * scaledT) *
-        (Math.cos(omegaD * scaledT) + ((zeta * omega0) / omegaD) * Math.sin(omegaD * scaledT));
+        (Math.cos(omegaD * scaledT) +
+          ((zeta * omega0) / omegaD) * Math.sin(omegaD * scaledT));
   } else if (zeta === 1) {
     value = 1 - Math.exp(-omega0 * scaledT) * (1 + omega0 * scaledT);
   } else {
     const s1 = -omega0 * (zeta - Math.sqrt(zeta * zeta - 1));
     const s2 = -omega0 * (zeta + Math.sqrt(zeta * zeta - 1));
-    value = 1 - (s2 * Math.exp(s1 * scaledT) - s1 * Math.exp(s2 * scaledT)) / (s2 - s1);
+    value =
+      1 -
+      (s2 * Math.exp(s1 * scaledT) - s1 * Math.exp(s2 * scaledT)) / (s2 - s1);
   }
 
   return Math.max(0, Math.min(1.2, value));

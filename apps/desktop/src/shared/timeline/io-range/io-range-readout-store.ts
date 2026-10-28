@@ -1,15 +1,15 @@
-import { create } from 'zustand'
+import { create } from "zustand";
 
 /** A floating readout shown at the cursor during an IO drag (viewport coords). */
 export interface IoDragReadout {
-  label: string
-  x: number
-  y: number
+  label: string;
+  x: number;
+  y: number;
 }
 
 interface IoRangeReadoutState {
-  readout: IoDragReadout | null
-  setReadout: (readout: IoDragReadout | null) => void
+  readout: IoDragReadout | null;
+  setReadout: (readout: IoDragReadout | null) => void;
 }
 
 /**
@@ -20,4 +20,4 @@ interface IoRangeReadoutState {
 export const useIoRangeReadoutStore = create<IoRangeReadoutState>((set) => ({
   readout: null,
   setReadout: (readout) => set({ readout }),
-}))
+}));

@@ -1,35 +1,35 @@
-import type { TimelineItem } from '@/types/timeline'
 import {
   getDirectPropertyLinks,
   type DirectLinkableProperty,
   type ItemKeyframes,
-} from '@/types/keyframe'
+} from "@/types/keyframe";
+import type { TimelineItem } from "@/types/timeline";
 import type {
   ResolvedTransform,
   TransformParentBinding,
   TransformReference,
-} from '@/types/transform'
+} from "@/types/transform";
 
 interface AffineMatrix {
-  a: number
-  b: number
-  c: number
-  d: number
-  e: number
-  f: number
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
 }
 
 export interface TransformHierarchyContext {
-  getItem: (itemId: string) => TimelineItem | undefined
-  resolveLocal: (item: TimelineItem) => ResolvedTransform
+  getItem: (itemId: string) => TimelineItem | undefined;
+  resolveLocal: (item: TimelineItem) => ResolvedTransform;
 }
 
 interface TransformHierarchyState {
-  cache: Map<string, ResolvedTransform>
-  active: Set<string>
+  cache: Map<string, ResolvedTransform>;
+  active: Set<string>;
 }
 
-const MIN_DIMENSION = 0.000001
+const MIN_DIMENSION = 0.000001;
 
 function multiply(left: AffineMatrix, right: AffineMatrix): AffineMatrix {
   return {
@@ -39,12 +39,12 @@ function multiply(left: AffineMatrix, right: AffineMatrix): AffineMatrix {
     d: left.b * right.c + left.d * right.d,
     e: left.a * right.e + left.c * right.f + left.e,
     f: left.b * right.e + left.d * right.f + left.f,
-  }
+  };
 }
 
 function invert(matrix: AffineMatrix): AffineMatrix | null {
-  const determinant = matrix.a * matrix.d - matrix.b * matrix.c
-  if (Math.abs(determinant) < MIN_DIMENSION) return null
+  const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
+  if (Math.abs(determinant) < MIN_DIMENSION) return null;
   return {
     a: matrix.d / determinant,
     b: -matrix.b / determinant,
@@ -52,13 +52,13 @@ function invert(matrix: AffineMatrix): AffineMatrix | null {
     d: matrix.a / determinant,
     e: (matrix.c * matrix.f - matrix.d * matrix.e) / determinant,
     f: (matrix.b * matrix.e - matrix.a * matrix.f) / determinant,
-  }
+  };
 }
 
 function toMatrix(transform: TransformReference): AffineMatrix {
-  const radians = (transform.rotation * Math.PI) / 180
-  const cosine = Math.cos(radians)
-  const sine = Math.sin(radians)
+  const radians = (transform.rotation * Math.PI) / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
   return {
     a: cosine * transform.width,
     b: sine * transform.width,
@@ -66,15 +66,18 @@ function toMatrix(transform: TransformReference): AffineMatrix {
     d: cosine * transform.height,
     e: transform.x,
     f: transform.y,
-  }
+  };
 }
 
-function applyMatrix(local: ResolvedTransform, matrix: AffineMatrix): ResolvedTransform {
-  const width = Math.max(MIN_DIMENSION, Math.hypot(matrix.a, matrix.b))
-  const determinant = matrix.a * matrix.d - matrix.b * matrix.c
-  const height = Math.max(MIN_DIMENSION, Math.abs(determinant) / width)
-  const scaleX = width / Math.max(MIN_DIMENSION, local.width)
-  const scaleY = height / Math.max(MIN_DIMENSION, local.height)
+function applyMatrix(
+  local: ResolvedTransform,
+  matrix: AffineMatrix,
+): ResolvedTransform {
+  const width = Math.max(MIN_DIMENSION, Math.hypot(matrix.a, matrix.b));
+  const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
+  const height = Math.max(MIN_DIMENSION, Math.abs(determinant) / width);
+  const scaleX = width / Math.max(MIN_DIMENSION, local.width);
+  const scaleY = height / Math.max(MIN_DIMENSION, local.height);
   return {
     ...local,
     x: matrix.e,
@@ -85,36 +88,38 @@ function applyMatrix(local: ResolvedTransform, matrix: AffineMatrix): ResolvedTr
     anchorY: local.anchorY * scaleY,
     rotation: (Math.atan2(matrix.b, matrix.a) * 180) / Math.PI,
     cornerRadius: local.cornerRadius * Math.sqrt(scaleX * scaleY),
-  }
+  };
 }
 
 function applyChildBasis(
   local: ResolvedTransform,
   binding: TransformParentBinding,
 ): AffineMatrix {
-  const inverseLocalReference = invert(toMatrix(binding.childLocalReference))
-  if (!inverseLocalReference) return toMatrix(local)
+  const inverseLocalReference = invert(toMatrix(binding.childLocalReference));
+  if (!inverseLocalReference) return toMatrix(local);
   return multiply(
     toMatrix(binding.childWorldReference),
     multiply(inverseLocalReference, toMatrix(local)),
-  )
+  );
 }
 
-function toTransformReference(transform: ResolvedTransform): TransformReference {
+function toTransformReference(
+  transform: ResolvedTransform,
+): TransformReference {
   return {
     x: transform.x,
     y: transform.y,
     width: transform.width,
     height: transform.height,
     rotation: transform.rotation,
-  }
+  };
 }
 
 export function createTransformParentBinding(params: {
-  childLocal: ResolvedTransform
-  childWorld: ResolvedTransform
-  parentItemId?: string
-  parentWorld?: ResolvedTransform
+  childLocal: ResolvedTransform;
+  childWorld: ResolvedTransform;
+  parentItemId?: string;
+  parentWorld?: ResolvedTransform;
 }): TransformParentBinding {
   return {
     ...(params.parentItemId && { parentItemId: params.parentItemId }),
@@ -123,7 +128,7 @@ export function createTransformParentBinding(params: {
     }),
     childLocalReference: toTransformReference(params.childLocal),
     childWorldReference: toTransformReference(params.childWorld),
-  }
+  };
 }
 
 export function applyTransformParentBinding(
@@ -131,15 +136,18 @@ export function applyTransformParentBinding(
   binding: TransformParentBinding,
   parentWorld?: ResolvedTransform,
 ): ResolvedTransform {
-  let matrix = applyChildBasis(local, binding)
+  let matrix = applyChildBasis(local, binding);
   if (parentWorld && binding.parentReference) {
-    const inverseParentReference = invert(toMatrix(binding.parentReference))
+    const inverseParentReference = invert(toMatrix(binding.parentReference));
     if (inverseParentReference) {
-      const parentDelta = multiply(toMatrix(parentWorld), inverseParentReference)
-      matrix = multiply(parentDelta, matrix)
+      const parentDelta = multiply(
+        toMatrix(parentWorld),
+        inverseParentReference,
+      );
+      matrix = multiply(parentDelta, matrix);
     }
   }
-  return applyMatrix(local, matrix)
+  return applyMatrix(local, matrix);
 }
 
 /** Convert a canvas/world transform back into the child's editable local space. */
@@ -148,18 +156,28 @@ export function worldToLocalTransform(
   binding: TransformParentBinding | undefined,
   parentWorld?: ResolvedTransform,
 ): ResolvedTransform {
-  if (!binding) return world
-  const inverseChildLocalReference = invert(toMatrix(binding.childLocalReference))
-  if (!inverseChildLocalReference) return world
-  let basis = multiply(toMatrix(binding.childWorldReference), inverseChildLocalReference)
+  if (!binding) return world;
+  const inverseChildLocalReference = invert(
+    toMatrix(binding.childLocalReference),
+  );
+  if (!inverseChildLocalReference) return world;
+  let basis = multiply(
+    toMatrix(binding.childWorldReference),
+    inverseChildLocalReference,
+  );
   if (parentWorld && binding.parentReference) {
-    const inverseParentReference = invert(toMatrix(binding.parentReference))
+    const inverseParentReference = invert(toMatrix(binding.parentReference));
     if (inverseParentReference) {
-      basis = multiply(multiply(toMatrix(parentWorld), inverseParentReference), basis)
+      basis = multiply(
+        multiply(toMatrix(parentWorld), inverseParentReference),
+        basis,
+      );
     }
   }
-  const inverseBasis = invert(basis)
-  return inverseBasis ? applyMatrix(world, multiply(inverseBasis, toMatrix(world))) : world
+  const inverseBasis = invert(basis);
+  return inverseBasis
+    ? applyMatrix(world, multiply(inverseBasis, toMatrix(world)))
+    : world;
 }
 
 export function resolveTransformHierarchy(
@@ -167,22 +185,24 @@ export function resolveTransformHierarchy(
   context: TransformHierarchyContext,
   state: TransformHierarchyState = { cache: new Map(), active: new Set() },
 ): ResolvedTransform {
-  const cached = state.cache.get(item.id)
-  if (cached) return cached
+  const cached = state.cache.get(item.id);
+  if (cached) return cached;
 
-  const local = context.resolveLocal(item)
-  const binding = item.transformParent
-  if (!binding || state.active.has(item.id)) return local
+  const local = context.resolveLocal(item);
+  const binding = item.transformParent;
+  if (!binding || state.active.has(item.id)) return local;
 
-  state.active.add(item.id)
-  const parent = binding.parentItemId ? context.getItem(binding.parentItemId) : undefined
+  state.active.add(item.id);
+  const parent = binding.parentItemId
+    ? context.getItem(binding.parentItemId)
+    : undefined;
   const parentWorld = parent
     ? resolveTransformHierarchy(parent, context, state)
-    : undefined
-  const resolved = applyTransformParentBinding(local, binding, parentWorld)
-  state.active.delete(item.id)
-  state.cache.set(item.id, resolved)
-  return resolved
+    : undefined;
+  const resolved = applyTransformParentBinding(local, binding, parentWorld);
+  state.active.delete(item.id);
+  state.cache.set(item.id, resolved);
+  return resolved;
 }
 
 export function wouldCreateTransformParentCycle(
@@ -191,7 +211,12 @@ export function wouldCreateTransformParentCycle(
   getItem: (itemId: string) => TimelineItem | undefined,
   getKeyframes: (itemId: string) => ItemKeyframes | undefined = () => undefined,
 ): boolean {
-  return wouldCreateItemDependencyCycle(childItemId, parentItemId, getItem, getKeyframes)
+  return wouldCreateItemDependencyCycle(
+    childItemId,
+    parentItemId,
+    getItem,
+    getKeyframes,
+  );
 }
 
 /**
@@ -205,39 +230,39 @@ export function wouldCreateItemDependencyCycle(
   getItem: (itemId: string) => TimelineItem | undefined,
   getKeyframes: (itemId: string) => ItemKeyframes | undefined,
 ): boolean {
-  const visited = new Set<string>()
-  const pending = [sourceItemId]
+  const visited = new Set<string>();
+  const pending = [sourceItemId];
 
   while (pending.length > 0) {
-    const currentId = pending.pop()!
-    if (currentId === dependentItemId) return true
-    if (visited.has(currentId)) continue
-    visited.add(currentId)
+    const currentId = pending.pop()!;
+    if (currentId === dependentItemId) return true;
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
 
-    const parentId = getItem(currentId)?.transformParent?.parentItemId
-    if (parentId) pending.push(parentId)
+    const parentId = getItem(currentId)?.transformParent?.parentItemId;
+    if (parentId) pending.push(parentId);
     for (const link of getDirectPropertyLinks(getKeyframes(currentId))) {
-      if (link.enabled) pending.push(link.sourceItemId)
+      if (link.enabled) pending.push(link.sourceItemId);
     }
   }
 
-  return false
+  return false;
 }
 
 const TRANSFORM_PARENT_INHERITED_PROPERTIES = new Set<DirectLinkableProperty>([
-  'position',
-  'scale',
-  'x',
-  'y',
-  'width',
-  'height',
-  'rotation',
-])
+  "position",
+  "scale",
+  "x",
+  "y",
+  "width",
+  "height",
+  "rotation",
+]);
 
 export function isTransformParentInheritedProperty(
   property: DirectLinkableProperty,
 ): boolean {
-  return TRANSFORM_PARENT_INHERITED_PROPERTIES.has(property)
+  return TRANSFORM_PARENT_INHERITED_PROPERTIES.has(property);
 }
 
 /** Whether `sourceItemId` already drives the item through its parent chain. */
@@ -246,17 +271,17 @@ export function hasTransformParentDependency(
   sourceItemId: string,
   getItem: (itemId: string) => TimelineItem | undefined,
 ): boolean {
-  const visited = new Set<string>()
-  let parentId = getItem(itemId)?.transformParent?.parentItemId
+  const visited = new Set<string>();
+  let parentId = getItem(itemId)?.transformParent?.parentItemId;
 
   while (parentId) {
-    if (parentId === sourceItemId) return true
-    if (visited.has(parentId)) return false
-    visited.add(parentId)
-    parentId = getItem(parentId)?.transformParent?.parentItemId
+    if (parentId === sourceItemId) return true;
+    if (visited.has(parentId)) return false;
+    visited.add(parentId);
+    parentId = getItem(parentId)?.transformParent?.parentItemId;
   }
 
-  return false
+  return false;
 }
 
 /**
@@ -269,15 +294,15 @@ export function hasRedundantTransformParentLink(
   getItem: (itemId: string) => TimelineItem | undefined,
   getKeyframes: (itemId: string) => ItemKeyframes | undefined,
 ): boolean {
-  const parentIds = new Set<string>()
-  const visited = new Set<string>()
-  let currentId: string | undefined = parentItemId
+  const parentIds = new Set<string>();
+  const visited = new Set<string>();
+  let currentId: string | undefined = parentItemId;
 
   while (currentId) {
-    if (visited.has(currentId)) break
-    visited.add(currentId)
-    parentIds.add(currentId)
-    currentId = getItem(currentId)?.transformParent?.parentItemId
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
+    parentIds.add(currentId);
+    currentId = getItem(currentId)?.transformParent?.parentItemId;
   }
 
   return getDirectPropertyLinks(getKeyframes(childItemId)).some(
@@ -285,5 +310,5 @@ export function hasRedundantTransformParentLink(
       link.enabled &&
       isTransformParentInheritedProperty(link.targetProperty) &&
       parentIds.has(link.sourceItemId),
-  )
+  );
 }

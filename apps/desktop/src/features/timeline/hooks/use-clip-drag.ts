@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type RefObject,
+} from "react";
 
 import { clampFinite as clamp } from "@/shared/utils/math";
 
@@ -43,7 +49,9 @@ export function useClipDrag(
     setDraft(null);
   }
   function begin(event: PointerEvent<HTMLDivElement>) {
-    const button = (event.target as HTMLElement).closest<HTMLElement>("[data-clip-id]");
+    const button = (event.target as HTMLElement).closest<HTMLElement>(
+      "[data-clip-id]",
+    );
     if (!button) return false;
     if (event.button !== 0 || gestureRef.current) return true;
     const clipId = button.dataset.clipId;
@@ -68,7 +76,9 @@ export function useClipDrag(
     gestureRef.current = gesture;
     const clip = model.clips.find((item) => item.id === clipId);
     if (!clip) return true;
-    const groupIds = new Set(clipEditGroup(model, clipId).map((item) => item.id));
+    const groupIds = new Set(
+      clipEditGroup(model, clipId).map((item) => item.id),
+    );
     const points = [
       ...snapPoints,
       ...model.clips
@@ -79,7 +89,10 @@ export function useClipDrag(
     const update = (now: number) => {
       const viewport = viewportRef.current;
       if (gestureRef.current !== gesture || !viewport) return;
-      if (Math.hypot(gesture.latestX - gesture.x, gesture.latestY - gesture.y) >= 4)
+      if (
+        Math.hypot(gesture.latestX - gesture.x, gesture.latestY - gesture.y) >=
+        4
+      )
         gesture.moved = true;
       if (gesture.moved) {
         const rect = viewport.getBoundingClientRect();
@@ -89,11 +102,16 @@ export function useClipDrag(
             : gesture.latestX > rect.right - 24
               ? gesture.latestX - rect.right + 24
               : 0;
-        viewport.scrollLeft += (clamp(edge / 2, -20, 20) * Math.min(32, now - previous)) / 16;
+        viewport.scrollLeft +=
+          (clamp(edge / 2, -20, 20) * Math.min(32, now - previous)) / 16;
         let start = Math.max(
           0,
           clip.start +
-            (gesture.latestX - gesture.x + viewport.scrollLeft - gesture.scroll) / pixelsPerSecond,
+            (gesture.latestX -
+              gesture.x +
+              viewport.scrollLeft -
+              gesture.scroll) /
+              pixelsPerSecond,
         );
         if (snap && !gesture.shift)
           start = snapClipStart(start, clip.duration, points, pixelsPerSecond);
@@ -104,8 +122,11 @@ export function useClipDrag(
         const key = `${trackId}:${start}`;
         if (gesture.lastKey !== key) {
           gesture.lastKey = key;
-          const next = trackId ? resolveClipDrag(model, clipId, start, trackId) : null;
-          gesture.candidate = next && trackId ? { id: clipId, start: next.start, trackId } : null;
+          const next = trackId
+            ? resolveClipDrag(model, clipId, start, trackId)
+            : null;
+          gesture.candidate =
+            next && trackId ? { id: clipId, start: next.start, trackId } : null;
           setDraft({
             document: next?.document ?? model,
             valid: next !== null,
@@ -138,7 +159,8 @@ export function useClipDrag(
       cancelAnimationFrame(frameRef.current);
       gesture.flush?.();
     }
-    if (commit && gesture.moved && gesture.candidate) moveClip(gesture.candidate);
+    if (commit && gesture.moved && gesture.candidate)
+      moveClip(gesture.candidate);
     cancel();
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);

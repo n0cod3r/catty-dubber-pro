@@ -21,12 +21,16 @@ function clampPercent(value: number): number {
 
 export function hasActiveTaper(values: TaperPathValues): boolean {
   return (
-    ((values.taperStartLength ?? 0) > 0 && (values.taperStartWidth ?? 100) !== 100) ||
+    ((values.taperStartLength ?? 0) > 0 &&
+      (values.taperStartWidth ?? 100) !== 100) ||
     ((values.taperEndLength ?? 0) > 0 && (values.taperEndWidth ?? 100) !== 100)
   );
 }
 
-export function getTaperWidthScale(progress: number, values: TaperPathValues): number {
+export function getTaperWidthScale(
+  progress: number,
+  values: TaperPathValues,
+): number {
   const position = clampPercent(progress * 100);
   const startLength = clampPercent(values.taperStartLength ?? 0);
   const endLength = clampPercent(values.taperEndLength ?? 0);

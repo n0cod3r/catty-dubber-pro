@@ -1,4 +1,4 @@
-import type { ProjectMarker } from '@/types/timeline'
+import type { ProjectMarker } from "@/types/timeline";
 
 /**
  * Display naming for project markers.
@@ -12,14 +12,20 @@ import type { ProjectMarker } from '@/types/timeline'
 
 /** Ties on frame break on id so stacked markers keep a stable order. */
 function sortForDisplay(markers: readonly ProjectMarker[]): ProjectMarker[] {
-  return [...markers].sort((a, b) => a.frame - b.frame || a.id.localeCompare(b.id))
+  return [...markers].sort(
+    (a, b) => a.frame - b.frame || a.id.localeCompare(b.id),
+  );
 }
 
 /** Maps marker id to its 1-based position along the timeline. */
-export function getMarkerOrdinals(markers: readonly ProjectMarker[]): Map<string, number> {
-  const ordinals = new Map<string, number>()
-  sortForDisplay(markers).forEach((marker, index) => ordinals.set(marker.id, index + 1))
-  return ordinals
+export function getMarkerOrdinals(
+  markers: readonly ProjectMarker[],
+): Map<string, number> {
+  const ordinals = new Map<string, number>();
+  sortForDisplay(markers).forEach((marker, index) =>
+    ordinals.set(marker.id, index + 1),
+  );
+  return ordinals;
 }
 
 /**
@@ -31,9 +37,9 @@ export function resolveMarkerNames(
   markers: readonly ProjectMarker[],
   formatDefault: (ordinal: number) => string,
 ): Map<string, string> {
-  const names = new Map<string, string>()
+  const names = new Map<string, string>();
   sortForDisplay(markers).forEach((marker, index) => {
-    names.set(marker.id, marker.label?.trim() || formatDefault(index + 1))
-  })
-  return names
+    names.set(marker.id, marker.label?.trim() || formatDefault(index + 1));
+  });
+  return names;
 }

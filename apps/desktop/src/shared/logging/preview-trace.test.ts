@@ -7,7 +7,11 @@ import {
 } from "./preview-trace";
 
 // Window [100, 140), cut at 120 — 20 frames per half.
-const WIN: PreviewTraceWindow = { startFrame: 100, cutPoint: 120, endFrame: 140 };
+const WIN: PreviewTraceWindow = {
+  startFrame: 100,
+  cutPoint: 120,
+  endFrame: 140,
+};
 
 function pump(
   f: number,
@@ -27,7 +31,15 @@ function pump(
 }
 
 function render(f: number): PreviewTraceEvent {
-  return { ch: "render", f, id: "clipabcd", rev: false, src: f / 30, hasDom: false, useMb: true };
+  return {
+    ch: "render",
+    f,
+    id: "clipabcd",
+    rev: false,
+    src: f / 30,
+    hasDom: false,
+    useMb: true,
+  };
 }
 
 describe("analyzePreviewTrace", () => {

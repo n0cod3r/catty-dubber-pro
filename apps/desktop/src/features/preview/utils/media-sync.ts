@@ -1,6 +1,9 @@
 export type MediaMapping = { source: string; offset: number };
 
-export function isContinuousMedia(previous: MediaMapping | undefined, next: MediaMapping) {
+export function isContinuousMedia(
+  previous: MediaMapping | undefined,
+  next: MediaMapping,
+) {
   return (
     !!previous &&
     previous.source === next.source &&

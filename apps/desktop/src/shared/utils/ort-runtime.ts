@@ -11,20 +11,22 @@
  */
 
 const ORT_WASM_PATH =
-  'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260410-5e55544225/dist/'
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260410-5e55544225/dist/";
 
-export type OrtModule = typeof import('onnxruntime-web')
-export type OrtSession = Awaited<ReturnType<OrtModule['InferenceSession']['create']>>
+export type OrtModule = typeof import("onnxruntime-web");
+export type OrtSession = Awaited<
+  ReturnType<OrtModule["InferenceSession"]["create"]>
+>;
 
-let ortPromise: Promise<OrtModule> | null = null
+let ortPromise: Promise<OrtModule> | null = null;
 
 export function getOrt(): Promise<OrtModule> {
   if (!ortPromise) {
-    ortPromise = import('onnxruntime-web').then((module) => {
-      module.env.wasm.wasmPaths = ORT_WASM_PATH
-      module.env.wasm.numThreads = 1
-      return module
-    })
+    ortPromise = import("onnxruntime-web").then((module) => {
+      module.env.wasm.wasmPaths = ORT_WASM_PATH;
+      module.env.wasm.numThreads = 1;
+      return module;
+    });
   }
-  return ortPromise
+  return ortPromise;
 }

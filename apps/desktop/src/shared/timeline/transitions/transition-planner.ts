@@ -10,7 +10,9 @@ interface TransitionPortions {
   rightPortion: number;
 }
 
-export interface ResolvedTransitionWindow<T extends TimelineItem = TimelineItem> {
+export interface ResolvedTransitionWindow<
+  T extends TimelineItem = TimelineItem,
+> {
   transition: Transition;
   leftClip: T;
   rightClip: T;
@@ -111,7 +113,10 @@ export function resolveTransitionWindows<T extends TimelineItem>(
   transitions: Transition[],
   clipsById: Map<string, T>,
 ): ResolvedTransitionWindow<T>[] {
-  const resolvedByTransitionId = new Map<string, MutableResolvedTransition<T>>();
+  const resolvedByTransitionId = new Map<
+    string,
+    MutableResolvedTransition<T>
+  >();
   const incomingTransitionByClipId = new Map<string, string>();
   const outgoingTransitionByClipId = new Map<string, string>();
 

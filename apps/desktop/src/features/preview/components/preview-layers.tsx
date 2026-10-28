@@ -33,7 +33,10 @@ export function PreviewLayers({
                   data-preview-clip={clip.id}
                   style={{
                     zIndex: document.layers.length - index,
-                    fontSize: Math.max(12, width * (clip.kind === "subtitle" ? 0.035 : 0.06)),
+                    fontSize: Math.max(
+                      12,
+                      width * (clip.kind === "subtitle" ? 0.035 : 0.06),
+                    ),
                     color: clip.kind === "subtitle" ? "white" : clip.color,
                   }}
                   className={

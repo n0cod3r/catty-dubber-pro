@@ -1,7 +1,10 @@
 import type { TextStylePresetId } from "@/shared/typography/text-style-preset-ids";
 
 import type { AudioEqSettings } from "./audio";
-import type { CompositionControlOverrides, CompositionControlSchema } from "./composition-controls";
+import type {
+  CompositionControlOverrides,
+  CompositionControlSchema,
+} from "./composition-controls";
 import type { ItemKeyframes } from "./keyframe";
 import type { MaskVertex } from "./masks";
 import type { TextLayoutDrafts, TextSpan, TextStyleFields } from "./text";
@@ -121,7 +124,11 @@ export interface ProjectTimeline {
       text?: string;
       textRole?: "caption";
       captionSource?: {
-        type: "transcript" | "ai-captions" | "subtitle-import" | "embedded-subtitles";
+        type:
+          | "transcript"
+          | "ai-captions"
+          | "subtitle-import"
+          | "embedded-subtitles";
         clipId: string;
         mediaId: string;
         fileName?: string;
@@ -135,7 +142,14 @@ export interface ProjectTimeline {
       /** Per-character/word/line animation (see ./text-motion). */
       textMotion?: TextMotionSpec;
       shapeType?:
-        "rectangle" | "circle" | "triangle" | "ellipse" | "star" | "polygon" | "heart" | "path";
+        | "rectangle"
+        | "circle"
+        | "triangle"
+        | "ellipse"
+        | "star"
+        | "polygon"
+        | "heart"
+        | "path";
       direction?: "up" | "down" | "left" | "right";
       points?: number;
       innerRadius?: number;

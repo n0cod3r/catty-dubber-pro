@@ -14,27 +14,59 @@ const document = {
     { id: "bottom", kind: "video", hidden: false },
   ],
   clips: [
-    { id: "base", kind: "video", trackId: "bottom", sourceId: "landscape", start: 0, duration: 20 },
-    { id: "overlay", kind: "video", trackId: "top", sourceId: "portrait", start: 5, duration: 5 },
+    {
+      id: "base",
+      kind: "video",
+      trackId: "bottom",
+      sourceId: "landscape",
+      start: 0,
+      duration: 20,
+    },
+    {
+      id: "overlay",
+      kind: "video",
+      trackId: "top",
+      sourceId: "portrait",
+      start: 5,
+      duration: 5,
+    },
   ],
 };
 
 test("preview detects the front visible timeline video and source dimensions", () => {
-  assert.equal(activeVideoAt(document, 4, [landscape, portrait]).source.id, "landscape");
-  assert.equal(activeVideoAt(document, 5, [landscape, portrait]).source.id, "portrait");
-  assert.equal(activeVideoAt(document, 10, [landscape, portrait]).source.id, "landscape");
-  assert.equal(activeVideoAt(document, 20, [landscape, portrait]).source.id, "landscape");
+  assert.equal(
+    activeVideoAt(document, 4, [landscape, portrait]).source.id,
+    "landscape",
+  );
+  assert.equal(
+    activeVideoAt(document, 5, [landscape, portrait]).source.id,
+    "portrait",
+  );
+  assert.equal(
+    activeVideoAt(document, 10, [landscape, portrait]).source.id,
+    "landscape",
+  );
+  assert.equal(
+    activeVideoAt(document, 20, [landscape, portrait]).source.id,
+    "landscape",
+  );
   const hidden = {
     ...document,
     layers: [{ ...document.layers[0], hidden: true }, document.layers[1]],
   };
-  assert.equal(activeVideoAt(hidden, 6, [landscape, portrait]).source.id, "landscape");
+  assert.equal(
+    activeVideoAt(hidden, 6, [landscape, portrait]).source.id,
+    "landscape",
+  );
   assert.equal(activeVideoAt(document, 6, [landscape]).source.id, "landscape");
   assert.equal(activeVideoAt(document, 30, [landscape, portrait]), null);
 });
 
 test("preview fits landscape and portrait video within both resizable dimensions", () => {
-  assert.deepEqual(fitVideoFrame(800, 300, 1920, 1080), { width: (300 * 16) / 9, height: 300 });
+  assert.deepEqual(fitVideoFrame(800, 300, 1920, 1080), {
+    width: (300 * 16) / 9,
+    height: 300,
+  });
   const portrait = fitVideoFrame(300, 500, 1080, 1920);
   assert.ok(Math.abs(portrait.width - 281.25) < 1e-9);
   assert.ok(Math.abs(portrait.height - 500) < 1e-9);
@@ -50,6 +82,9 @@ test("preview waits for valid video metadata instead of assuming a fixed aspect 
     [1920, -1],
     [Infinity, 1080],
   ]) {
-    assert.deepEqual(fitVideoFrame(800, 300, ...dimensions), { width: 0, height: 0 });
+    assert.deepEqual(fitVideoFrame(800, 300, ...dimensions), {
+      width: 0,
+      height: 0,
+    });
   }
 });

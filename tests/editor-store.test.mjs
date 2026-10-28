@@ -17,7 +17,10 @@ test("timeline sessions isolate documents and undo history", () => {
   assert.equal(first.getState().history.present.clips.length, 2);
   first.getState().redo();
   assert.equal(first.getState().history.present.clips.length, 4);
-  assert.equal(createTimelineStore().getState().history.present.initialized, false);
+  assert.equal(
+    createTimelineStore().getState().history.present.initialized,
+    false,
+  );
 });
 
 test("timeline actions are stable and rejected edits do not notify subscribers", () => {
@@ -47,7 +50,9 @@ test("persisted dialogue edits replace subtitles and restore in a new editor ses
   const subtitles = (session) =>
     session
       .getState()
-      .history.present.clips.filter((clip) => clip.trackId === "dialogue-subtitles");
+      .history.present.clips.filter(
+        (clip) => clip.trackId === "dialogue-subtitles",
+      );
   assert.equal(subtitles(store).length, 2);
   assert.deepEqual(
     subtitles(store).map((clip) => [clip.start, clip.duration, clip.text]),
@@ -57,8 +62,11 @@ test("persisted dialogue edits replace subtitles and restore in a new editor ses
     ],
   );
   assert.equal(
-    store.getState().history.present.layers.filter((layer) => layer.id === "dialogue-subtitles")
-      .length,
+    store
+      .getState()
+      .history.present.layers.filter(
+        (layer) => layer.id === "dialogue-subtitles",
+      ).length,
     1,
   );
   const reopened = createTimelineStore();
@@ -70,7 +78,9 @@ test("persisted dialogue edits replace subtitles and restore in a new editor ses
   assert.equal(subtitles(store).length, 1);
   assert.equal(subtitles(store)[0].duration, 8);
   assert.equal(
-    store.getState().history.present.clips.filter((clip) => clip.kind !== "subtitle").length,
+    store
+      .getState()
+      .history.present.clips.filter((clip) => clip.kind !== "subtitle").length,
     2,
   );
 });

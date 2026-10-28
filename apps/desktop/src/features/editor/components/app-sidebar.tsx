@@ -70,7 +70,10 @@ export function AppSidebar({
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="text-sm font-semibold tracking-tight">
-              Catty <span className="font-normal text-muted-foreground">Dubber Pro</span>
+              Catty{" "}
+              <span className="font-normal text-muted-foreground">
+                Dubber Pro
+              </span>
             </p>
             <p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
               Dubbing studio
@@ -171,8 +174,8 @@ export function AppSidebar({
                 <Volume2 className="mx-auto mb-3 size-6 text-muted-foreground" />
                 <p>No voices assigned</p>
                 <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                  Speaker assignments and Khmer voices will appear here when the dubbing engine is
-                  connected.
+                  Speaker assignments and Khmer voices will appear here when the
+                  dubbing engine is connected.
                 </p>
               </div>
             )}

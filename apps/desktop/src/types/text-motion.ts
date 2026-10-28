@@ -24,7 +24,8 @@ export type TextMotionOrder = "forward" | "backward" | "center" | "random";
  * per-unit reveals read best with simple curves, and `overshoot` covers the
  * springy pop look without spring parameter plumbing.
  */
-export type TextMotionEasing = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "overshoot";
+export type TextMotionEasing =
+  "linear" | "ease-in" | "ease-out" | "ease-in-out" | "overshoot";
 
 export type TextMotionSlot = "in" | "out" | "loop";
 
@@ -69,7 +70,8 @@ export interface TextMotionLoopEffect extends TextMotionEffectBase {
   presetId: TextMotionLoopPresetId;
 }
 
-export type TextMotionEffect = TextMotionInEffect | TextMotionOutEffect | TextMotionLoopEffect;
+export type TextMotionEffect =
+  TextMotionInEffect | TextMotionOutEffect | TextMotionLoopEffect;
 
 /** Independent In / Out / Loop slots, all optional. */
 export interface TextMotionSpec {

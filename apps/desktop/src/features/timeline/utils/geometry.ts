@@ -11,7 +11,11 @@ export function pointerToTime(
   return clamp(((x - left + scroll) / width) * duration, 0, duration);
 }
 
-export function snapTime(time: number, points: readonly number[], pixelsPerSecond: number) {
+export function snapTime(
+  time: number,
+  points: readonly number[],
+  pixelsPerSecond: number,
+) {
   if (pixelsPerSecond <= 0) return time;
   let closest = time;
   let distance = 8 / pixelsPerSecond;
@@ -34,7 +38,12 @@ export function snapClipStart(
   points: readonly number[],
   pixelsPerSecond: number,
 ) {
-  if (!Number.isFinite(start) || !Number.isFinite(duration) || pixelsPerSecond <= 0) return start;
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(duration) ||
+    pixelsPerSecond <= 0
+  )
+    return start;
   let closest = start;
   let distance = 8 / pixelsPerSecond;
   for (const point of points) {
@@ -54,10 +63,18 @@ export function rulerInterval(pixelsPerSecond: number) {
   // Labels stay at least 80px apart, including for feature-length episodes.
   const target = 80 / Math.max(pixelsPerSecond, 0.000001);
   const magnitude = 10 ** Math.floor(Math.log10(target));
-  return ([1, 2, 5, 10].find((multiple) => multiple * magnitude >= target) ?? 10) * magnitude;
+  return (
+    ([1, 2, 5, 10].find((multiple) => multiple * magnitude >= target) ?? 10) *
+    magnitude
+  );
 }
 
-export function visibleTicks(duration: number, width: number, scroll: number, viewport: number) {
+export function visibleTicks(
+  duration: number,
+  width: number,
+  scroll: number,
+  viewport: number,
+) {
   if (duration <= 0 || width <= 0) return [];
   const step = rulerInterval(width / duration);
   const first = Math.max(0, Math.floor(((scroll / width) * duration) / step));

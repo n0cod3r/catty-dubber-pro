@@ -1,4 +1,9 @@
-import type { Layer, TimelineClip, TimelineDocument, TimelineHistory } from "../types";
+import type {
+  Layer,
+  TimelineClip,
+  TimelineDocument,
+  TimelineHistory,
+} from "../types";
 
 export function createTimeline(): TimelineHistory {
   return {
@@ -26,7 +31,14 @@ export function createTimeline(): TimelineHistory {
           muted: false,
           hidden: false,
         },
-        { id: "dub", kind: "audio", name: "Khmer dub", locked: false, muted: false, hidden: false },
+        {
+          id: "dub",
+          kind: "audio",
+          name: "Khmer dub",
+          locked: false,
+          muted: false,
+          hidden: false,
+        },
       ],
     },
   };
@@ -44,11 +56,13 @@ export function splitCandidates(
       time > clip.start + 0.001 &&
       time < clip.start + clip.duration - 0.001 &&
       (selected
-        ? clip.id === selected.id || (!!selected.linkId && clip.linkId === selected.linkId)
+        ? clip.id === selected.id ||
+          (!!selected.linkId && clip.linkId === selected.linkId)
         : !!clip.linkId),
   );
   return candidates.some(
-    (clip) => document.layers.find((layer) => layer.id === clip.trackId)?.locked,
+    (clip) =>
+      document.layers.find((layer) => layer.id === clip.trackId)?.locked,
   )
     ? []
     : candidates;
@@ -66,7 +80,10 @@ export function clipEditGroup(document: TimelineDocument, id: string) {
         Math.abs(clip.duration - selected.duration) < 0.000001 &&
         Math.abs(clip.sourceStart - selected.sourceStart) < 0.000001),
   );
-  return clips.some((clip) => document.layers.find((layer) => layer.id === clip.trackId)?.locked)
+  return clips.some(
+    (clip) =>
+      document.layers.find((layer) => layer.id === clip.trackId)?.locked,
+  )
     ? []
     : clips;
 }
@@ -165,14 +182,21 @@ export function resolveClipDrag(
 }
 
 export function documentDuration(document: TimelineDocument) {
-  return document.clips.reduce((end, clip) => Math.max(end, clip.start + clip.duration), 0);
+  return document.clips.reduce(
+    (end, clip) => Math.max(end, clip.start + clip.duration),
+    0,
+  );
 }
 
 export function initializeEdit(
   document: TimelineDocument,
   action: { sourceId: string; name: string; duration: number },
 ): TimelineDocument {
-  if (document.initialized || !Number.isFinite(action.duration) || action.duration <= 0)
+  if (
+    document.initialized ||
+    !Number.isFinite(action.duration) ||
+    action.duration <= 0
+  )
     return document;
   return {
     ...document,
@@ -195,7 +219,8 @@ export function addLayerEdit(
   document: TimelineDocument,
   action: { layer: Layer },
 ): TimelineDocument {
-  if (document.layers.some((layer) => layer.id === action.layer.id)) return document;
+  if (document.layers.some((layer) => layer.id === action.layer.id))
+    return document;
   return { ...document, layers: [action.layer, ...document.layers] };
 }
 
@@ -211,7 +236,10 @@ export function removeLayerEdit(
     document.clips.some((clip) => clip.trackId === layer.id)
   )
     return document;
-  return { ...document, layers: document.layers.filter((item) => item.id !== action.id) };
+  return {
+    ...document,
+    layers: document.layers.filter((item) => item.id !== action.id),
+  };
 }
 
 export function toggleLayerEdit(
@@ -223,7 +251,9 @@ export function toggleLayerEdit(
   return {
     ...document,
     layers: document.layers.map((item) =>
-      item.id === action.id ? { ...item, [action.property]: !item[action.property] } : item,
+      item.id === action.id
+        ? { ...item, [action.property]: !item[action.property] }
+        : item,
     ),
   };
 }
@@ -235,7 +265,8 @@ export function moveLayerEdit(
   const layer = document.layers.find((item) => item.id === action.id);
   const index = document.layers.findIndex((item) => item.id === action.id);
   const next = index + action.direction;
-  if (!layer || layer.locked || next < 0 || next >= document.layers.length) return document;
+  if (!layer || layer.locked || next < 0 || next >= document.layers.length)
+    return document;
   const layers = [...document.layers];
   layers.splice(index, 1);
   layers.splice(next, 0, layer);
@@ -246,7 +277,9 @@ export function addClipEdit(
   document: TimelineDocument,
   action: { clip: TimelineClip },
 ): TimelineDocument {
-  const target = document.layers.find((item) => item.id === action.clip.trackId);
+  const target = document.layers.find(
+    (item) => item.id === action.clip.trackId,
+  );
   if (
     !target ||
     target.locked ||
@@ -267,14 +300,18 @@ export function moveClipEdit(
   document: TimelineDocument,
   action: { id: string; start: number; trackId: string },
 ): TimelineDocument {
-  return moveClip(document, action.id, action.start, action.trackId) ?? document;
+  return (
+    moveClip(document, action.id, action.start, action.trackId) ?? document
+  );
 }
 
 export function removeClipEdit(
   document: TimelineDocument,
   action: { id: string },
 ): TimelineDocument {
-  const ids = new Set(clipEditGroup(document, action.id).map((clip) => clip.id));
+  const ids = new Set(
+    clipEditGroup(document, action.id).map((clip) => clip.id),
+  );
   return ids.size
     ? { ...document, clips: document.clips.filter((clip) => !ids.has(clip.id)) }
     : document;
@@ -294,7 +331,9 @@ export function updateTextEdit(
   return {
     ...document,
     clips: document.clips.map((item) =>
-      item.id === action.id ? { ...item, text: action.text, name: action.text || item.kind } : item,
+      item.id === action.id
+        ? { ...item, text: action.text, name: action.text || item.kind }
+        : item,
     ),
   };
 }

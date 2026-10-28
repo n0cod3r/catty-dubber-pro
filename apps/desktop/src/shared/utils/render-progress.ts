@@ -15,18 +15,18 @@
  */
 
 /** Frames whose timings are discarded: session compile plus JIT warm-up. */
-const WARMUP_FRAMES = 2
+const WARMUP_FRAMES = 2;
 
 /** Gaps needed before the measured frame rate beats the caller's hint. */
-const MIN_GAPS_FOR_RATE = 4
+const MIN_GAPS_FOR_RATE = 4;
 
-const EMA_ALPHA = 0.2
+const EMA_ALPHA = 0.2;
 
 export class RenderProgress {
-  private frames = 0
-  private readonly gaps: number[] = []
-  private emaFrameMs: number | null = null
-  private lastTickMs: number | null = null
+  private frames = 0;
+  private readonly gaps: number[] = [];
+  private emaFrameMs: number | null = null;
+  private lastTickMs: number | null = null;
 
   /**
    * @param totalSeconds duration of the source, in seconds
@@ -44,45 +44,53 @@ export class RenderProgress {
    * @param gapSeconds seconds since the previous source frame's timestamp, or null for the first
    */
   tick(nowMs: number, gapSeconds: number | null): void {
-    this.frames++
+    this.frames++;
     if (gapSeconds !== null && gapSeconds > 0) {
-      this.gaps.push(gapSeconds)
+      this.gaps.push(gapSeconds);
     }
 
-    const previous = this.lastTickMs
-    this.lastTickMs = nowMs
+    const previous = this.lastTickMs;
+    this.lastTickMs = nowMs;
     if (previous === null || this.frames <= WARMUP_FRAMES) {
-      return
+      return;
     }
 
-    const elapsed = nowMs - previous
+    const elapsed = nowMs - previous;
     this.emaFrameMs =
-      this.emaFrameMs === null ? elapsed : EMA_ALPHA * elapsed + (1 - EMA_ALPHA) * this.emaFrameMs
+      this.emaFrameMs === null
+        ? elapsed
+        : EMA_ALPHA * elapsed + (1 - EMA_ALPHA) * this.emaFrameMs;
   }
 
   /** Best estimate of the source's total frame count. Never below what we have already seen. */
   get estimatedTotalFrames(): number {
-    const fps = this.gaps.length >= MIN_GAPS_FOR_RATE ? 1 / medianOf(this.gaps) : this.fallbackFps
-    const estimate = Number.isFinite(fps) && fps > 0 ? Math.round(this.totalSeconds * fps) : 0
-    return Math.max(this.frames, estimate, 1)
+    const fps =
+      this.gaps.length >= MIN_GAPS_FOR_RATE
+        ? 1 / medianOf(this.gaps)
+        : this.fallbackFps;
+    const estimate =
+      Number.isFinite(fps) && fps > 0 ? Math.round(this.totalSeconds * fps) : 0;
+    return Math.max(this.frames, estimate, 1);
   }
 
   /** 0..1. Monotonic, because `estimatedTotalFrames` can never drop below `frames`. */
   get fraction(): number {
-    return Math.min(1, this.frames / this.estimatedTotalFrames)
+    return Math.min(1, this.frames / this.estimatedTotalFrames);
   }
 
   /** Seconds remaining, or null while the rate estimate is still warming up. */
   get etaSeconds(): number | null {
-    if (this.emaFrameMs === null) return null
-    const remaining = this.estimatedTotalFrames - this.frames
-    if (remaining <= 0) return 0
-    return (this.emaFrameMs * remaining) / 1000
+    if (this.emaFrameMs === null) return null;
+    const remaining = this.estimatedTotalFrames - this.frames;
+    if (remaining <= 0) return 0;
+    return (this.emaFrameMs * remaining) / 1000;
   }
 }
 
 function medianOf(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = sorted.length >> 1
-  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1]! + sorted[mid]!) / 2
+    : sorted[mid]!;
 }

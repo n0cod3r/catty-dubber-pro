@@ -19,7 +19,9 @@ function basename(path: string) {
 function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
   const path = episode.media.source_path;
   const name = basename(path);
-  const extension = name.includes(".") ? (name.split(".").pop()?.toLowerCase() ?? "") : "";
+  const extension = name.includes(".")
+    ? (name.split(".").pop()?.toLowerCase() ?? "")
+    : "";
   return {
     id: episode.id,
     path,
@@ -37,7 +39,9 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
     speakers: episode.speakers,
     speakerError:
       episode.processing?.speaker_error ??
-      (episode.processing?.speakers === "failed" ? "Speaker detection failed." : null),
+      (episode.processing?.speakers === "failed"
+        ? "Speaker detection failed."
+        : null),
     translationStatus: episode.processing?.translation ?? "idle",
     dialogueSegments: episode.dialogue_segments.map((segment) => ({
       id: segment.id,
@@ -52,7 +56,10 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
   };
 }
 
-export function useEpisode(projectDirectory: string | null, project: PersistedProject | null) {
+export function useEpisode(
+  projectDirectory: string | null,
+  project: PersistedProject | null,
+) {
   const [episode, setEpisode] = useState<EpisodeMedia | null>(() => {
     const active = selectActiveEpisode(
       project?.episodes ?? [],
@@ -71,7 +78,9 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
   const mounted = useRef(false);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, []);
   useEffect(() => {
     const active = selectActiveEpisode(
@@ -81,12 +90,17 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
     setEpisode(active ? toEpisodeMedia(active) : null);
     setMediaRevision(0);
     if (!active) {
-      preparationKey.current = null; setPreparing(false); setStatus(null); return;
+      preparationKey.current = null;
+      setPreparing(false);
+      setStatus(null);
+      return;
     }
     if (projectDirectory) rememberActiveEpisode(projectDirectory, active.id);
     void allowAssetPath(active.media.source_path);
     if (!projectDirectory || !isTauri()) {
-      setPreparing(false); setStatus(null); return;
+      setPreparing(false);
+      setStatus(null);
+      return;
     }
     // Always validate cached preparation on open: a persisted proxy or audio
     // path may point at a file that was moved or deleted since last session.
@@ -95,71 +109,159 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
     preparationKey.current = key;
     setPreparing(true);
     setStatus("កំពុងរៀបចំ preview video និង audio សម្រាប់ playback រលូន…");
-    void requestEngine("project.prepare_episode", { project_directory: projectDirectory, episode_id: active.id })
+    void requestEngine("project.prepare_episode", {
+      project_directory: projectDirectory,
+      episode_id: active.id,
+    })
       .then((prepared) => {
         if (!mounted.current) return;
-        setEpisode(toEpisodeMedia(prepared)); setMediaRevision((value) => value + 1); setStatus("Preview រួចរាល់");
-        window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800);
+        setEpisode(toEpisodeMedia(prepared));
+        setMediaRevision((value) => value + 1);
+        setStatus("Preview រួចរាល់");
+        window.setTimeout(() => {
+          if (mounted.current) setStatus(null);
+        }, 1800);
       })
       .catch((cause: unknown) => {
         if (!mounted.current) return;
-        preparationKey.current = null; setError(cause instanceof Error ? cause.message : "មិនអាចរៀបចំ preview បានទេ។"); setStatus(null);
+        preparationKey.current = null;
+        setError(
+          cause instanceof Error ? cause.message : "មិនអាចរៀបចំ preview បានទេ។",
+        );
+        setStatus(null);
       })
-      .finally(() => { if (mounted.current) setPreparing(false); });
+      .finally(() => {
+        if (mounted.current) setPreparing(false);
+      });
   }, [project, projectDirectory]);
   useEffect(() => {
     const path = episode?.path;
-    return () => { if (path?.startsWith("blob:")) URL.revokeObjectURL(path); };
+    return () => {
+      if (path?.startsWith("blob:")) URL.revokeObjectURL(path);
+    };
   }, [episode?.path]);
 
   const rebuildProxy = useCallback(async () => {
     if (!episode || !projectDirectory || !isTauri() || preparing) return;
-    setPreparing(true); setError(null); setStatus("កំពុង rebuild playback proxy…");
+    setPreparing(true);
+    setError(null);
+    setStatus("កំពុង rebuild playback proxy…");
     try {
-      const rebuilt = await requestEngine("project.rebuild_proxy", { project_directory: projectDirectory, episode_id: episode.id });
+      const rebuilt = await requestEngine("project.rebuild_proxy", {
+        project_directory: projectDirectory,
+        episode_id: episode.id,
+      });
       if (!mounted.current) return;
-      setEpisode(toEpisodeMedia(rebuilt)); setMediaRevision((value) => value + 1); setStatus("Proxy rebuild រួចរាល់");
-      window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800);
+      setEpisode(toEpisodeMedia(rebuilt));
+      setMediaRevision((value) => value + 1);
+      setStatus("Proxy rebuild រួចរាល់");
+      window.setTimeout(() => {
+        if (mounted.current) setStatus(null);
+      }, 1800);
     } catch (cause) {
-      if (mounted.current) { setError(cause instanceof Error ? cause.message : "មិនអាច rebuild proxy បានទេ។"); setStatus(null); }
-    } finally { if (mounted.current) setPreparing(false); }
+      if (mounted.current) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "មិនអាច rebuild proxy បានទេ។",
+        );
+        setStatus(null);
+      }
+    } finally {
+      if (mounted.current) setPreparing(false);
+    }
   }, [episode, preparing, projectDirectory]);
 
   const openEpisode = useCallback(async () => {
     if (importLock.current || !projectDirectory || !project) return;
-    if (!isTauri()) { fileInputRef.current?.click(); return; }
-    importLock.current = true; setImporting(true); setStatus("កំពុង import និងរៀបចំ media…"); setError(null);
+    if (!isTauri()) {
+      fileInputRef.current?.click();
+      return;
+    }
+    importLock.current = true;
+    setImporting(true);
+    setStatus("កំពុង import និងរៀបចំ media…");
+    setError(null);
     try {
       const selected = await pickEpisodePath();
       if (!selected) return;
       setStatus("កំពុងបង្កើត preview video និង audio…");
-      const persisted = await requestEngine("project.import_episode", { project_directory: projectDirectory, project_name: project.name, source: selected });
+      const persisted = await requestEngine("project.import_episode", {
+        project_directory: projectDirectory,
+        project_name: project.name,
+        source: selected,
+      });
       rememberActiveEpisode(projectDirectory, persisted.id);
       void allowAssetPath(selected);
       if (mounted.current) {
-        setEpisode(toEpisodeMedia(persisted)); setMediaRevision((value) => value + 1); setStatus("Episode រួចរាល់");
-        window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800);
+        setEpisode(toEpisodeMedia(persisted));
+        setMediaRevision((value) => value + 1);
+        setStatus("Episode រួចរាល់");
+        window.setTimeout(() => {
+          if (mounted.current) setStatus(null);
+        }, 1800);
       }
     } catch (cause) {
-      if (mounted.current) { setError(cause instanceof Error ? cause.message : "មិនអាច import episode នេះបានទេ។"); setStatus(null); }
-    } finally { importLock.current = false; if (mounted.current) setImporting(false); }
+      if (mounted.current) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "មិនអាច import episode នេះបានទេ។",
+        );
+        setStatus(null);
+      }
+    } finally {
+      importLock.current = false;
+      if (mounted.current) setImporting(false);
+    }
   }, [projectDirectory, project]);
   const importFile = useCallback((file: File) => {
-    if (!/\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name)) { setError("សូមជ្រើស MP4, MOV, MKV, WebM, M4V ឬ AVI។"); return; }
-    setError("Web preview មិនអាចរក្សាទុក episode ទៅ Project បានទេ។ សូមប្រើ Catty desktop app។");
+    if (!/\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name)) {
+      setError("សូមជ្រើស MP4, MOV, MKV, WebM, M4V ឬ AVI។");
+      return;
+    }
+    setError(
+      "Web preview មិនអាចរក្សាទុក episode ទៅ Project បានទេ។ សូមប្រើ Catty desktop app។",
+    );
   }, []);
   const activeDirectory = useRef(projectDirectory);
-  useEffect(() => { activeDirectory.current = projectDirectory; }, [projectDirectory]);
-  const applyPersistedEpisode = useCallback((persisted: PersistedEpisode) => {
-    if (!mounted.current || activeDirectory.current !== projectDirectory) return;
-    setEpisode((current) => (current?.id === persisted.id ? toEpisodeMedia(persisted) : current));
+  useEffect(() => {
+    activeDirectory.current = projectDirectory;
   }, [projectDirectory]);
-  const updateMetadata = useCallback((id: string, metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => {
-    setEpisode((current) => (current?.id === id ? { ...current, ...metadata } : current));
-  }, []);
+  const applyPersistedEpisode = useCallback(
+    (persisted: PersistedEpisode) => {
+      if (!mounted.current || activeDirectory.current !== projectDirectory)
+        return;
+      setEpisode((current) =>
+        current?.id === persisted.id ? toEpisodeMedia(persisted) : current,
+      );
+    },
+    [projectDirectory],
+  );
+  const updateMetadata = useCallback(
+    (
+      id: string,
+      metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">,
+    ) => {
+      setEpisode((current) =>
+        current?.id === id ? { ...current, ...metadata } : current,
+      );
+    },
+    [],
+  );
   return {
-    episode, mediaRevision, importing, preparing, status, error,
-    dismissError: () => setError(null), openEpisode, rebuildProxy, importFile, fileInputRef,
-    updateMetadata, applyPersistedEpisode,
+    episode,
+    mediaRevision,
+    importing,
+    preparing,
+    status,
+    error,
+    dismissError: () => setError(null),
+    openEpisode,
+    rebuildProxy,
+    importFile,
+    fileInputRef,
+    updateMetadata,
+    applyPersistedEpisode,
   };
 }

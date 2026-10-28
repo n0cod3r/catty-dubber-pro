@@ -6,7 +6,8 @@ export async function listenTranslationProgress(
   onProgress: (progress: TranslationProgress) => void,
 ) {
   if (!isTauri()) return () => {};
-  return listen<TranslationProgress>("catty:translation-progress", ({ payload }) =>
-    onProgress(payload),
+  return listen<TranslationProgress>(
+    "catty:translation-progress",
+    ({ payload }) => onProgress(payload),
   );
 }

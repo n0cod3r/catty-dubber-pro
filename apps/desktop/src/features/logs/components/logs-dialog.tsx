@@ -1,11 +1,22 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { FileText, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-import { clearLogs, getLogs, pollNativeLogs, subscribeLogs } from "../services/log-store";
+import {
+  clearLogs,
+  getLogs,
+  pollNativeLogs,
+  subscribeLogs,
+} from "../services/log-store";
 
 export function LogsButton() {
   const [open, setOpen] = useState(false);
@@ -50,7 +61,10 @@ function LogsDialog({ onClose }: { onClose: () => void }) {
       try {
         await pollNativeLogs();
       } catch {
-        if (active) setStatus("Could not read desktop logs. Restart Catty after updating.");
+        if (active)
+          setStatus(
+            "Could not read desktop logs. Restart Catty after updating.",
+          );
       }
       if (active) timer = setTimeout(() => void poll(), 750);
     };
@@ -73,7 +87,8 @@ function LogsDialog({ onClose }: { onClose: () => void }) {
     [logs, source, level, search],
   );
   useEffect(() => {
-    if (follow && viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
+    if (follow && viewport.current)
+      viewport.current.scrollTop = viewport.current.scrollHeight;
   }, [filtered, follow]);
   const copy = async () => {
     try {
@@ -87,7 +102,9 @@ function LogsDialog({ onClose }: { onClose: () => void }) {
       );
       setStatus("Copied visible logs");
     } catch {
-      setStatus("Clipboard unavailable. Select and copy the log text manually.");
+      setStatus(
+        "Clipboard unavailable. Select and copy the log text manually.",
+      );
     }
   };
   return createPortal(
@@ -115,7 +132,9 @@ function LogsDialog({ onClose }: { onClose: () => void }) {
           <h2 id="logs-title" className="text-sm font-semibold">
             Logs
           </h2>
-          <span className="text-[10px] text-muted-foreground">Current app session</span>
+          <span className="text-[10px] text-muted-foreground">
+            Current app session
+          </span>
           <Button
             variant="ghost"
             size="icon-xs"
@@ -178,7 +197,9 @@ function LogsDialog({ onClose }: { onClose: () => void }) {
                 className="grid grid-cols-[80px_60px_65px_minmax(0,1fr)] gap-2 border-b border-border/40 py-1"
               >
                 <span className="text-muted-foreground">
-                  {new Date(entry.timestamp).toLocaleTimeString([], { hour12: false })}
+                  {new Date(entry.timestamp).toLocaleTimeString([], {
+                    hour12: false,
+                  })}
                 </span>
                 <span
                   className={
@@ -199,7 +220,9 @@ function LogsDialog({ onClose }: { onClose: () => void }) {
             ))
           ) : (
             <p className="p-6 text-center text-muted-foreground">
-              {logs.length ? "No matching logs" : "No logs yet. App activity will appear here."}
+              {logs.length
+                ? "No matching logs"
+                : "No logs yet. App activity will appear here."}
             </p>
           )}
         </div>

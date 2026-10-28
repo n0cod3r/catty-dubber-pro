@@ -40,7 +40,9 @@ export function PanelResizeHandle({
       aria-valuenow={Math.round(value)}
       className={cn(
         "group relative z-10 touch-none bg-card outline-none hover:bg-primary/30 focus-visible:bg-primary/40",
-        horizontal ? "cursor-row-resize border-y" : "cursor-col-resize border-x",
+        horizontal
+          ? "cursor-row-resize border-y"
+          : "cursor-col-resize border-x",
       )}
       onDoubleClick={() => onChange(clamp(reset, min, max))}
       onKeyDown={(event) => {
@@ -87,7 +89,9 @@ export function PanelResizeHandle({
       <span
         className={cn(
           "absolute bg-muted-foreground/50",
-          horizontal ? "inset-x-0 top-1/2 mx-auto h-px w-8" : "inset-y-0 left-1/2 my-auto h-8 w-px",
+          horizontal
+            ? "inset-x-0 top-1/2 mx-auto h-px w-8"
+            : "inset-y-0 left-1/2 my-auto h-8 w-px",
         )}
       />
     </div>

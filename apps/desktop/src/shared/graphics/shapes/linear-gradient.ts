@@ -23,13 +23,20 @@ export type SwappedShapeLinearGradientColors = Pick<
 export function resolveShapeLinearGradient(
   shape: Pick<
     ShapeStyleFields,
-    "fillType" | "fillColor" | "gradientStartColor" | "gradientEndColor" | "gradientAngle"
+    | "fillType"
+    | "fillColor"
+    | "gradientStartColor"
+    | "gradientEndColor"
+    | "gradientAngle"
   >,
 ): ResolvedShapeLinearGradient | null {
   if (shape.fillType !== "linear") return null;
 
   return {
-    startColor: shape.gradientStartColor || shape.fillColor || DEFAULT_SHAPE_GRADIENT_START_COLOR,
+    startColor:
+      shape.gradientStartColor ||
+      shape.fillColor ||
+      DEFAULT_SHAPE_GRADIENT_START_COLOR,
     endColor: shape.gradientEndColor || DEFAULT_SHAPE_GRADIENT_END_COLOR,
     angle: Number.isFinite(shape.gradientAngle)
       ? (shape.gradientAngle ?? DEFAULT_SHAPE_GRADIENT_ANGLE)
@@ -40,7 +47,11 @@ export function resolveShapeLinearGradient(
 export function getSwappedShapeLinearGradientColors(
   shape: Pick<
     ShapeStyleFields,
-    "fillType" | "fillColor" | "gradientStartColor" | "gradientEndColor" | "gradientAngle"
+    | "fillType"
+    | "fillColor"
+    | "gradientStartColor"
+    | "gradientEndColor"
+    | "gradientAngle"
   >,
 ): SwappedShapeLinearGradientColors | null {
   const gradient = resolveShapeLinearGradient(shape);
@@ -57,11 +68,14 @@ export function getSwappedShapeLinearGradientColors(
  * Returns endpoints on the edge of a normalized 0-1 box.
  * Zero degrees runs left-to-right and positive angles rotate clockwise.
  */
-export function getLinearGradientUnitEndpoints(angleDegrees: number): LinearGradientUnitEndpoints {
+export function getLinearGradientUnitEndpoints(
+  angleDegrees: number,
+): LinearGradientUnitEndpoints {
   const radians = (angleDegrees * Math.PI) / 180;
   const directionX = Math.cos(radians);
   const directionY = Math.sin(radians);
-  const extent = 0.5 / Math.max(Math.abs(directionX), Math.abs(directionY), 1e-6);
+  const extent =
+    0.5 / Math.max(Math.abs(directionX), Math.abs(directionY), 1e-6);
 
   return {
     start: {

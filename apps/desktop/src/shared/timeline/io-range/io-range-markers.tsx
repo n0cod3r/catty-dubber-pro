@@ -2,7 +2,11 @@ import { memo, type PointerEvent as ReactPointerEvent } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { computeIoGripWidth, IO_HANDLE_COLOR, IO_HANDLE_WIDTH } from "./io-range-geometry";
+import {
+  computeIoGripWidth,
+  IO_HANDLE_COLOR,
+  IO_HANDLE_WIDTH,
+} from "./io-range-geometry";
 
 /**
  * Single source of truth for in/out (IO) range markers, shared by every
@@ -26,7 +30,10 @@ const DEFAULT_HIT_HEIGHT_EXTRA = 6;
 // (Edit ruler, source-monitor seek bar) don't also seek when a marker is
 // grabbed. The real drag runs on pointerdown; pointer-driven scrub surfaces
 // (mini-timeline) are stopped by the drag handler's own stopPropagation.
-function blockMouseDown(e: { preventDefault: () => void; stopPropagation: () => void }) {
+function blockMouseDown(e: {
+  preventDefault: () => void;
+  stopPropagation: () => void;
+}) {
   e.preventDefault();
   e.stopPropagation();
 }
@@ -75,7 +82,11 @@ export const IoRangeStrip = memo(function IoRangeStrip({
       data-testid={testId}
       {...dataset}
       title={title}
-      className={cn("absolute", onDragStart && "cursor-grab active:cursor-grabbing", className)}
+      className={cn(
+        "absolute",
+        onDragStart && "cursor-grab active:cursor-grabbing",
+        className,
+      )}
       style={{
         left,
         width,
@@ -84,7 +95,8 @@ export const IoRangeStrip = memo(function IoRangeStrip({
         // Never let the bar vanish when the range is sub-pixel at low zoom.
         minWidth: 2,
         background: "color-mix(in oklch, var(--muted-foreground) 82%, black)",
-        border: "1px solid color-mix(in oklch, var(--muted-foreground) 70%, transparent)",
+        border:
+          "1px solid color-mix(in oklch, var(--muted-foreground) 70%, transparent)",
         borderRadius: 5,
         zIndex,
         pointerEvents: onDragStart ? "auto" : "none",

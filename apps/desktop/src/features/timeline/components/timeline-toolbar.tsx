@@ -110,7 +110,9 @@ export function TimelineToolbar(props: TimelineToolbarProps) {
       </Button>
       <span className="mx-2 hidden whitespace-nowrap font-mono text-[10px] tabular-nums text-primary xl:block">
         {formatTime(props.currentTime, true)}
-        <span className="ml-2 text-muted-foreground">/ {formatTime(props.duration)}</span>
+        <span className="ml-2 text-muted-foreground">
+          / {formatTime(props.duration)}
+        </span>
       </span>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <Button

@@ -23,7 +23,8 @@ const HAS_PERF =
  */
 export function perfMarkRender(name: string): void {
   if (!HAS_PERF) return;
-  if (!(globalThis as { __TL_RENDER_MARKS__?: boolean }).__TL_RENDER_MARKS__) return;
+  if (!(globalThis as { __TL_RENDER_MARKS__?: boolean }).__TL_RENDER_MARKS__)
+    return;
   try {
     performance.mark(`tl.render.${name}`);
   } catch {
@@ -45,7 +46,8 @@ export function perfMarkRender(name: string): void {
 let perfMeasureCounter = 0;
 
 export function withPerfMeasure<T>(name: string, fn: () => T): T {
-  if (!HAS_PERF || !(globalThis as { __TL_PERF__?: boolean }).__TL_PERF__) return fn();
+  if (!HAS_PERF || !(globalThis as { __TL_PERF__?: boolean }).__TL_PERF__)
+    return fn();
   const unique = ++perfMeasureCounter;
   const startMark = `${name}:s:${unique}`;
   const endMark = `${name}:e:${unique}`;

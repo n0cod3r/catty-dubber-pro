@@ -1,5 +1,6 @@
 export type VisualRequest =
-  { type: "open"; url: string; duration: number } | { type: "thumbnails"; times: number[] };
+  | { type: "open"; url: string; duration: number }
+  | { type: "thumbnails"; times: number[] };
 export type VisualResponse =
   | { type: "audio-init"; bins: number; rate: number }
   | {

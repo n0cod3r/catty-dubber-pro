@@ -7,7 +7,11 @@ export function selectActiveEpisode(
   preferredId: string | null | undefined,
 ): PersistedEpisode | null {
   if (episodes.length === 0) return null;
-  return episodes.find((episode) => episode.id === preferredId) ?? episodes[0] ?? null;
+  return (
+    episodes.find((episode) => episode.id === preferredId) ??
+    episodes[0] ??
+    null
+  );
 }
 
 function storageKey(directory: string) {
@@ -22,7 +26,10 @@ export function readActiveEpisodeId(directory: string): string | null {
   }
 }
 
-export function rememberActiveEpisode(directory: string, episodeId: string): void {
+export function rememberActiveEpisode(
+  directory: string,
+  episodeId: string,
+): void {
   try {
     globalThis.localStorage?.setItem(storageKey(directory), episodeId);
   } catch {

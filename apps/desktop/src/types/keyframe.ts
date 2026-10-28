@@ -42,10 +42,13 @@ export type EffectAnimatableProperty = `effect:${string}:${string}:${string}`;
 export type PathVertexAnimatableComponent =
   "positionX" | "positionY" | "inX" | "inY" | "outX" | "outY";
 
-export type PathVertexAnimatableProperty = `pathVertex:${number}:${PathVertexAnimatableComponent}`;
+export type PathVertexAnimatableProperty =
+  `pathVertex:${number}:${PathVertexAnimatableComponent}`;
 
 export type AnimatableProperty =
-  BuiltInAnimatableProperty | PathVertexAnimatableProperty | EffectAnimatableProperty;
+  | BuiltInAnimatableProperty
+  | PathVertexAnimatableProperty
+  | EffectAnimatableProperty;
 
 /** Current persisted animation-domain version. Missing means the legacy scalar-only model. */
 export const ANIMATION_CORE_VERSION = 2 as const;
@@ -59,7 +62,9 @@ const VECTOR_ANIMATABLE_PROPERTIES = new Set<VectorAnimatableProperty>([
   "anchor",
 ]);
 
-export function isVectorAnimatableProperty(property: string): property is VectorAnimatableProperty {
+export function isVectorAnimatableProperty(
+  property: string,
+): property is VectorAnimatableProperty {
   return VECTOR_ANIMATABLE_PROPERTIES.has(property as VectorAnimatableProperty);
 }
 
@@ -70,7 +75,15 @@ export interface Vector2 {
 
 /** Transform/visual properties animatable via gizmo (excludes non-spatial props like volume) */
 export type TransformAnimatableProperty =
-  "x" | "y" | "width" | "height" | "anchorX" | "anchorY" | "rotation" | "opacity" | "cornerRadius";
+  | "x"
+  | "y"
+  | "width"
+  | "height"
+  | "anchorX"
+  | "anchorY"
+  | "rotation"
+  | "opacity"
+  | "cornerRadius";
 
 const TRANSFORM_ANIMATABLE_PROPERTIES = new Set<TransformAnimatableProperty>([
   "x",
@@ -87,7 +100,9 @@ const TRANSFORM_ANIMATABLE_PROPERTIES = new Set<TransformAnimatableProperty>([
 export function isTransformAnimatableProperty(
   property: AnimatableProperty | string,
 ): property is TransformAnimatableProperty {
-  return TRANSFORM_ANIMATABLE_PROPERTIES.has(property as TransformAnimatableProperty);
+  return TRANSFORM_ANIMATABLE_PROPERTIES.has(
+    property as TransformAnimatableProperty,
+  );
 }
 
 export type ShapeAnimatableProperty =
@@ -116,26 +131,38 @@ export function isShapeAnimatableProperty(
 }
 
 /** Scalar properties whose post-keyframe values can participate in direct links. */
-export type LinkableAnimatableProperty = TransformAnimatableProperty | ShapeAnimatableProperty;
+export type LinkableAnimatableProperty =
+  TransformAnimatableProperty | ShapeAnimatableProperty;
 
 export function isLinkableAnimatableProperty(
   property: AnimatableProperty | string,
 ): property is LinkableAnimatableProperty {
-  return isTransformAnimatableProperty(property) || isShapeAnimatableProperty(property);
+  return (
+    isTransformAnimatableProperty(property) ||
+    isShapeAnimatableProperty(property)
+  );
 }
 
 /** Direct links are deliberately limited to equal-shaped numeric values. */
-export type DirectLinkableProperty = LinkableAnimatableProperty | VectorAnimatableProperty;
+export type DirectLinkableProperty =
+  LinkableAnimatableProperty | VectorAnimatableProperty;
 
-export function isDirectLinkableProperty(property: string): property is DirectLinkableProperty {
-  return isLinkableAnimatableProperty(property) || isVectorAnimatableProperty(property);
+export function isDirectLinkableProperty(
+  property: string,
+): property is DirectLinkableProperty {
+  return (
+    isLinkableAnimatableProperty(property) ||
+    isVectorAnimatableProperty(property)
+  );
 }
 
 export function areDirectLinkPropertiesCompatible(
   target: DirectLinkableProperty,
   source: DirectLinkableProperty,
 ): boolean {
-  return isVectorAnimatableProperty(target) === isVectorAnimatableProperty(source);
+  return (
+    isVectorAnimatableProperty(target) === isVectorAnimatableProperty(source)
+  );
 }
 
 const VECTOR_LINK_COMPONENTS: Record<
@@ -160,10 +187,14 @@ export function doDirectLinkTargetsConflict(
 ): boolean {
   if (left === right) return true;
   if (isVectorAnimatableProperty(left)) {
-    return VECTOR_LINK_COMPONENTS[left].includes(right as TransformAnimatableProperty);
+    return VECTOR_LINK_COMPONENTS[left].includes(
+      right as TransformAnimatableProperty,
+    );
   }
   if (isVectorAnimatableProperty(right)) {
-    return VECTOR_LINK_COMPONENTS[right].includes(left as TransformAnimatableProperty);
+    return VECTOR_LINK_COMPONENTS[right].includes(
+      left as TransformAnimatableProperty,
+    );
   }
   return false;
 }
@@ -198,7 +229,8 @@ export interface PropertyExpression {
 export type StoredPropertyExpression = PropertyExpression | DirectPropertyLink;
 
 export function getDirectPropertyLinks(
-  itemKeyframes: Pick<ItemKeyframes, "propertyLinks" | "expressions"> | undefined,
+  itemKeyframes:
+    Pick<ItemKeyframes, "propertyLinks" | "expressions"> | undefined,
 ): readonly DirectPropertyLink[] {
   if (!itemKeyframes) return [];
   const legacyLinks = (itemKeyframes.expressions ?? []).filter(
@@ -220,7 +252,8 @@ export function getPropertyExpressions(
  * `hold` is a step interpolation — the value stays at the keyframe's
  * value until the next keyframe is reached (no interpolation).
  */
-export type BasicEasingType = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "hold";
+export type BasicEasingType =
+  "linear" | "ease-in" | "ease-out" | "ease-in-out" | "hold";
 
 /** Advanced easing types that require configuration */
 export type AdvancedEasingType = "cubic-bezier" | "spring";
@@ -347,8 +380,12 @@ export function cloneVectorKeyframe(
     value: { ...keyframe.value },
     ...(keyframe.temporalEase && {
       temporalEase: {
-        ...(keyframe.temporalEase.in && { in: { ...keyframe.temporalEase.in } }),
-        ...(keyframe.temporalEase.out && { out: { ...keyframe.temporalEase.out } }),
+        ...(keyframe.temporalEase.in && {
+          in: { ...keyframe.temporalEase.in },
+        }),
+        ...(keyframe.temporalEase.out && {
+          out: { ...keyframe.temporalEase.out },
+        }),
       },
     }),
     ...(keyframe.spatial && {
@@ -479,7 +516,9 @@ const BUILT_IN_ANIMATABLE_PROPERTIES = new Set<BuiltInAnimatableProperty>(
 export function isBuiltInAnimatableProperty(
   property: AnimatableProperty | string,
 ): property is BuiltInAnimatableProperty {
-  return BUILT_IN_ANIMATABLE_PROPERTIES.has(property as BuiltInAnimatableProperty);
+  return BUILT_IN_ANIMATABLE_PROPERTIES.has(
+    property as BuiltInAnimatableProperty,
+  );
 }
 
 export function buildEffectAnimatableProperty(
@@ -497,7 +536,8 @@ export function parseEffectAnimatableProperty(
     return null;
   }
 
-  const [, gpuEffectType = "", effectId = "", paramKey = ""] = property.split(":");
+  const [, gpuEffectType = "", effectId = "", paramKey = ""] =
+    property.split(":");
   if (!gpuEffectType || !effectId || !paramKey) {
     return null;
   }
@@ -521,7 +561,8 @@ export function buildPathVertexAnimatableProperty(
 export function parsePathVertexAnimatableProperty(
   property: AnimatableProperty | string,
 ): { vertexIndex: number; component: PathVertexAnimatableComponent } | null {
-  const match = /^pathVertex:(\d+):(positionX|positionY|inX|inY|outX|outY)$/.exec(property);
+  const match =
+    /^pathVertex:(\d+):(positionX|positionY|inX|inY|outX|outY)$/.exec(property);
   if (!match) return null;
   return {
     vertexIndex: Number(match[1]),
@@ -569,7 +610,9 @@ export const PROPERTY_LABELS = new Proxy<Record<string, string>>(
         return undefined;
       }
 
-      return target[prop] ?? getAnimatablePropertyLabel(prop as AnimatableProperty);
+      return (
+        target[prop] ?? getAnimatablePropertyLabel(prop as AnimatableProperty)
+      );
     },
   },
 ) as Record<AnimatableProperty, string>;

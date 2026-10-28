@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type RefObject } from 'react'
+import { useCallback, useRef, useState, type RefObject } from "react";
 
 /**
  * Geometry + shared constants for the in/out (IO) range markers. Kept separate
@@ -6,8 +6,8 @@ import { useCallback, useRef, useState, type RefObject } from 'react'
  * components must not also export plain functions/values).
  */
 
-export const IO_HANDLE_WIDTH = 6
-export const IO_HANDLE_COLOR = 'var(--color-timeline-io-handle)'
+export const IO_HANDLE_WIDTH = 6;
+export const IO_HANDLE_COLOR = "var(--color-timeline-io-handle)";
 
 /**
  * Grip width that avoids the "solid blue block" artifact: when the in/out range
@@ -16,9 +16,12 @@ export const IO_HANDLE_COLOR = 'var(--color-timeline-io-handle)'
  * midpoint (a clean pill spanning exactly the range) instead of overlapping.
  * `spanPx === null` (only one point set) renders a full-width grip.
  */
-export function computeIoGripWidth(spanPx: number | null, nominal = IO_HANDLE_WIDTH): number {
-  if (spanPx === null) return nominal
-  return Math.max(0, Math.min(nominal, spanPx / 2))
+export function computeIoGripWidth(
+  spanPx: number | null,
+  nominal = IO_HANDLE_WIDTH,
+): number {
+  if (spanPx === null) return nominal;
+  return Math.max(0, Math.min(nominal, spanPx / 2));
 }
 
 /**
@@ -36,28 +39,28 @@ export function computeIoGripWidth(spanPx: number | null, nominal = IO_HANDLE_WI
 export function useMeasuredWidth<T extends HTMLElement>(
   ref?: RefObject<T | null>,
 ): {
-  width: number
-  measureRef: (node: T | null) => void
+  width: number;
+  measureRef: (node: T | null) => void;
 } {
-  const [width, setWidth] = useState(0)
-  const observerRef = useRef<ResizeObserver | null>(null)
+  const [width, setWidth] = useState(0);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
   const measureRef = useCallback(
     (node: T | null) => {
-      if (ref) ref.current = node
-      observerRef.current?.disconnect()
+      if (ref) ref.current = node;
+      observerRef.current?.disconnect();
       if (!node) {
-        observerRef.current = null
-        return
+        observerRef.current = null;
+        return;
       }
-      const update = () => setWidth(node.clientWidth)
-      update()
-      const observer = new ResizeObserver(update)
-      observer.observe(node)
-      observerRef.current = observer
+      const update = () => setWidth(node.clientWidth);
+      update();
+      const observer = new ResizeObserver(update);
+      observer.observe(node);
+      observerRef.current = observer;
     },
     [ref],
-  )
+  );
 
-  return { width, measureRef }
+  return { width, measureRef };
 }

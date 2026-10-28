@@ -18,7 +18,11 @@ type Point = [number, number];
 const DEFAULT_FLATNESS_TOLERANCE = 0.35;
 const MAX_SUBDIVISION_DEPTH = 12;
 
-function scaledPosition(vertex: MaskVertex, width: number, height: number): Point {
+function scaledPosition(
+  vertex: MaskVertex,
+  width: number,
+  height: number,
+): Point {
   return [vertex.position[0] * width, vertex.position[1] * height];
 }
 
@@ -42,9 +46,12 @@ function pointLineDistance(point: Point, start: Point, end: Point): number {
   const dx = end[0] - start[0];
   const dy = end[1] - start[1];
   const denominator = Math.hypot(dx, dy);
-  if (denominator <= Number.EPSILON) return Math.hypot(point[0] - start[0], point[1] - start[1]);
+  if (denominator <= Number.EPSILON)
+    return Math.hypot(point[0] - start[0], point[1] - start[1]);
   return (
-    Math.abs(dy * point[0] - dx * point[1] + end[0] * start[1] - end[1] * start[0]) / denominator
+    Math.abs(
+      dy * point[0] - dx * point[1] + end[0] * start[1] - end[1] * start[0],
+    ) / denominator
   );
 }
 
@@ -57,7 +64,10 @@ function flattenCubic(
   output: Point[],
   depth = 0,
 ): void {
-  const flatness = Math.max(pointLineDistance(p1, p0, p3), pointLineDistance(p2, p0, p3));
+  const flatness = Math.max(
+    pointLineDistance(p1, p0, p3),
+    pointLineDistance(p2, p0, p3),
+  );
   if (flatness <= tolerance || depth >= MAX_SUBDIVISION_DEPTH) {
     output.push(p3);
     return;
@@ -146,7 +156,8 @@ export function flattenBezierPath(
     const previous = rawPoints[index - 1]!;
     const current = rawPoints[index]!;
     cumulative.push(
-      cumulative[index - 1]! + Math.hypot(current[0] - previous[0], current[1] - previous[1]),
+      cumulative[index - 1]! +
+        Math.hypot(current[0] - previous[0], current[1] - previous[1]),
     );
   }
   const totalLength = cumulative[cumulative.length - 1] ?? 0;
@@ -167,8 +178,15 @@ export function reversePathVertices(vertices: MaskVertex[]): MaskVertex[] {
   }));
 }
 
-export function rotateClosedPathStart(vertices: MaskVertex[], firstIndex: number): MaskVertex[] {
+export function rotateClosedPathStart(
+  vertices: MaskVertex[],
+  firstIndex: number,
+): MaskVertex[] {
   if (vertices.length === 0) return [];
-  const normalizedIndex = ((firstIndex % vertices.length) + vertices.length) % vertices.length;
-  return [...vertices.slice(normalizedIndex), ...vertices.slice(0, normalizedIndex)];
+  const normalizedIndex =
+    ((firstIndex % vertices.length) + vertices.length) % vertices.length;
+  return [
+    ...vertices.slice(normalizedIndex),
+    ...vertices.slice(0, normalizedIndex),
+  ];
 }

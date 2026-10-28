@@ -8,7 +8,13 @@ export function advancePlaybackClock(
   if (mediaTime !== null && Number.isFinite(mediaTime)) {
     if (pendingSeek !== null && Math.abs(mediaTime - pendingSeek) >= 0.18)
       return { time: current, pendingSeek };
-    return { time: Math.max(0, Math.min(duration, mediaTime)), pendingSeek: null };
+    return {
+      time: Math.max(0, Math.min(duration, mediaTime)),
+      pendingSeek: null,
+    };
   }
-  return { time: Math.min(duration, current + Math.max(0, elapsed)), pendingSeek: null };
+  return {
+    time: Math.min(duration, current + Math.max(0, elapsed)),
+    pendingSeek: null,
+  };
 }

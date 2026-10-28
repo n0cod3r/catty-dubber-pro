@@ -73,7 +73,8 @@ export function useTimelineScrub(
         const before = viewport.scrollLeft;
         // Cap both velocity and elapsed time after a background-tab pause.
         viewport.scrollLeft +=
-          (clamp(edgeDistance / 2, -20, 20) * Math.min(now - previous, 32)) / 16;
+          (clamp(edgeDistance / 2, -20, 20) * Math.min(now - previous, 32)) /
+          16;
         previous = now;
         if (gesture.pending || viewport.scrollLeft !== before) {
           gesture.pending = false;
@@ -91,7 +92,9 @@ export function useTimelineScrub(
       gesture.pending = true;
     },
     onPointerUp: (event: PointerEvent<HTMLDivElement>) => finish(event, true),
-    onPointerCancel: (event: PointerEvent<HTMLDivElement>) => finish(event, false),
-    onLostPointerCapture: (event: PointerEvent<HTMLDivElement>) => finish(event, false),
+    onPointerCancel: (event: PointerEvent<HTMLDivElement>) =>
+      finish(event, false),
+    onLostPointerCapture: (event: PointerEvent<HTMLDivElement>) =>
+      finish(event, false),
   };
 }

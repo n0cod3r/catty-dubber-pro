@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 /**
  * Marquee selection state
@@ -135,7 +142,10 @@ export function getMarqueeRect(
   };
 }
 
-function areStringListsEqual(previous: readonly string[], next: readonly string[]): boolean {
+function areStringListsEqual(
+  previous: readonly string[],
+  next: readonly string[],
+): boolean {
   if (previous.length !== next.length) {
     return false;
   }
@@ -234,7 +244,9 @@ export function useMarqueeSelection({
   const resolveItemsRef = useRef(resolveItems);
   const enabledRef = useRef(enabled);
   const resolvedItemsRef = useRef<ResolvedMarqueeItem[] | null>(null);
-  const liveCommitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveCommitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const pendingLiveCommitIdsRef = useRef<string[] | null>(null);
   const lastLiveCommitTimeRef = useRef(0);
   const gestureStartSelectionIdsRef = useRef<string[] | null>(null);
@@ -407,7 +419,8 @@ export function useMarqueeSelection({
     // Never let that stale gesture compete with a new interaction.
     cancelGesture();
 
-    if (!enabledRef.current || !containerRef.current || !boundsRef.current) return;
+    if (!enabledRef.current || !containerRef.current || !boundsRef.current)
+      return;
 
     // Only trigger on left click
     if (e.button !== 0) return;

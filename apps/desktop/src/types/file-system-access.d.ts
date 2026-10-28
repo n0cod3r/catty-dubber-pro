@@ -11,12 +11,16 @@ interface FileSystemFileHandle {
   /**
    * Query the current permission state of this handle
    */
-  queryPermission(descriptor?: FileSystemPermissionDescriptor): Promise<PermissionState>;
+  queryPermission(
+    descriptor?: FileSystemPermissionDescriptor,
+  ): Promise<PermissionState>;
 
   /**
    * Request permission to access this handle
    */
-  requestPermission(descriptor?: FileSystemPermissionDescriptor): Promise<PermissionState>;
+  requestPermission(
+    descriptor?: FileSystemPermissionDescriptor,
+  ): Promise<PermissionState>;
 
   /**
    * Creates a sync access handle for high-performance file operations
@@ -26,8 +30,14 @@ interface FileSystemFileHandle {
 }
 
 interface FileSystemSyncAccessHandle {
-  read(buffer: ArrayBuffer | ArrayBufferView, options?: { at?: number }): number;
-  write(buffer: ArrayBuffer | ArrayBufferView, options?: { at?: number }): number;
+  read(
+    buffer: ArrayBuffer | ArrayBufferView,
+    options?: { at?: number },
+  ): number;
+  write(
+    buffer: ArrayBuffer | ArrayBufferView,
+    options?: { at?: number },
+  ): number;
   truncate(newSize: number): void;
   getSize(): number;
   flush(): void;
@@ -44,7 +54,13 @@ interface OpenFilePickerOptions {
   excludeAcceptAllOption?: boolean;
   types?: FilePickerAcceptType[];
   startIn?:
-    FileSystemHandle | "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
+    | FileSystemHandle
+    | "desktop"
+    | "documents"
+    | "downloads"
+    | "music"
+    | "pictures"
+    | "videos";
 }
 
 interface SaveFilePickerOptions {
@@ -52,20 +68,38 @@ interface SaveFilePickerOptions {
   types?: FilePickerAcceptType[];
   suggestedName?: string;
   startIn?:
-    FileSystemHandle | "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
+    | FileSystemHandle
+    | "desktop"
+    | "documents"
+    | "downloads"
+    | "music"
+    | "pictures"
+    | "videos";
 }
 
 interface DirectoryPickerOptions {
   id?: string;
   mode?: "read" | "readwrite";
   startIn?:
-    FileSystemHandle | "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
+    | FileSystemHandle
+    | "desktop"
+    | "documents"
+    | "downloads"
+    | "music"
+    | "pictures"
+    | "videos";
 }
 
 interface Window {
-  showOpenFilePicker(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
-  showSaveFilePicker(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
-  showDirectoryPicker(options?: DirectoryPickerOptions): Promise<FileSystemDirectoryHandle>;
+  showOpenFilePicker(
+    options?: OpenFilePickerOptions,
+  ): Promise<FileSystemFileHandle[]>;
+  showSaveFilePicker(
+    options?: SaveFilePickerOptions,
+  ): Promise<FileSystemFileHandle>;
+  showDirectoryPicker(
+    options?: DirectoryPickerOptions,
+  ): Promise<FileSystemDirectoryHandle>;
 }
 
 /**
@@ -75,12 +109,16 @@ interface FileSystemDirectoryHandle {
   /**
    * Query the current permission state of this handle
    */
-  queryPermission(descriptor?: FileSystemPermissionDescriptor): Promise<PermissionState>;
+  queryPermission(
+    descriptor?: FileSystemPermissionDescriptor,
+  ): Promise<PermissionState>;
 
   /**
    * Request permission to access this handle
    */
-  requestPermission(descriptor?: FileSystemPermissionDescriptor): Promise<PermissionState>;
+  requestPermission(
+    descriptor?: FileSystemPermissionDescriptor,
+  ): Promise<PermissionState>;
 
   /**
    * Returns an async iterator of [name, handle] pairs

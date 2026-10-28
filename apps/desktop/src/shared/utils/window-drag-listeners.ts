@@ -1,4 +1,4 @@
-import type { RefObject } from 'react'
+import type { RefObject } from "react";
 
 /**
  * Attaches window-level `mousemove`/`mouseup` listeners for a drag gesture.
@@ -10,14 +10,14 @@ export function attachWindowDragListeners(
   onMouseUp: (event: MouseEvent) => void,
   rafRef: RefObject<number | null>,
 ): () => void {
-  window.addEventListener('mousemove', onMouseMove)
-  window.addEventListener('mouseup', onMouseUp)
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
   return () => {
-    window.removeEventListener('mousemove', onMouseMove)
-    window.removeEventListener('mouseup', onMouseUp)
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
     if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
-  }
+  };
 }

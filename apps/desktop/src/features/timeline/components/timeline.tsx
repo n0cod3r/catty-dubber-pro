@@ -75,7 +75,11 @@ export function Timeline({
   const duration = Math.max(projectDuration, 30);
   // A loaded short video fits its actual duration; empty media has a 30s ruler.
   const timelineDuration = projectDuration > 0 ? projectDuration : duration;
-  const viewport = useTimelineViewport(timelineDuration, currentTime, followPlayhead);
+  const viewport = useTimelineViewport(
+    timelineDuration,
+    currentTime,
+    followPlayhead,
+  );
   const committedDocument = history.present;
   const playheadRef = useRef(currentTime);
   useEffect(() => {
@@ -97,8 +101,18 @@ export function Timeline({
   const document = clipDrag.draft?.document ?? committedDocument;
   const ticks = useMemo(
     () =>
-      visibleTicks(timelineDuration, viewport.width, viewport.scrollLeft, viewport.viewportWidth),
-    [timelineDuration, viewport.width, viewport.scrollLeft, viewport.viewportWidth],
+      visibleTicks(
+        timelineDuration,
+        viewport.width,
+        viewport.scrollLeft,
+        viewport.viewportWidth,
+      ),
+    [
+      timelineDuration,
+      viewport.width,
+      viewport.scrollLeft,
+      viewport.viewportWidth,
+    ],
   );
   const clipsByLayer = useMemo(
     () =>
@@ -127,17 +141,22 @@ export function Timeline({
     !dialogueEditing.busy &&
     (dialogueContext
       ? !!dialogueSegment &&
-        !document.layers.find((layer) => layer.id === "dialogue-subtitles")?.locked
+        !document.layers.find((layer) => layer.id === "dialogue-subtitles")
+          ?.locked
       : splitCandidates(document, currentTime, selected).length > 0);
   function split() {
     if (!canSplit) return;
-    if (dialogueSegment) void dialogueEditing.split(dialogueSegment.id, currentTime);
+    if (dialogueSegment)
+      void dialogueEditing.split(dialogueSegment.id, currentTime);
     else actions.split({ time: currentTime, selectedId: selected });
   }
-  const undo = () => (dialogueContext ? void dialogueEditing.restore(false) : actions.undo());
-  const redo = () => (dialogueContext ? void dialogueEditing.restore(true) : actions.redo());
+  const undo = () =>
+    dialogueContext ? void dialogueEditing.restore(false) : actions.undo();
+  const redo = () =>
+    dialogueContext ? void dialogueEditing.restore(true) : actions.redo();
   const addLayer = (kind: TrackKind) => {
-    const count = document.layers.filter((layer) => layer.kind === kind).length + 1;
+    const count =
+      document.layers.filter((layer) => layer.kind === kind).length + 1;
     actions.addLayer({
       layer: {
         id: crypto.randomUUID(),
@@ -153,7 +172,9 @@ export function Timeline({
     (layer: Layer) => {
       if (!episode || mediaDuration <= 0) return;
       const overlay = layer.kind === "subtitle" || layer.kind === "graphic";
-      const start = overlay ? Math.min(playheadRef.current, Math.max(0, mediaDuration - 0.1)) : 0;
+      const start = overlay
+        ? Math.min(playheadRef.current, Math.max(0, mediaDuration - 0.1))
+        : 0;
       const clip: TimelineClip = {
         id: crypto.randomUUID(),
         trackId: layer.id,
@@ -218,7 +239,8 @@ export function Timeline({
     [committedDocument],
   );
   const selectedClip = document.clips.find((clip) => clip.id === selected);
-  const canDelete = !!selected && clipEditGroup(committedDocument, selected).length > 0;
+  const canDelete =
+    !!selected && clipEditGroup(committedDocument, selected).length > 0;
   function removeSelected() {
     if (selected && canDelete) {
       actions.removeClip({ id: selected });
@@ -242,7 +264,10 @@ export function Timeline({
         [
           0,
           mediaDuration,
-          ...document.clips.flatMap((clip) => [clip.start, clip.start + clip.duration]),
+          ...document.clips.flatMap((clip) => [
+            clip.start,
+            clip.start + clip.duration,
+          ]),
           ...markers,
         ],
         viewport.width / timelineDuration,
@@ -262,7 +287,9 @@ export function Timeline({
       aria-label="Timeline editor"
       onKeyDown={(event) => {
         if (
-          (event.target as HTMLElement).closest("input, textarea, select, [contenteditable=true]")
+          (event.target as HTMLElement).closest(
+            "input, textarea, select, [contenteditable=true]",
+          )
         )
           return;
         if (event.key === "Escape") {
@@ -307,12 +334,16 @@ export function Timeline({
         canSplit={canSplit}
         canUndo={
           !dialogueEditing.busy &&
-          (dialogueContext ? dialogueEditing.historyCounts.undo > 0 : history.past.length > 0) &&
+          (dialogueContext
+            ? dialogueEditing.historyCounts.undo > 0
+            : history.past.length > 0) &&
           canEdit
         }
         canRedo={
           !dialogueEditing.busy &&
-          (dialogueContext ? dialogueEditing.historyCounts.redo > 0 : history.future.length > 0) &&
+          (dialogueContext
+            ? dialogueEditing.historyCounts.redo > 0
+            : history.future.length > 0) &&
           canEdit
         }
         canDelete={canDelete}
@@ -327,17 +358,21 @@ export function Timeline({
         layerControl={
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="outline" size="xs" aria-label="Add layer" />}
+              render={
+                <Button variant="outline" size="xs" aria-label="Add layer" />
+              }
             >
               <Plus />
               Layer
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-40">
-              {(["video", "audio", "subtitle", "graphic"] as TrackKind[]).map((kind) => (
-                <DropdownMenuItem key={kind} onClick={() => addLayer(kind)}>
-                  Add {trackStyles[kind].label.toLowerCase()} layer
-                </DropdownMenuItem>
-              ))}
+              {(["video", "audio", "subtitle", "graphic"] as TrackKind[]).map(
+                (kind) => (
+                  <DropdownMenuItem key={kind} onClick={() => addLayer(kind)}>
+                    Add {trackStyles[kind].label.toLowerCase()} layer
+                  </DropdownMenuItem>
+                ),
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         }
@@ -347,7 +382,9 @@ export function Timeline({
         tabIndex={0}
         aria-label="Timeline tracks. Drag to scrub; S to split, M for marker, N for snapping."
         className="relative min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-        onScroll={(event) => viewport.setScrollLeft(event.currentTarget.scrollLeft)}
+        onScroll={(event) =>
+          viewport.setScrollLeft(event.currentTarget.scrollLeft)
+        }
         onPointerDown={(event) => {
           if (!clipDrag.begin(event)) scrubHandlers.onPointerDown(event);
         }}
@@ -378,7 +415,9 @@ export function Timeline({
         >
           <div className="sticky top-0 left-0 z-40 flex items-center border-r border-b bg-card px-3 text-[9px] font-medium tracking-widest text-muted-foreground">
             TRACKS{" "}
-            <span className="ml-auto rounded border px-1 text-[9px]">{document.layers.length}</span>
+            <span className="ml-auto rounded border px-1 text-[9px]">
+              {document.layers.length}
+            </span>
           </div>
           <div
             data-timeline-surface
@@ -407,7 +446,9 @@ export function Timeline({
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => onSeek(time)}
                 onDoubleClick={() =>
-                  setMarkers((values) => values.filter((value) => value !== time))
+                  setMarkers((values) =>
+                    values.filter((value) => value !== time),
+                  )
                 }
               >
                 <Flag className="size-3" fill="currentColor" />
@@ -446,7 +487,8 @@ export function Timeline({
               style={{
                 left:
                   TIMELINE.headerWidth +
-                  (clamp(currentTime, 0, timelineDuration) / timelineDuration) * viewport.width,
+                  (clamp(currentTime, 0, timelineDuration) / timelineDuration) *
+                    viewport.width,
               }}
             >
               <div className="absolute top-0 -left-1 h-3 w-[9px] rounded-b-sm bg-primary" />
@@ -454,26 +496,35 @@ export function Timeline({
           )}
         </div>
       </div>
-      {selectedClip && (selectedClip.kind === "subtitle" || selectedClip.kind === "graphic") && (
-        <div className="flex h-8 shrink-0 items-center gap-2 border-t bg-card px-3 text-[10px]">
-          <label htmlFor="clip-text">Layer text</label>
-          <input
-            key={selectedClip.id + selectedClip.text}
-            id="clip-text"
-            aria-label="Layer text"
-            className="min-w-0 flex-1 rounded border bg-background px-2 py-0.5"
-            defaultValue={selectedClip.text}
-            disabled={document.layers.find((layer) => layer.id === selectedClip.trackId)?.locked}
-            onBlur={(event) =>
-              actions.updateText({ id: selectedClip.id, text: event.currentTarget.value })
-            }
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-          />
-          <span className="text-muted-foreground">Enter to apply</span>
-        </div>
-      )}
+      {selectedClip &&
+        (selectedClip.kind === "subtitle" ||
+          selectedClip.kind === "graphic") && (
+          <div className="flex h-8 shrink-0 items-center gap-2 border-t bg-card px-3 text-[10px]">
+            <label htmlFor="clip-text">Layer text</label>
+            <input
+              key={selectedClip.id + selectedClip.text}
+              id="clip-text"
+              aria-label="Layer text"
+              className="min-w-0 flex-1 rounded border bg-background px-2 py-0.5"
+              defaultValue={selectedClip.text}
+              disabled={
+                document.layers.find(
+                  (layer) => layer.id === selectedClip.trackId,
+                )?.locked
+              }
+              onBlur={(event) =>
+                actions.updateText({
+                  id: selectedClip.id,
+                  text: event.currentTarget.value,
+                })
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+            />
+            <span className="text-muted-foreground">Enter to apply</span>
+          </div>
+        )}
       <footer className="flex h-6 shrink-0 items-center gap-4 border-t bg-card px-3 text-[9px] text-muted-foreground">
         <span>
           {enabled
@@ -485,7 +536,9 @@ export function Timeline({
         {clipDrag.draft && (
           <span
             role="status"
-            className={clipDrag.draft.valid ? "text-primary" : "text-destructive"}
+            className={
+              clipDrag.draft.valid ? "text-primary" : "text-destructive"
+            }
           >
             {clipDrag.draft.valid
               ? `Move to ${formatTime(clipDrag.draft.start, true)}`

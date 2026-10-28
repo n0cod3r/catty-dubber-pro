@@ -7,11 +7,15 @@ export function activeVideoAt(
   sources: readonly EpisodeMedia[],
 ) {
   const end = document.clips.reduce(
-    (value, clip) => (clip.kind === "video" ? Math.max(value, clip.start + clip.duration) : value),
+    (value, clip) =>
+      clip.kind === "video"
+        ? Math.max(value, clip.start + clip.duration)
+        : value,
     0,
   );
   // Keep the final picture visible when playback stops exactly at the end.
-  const sampleTime = time === end && end > 0 ? Math.max(0, time - 0.0000001) : time;
+  const sampleTime =
+    time === end && end > 0 ? Math.max(0, time - 0.0000001) : time;
   for (let layerIndex = 0; layerIndex < document.layers.length; layerIndex++) {
     const layer = document.layers[layerIndex];
     if (!layer || layer.kind !== "video" || layer.hidden) continue;

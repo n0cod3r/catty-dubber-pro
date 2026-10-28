@@ -56,12 +56,20 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function clampNumber(value: number | undefined, fallback: number, min: number): number {
+function clampNumber(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+): number {
   if (value === undefined || !Number.isFinite(value)) return fallback;
   return Math.max(min, value);
 }
 
-function getWindowMaxRms(channels: Float32Array[], startSample: number, endSample: number): number {
+function getWindowMaxRms(
+  channels: Float32Array[],
+  startSample: number,
+  endSample: number,
+): number {
   let maxRms = 0;
   const sampleCount = Math.max(1, endSample - startSample);
 
@@ -88,13 +96,21 @@ function collectWindowLevels(
   windowMs: number,
   smoothingMs: number,
 ): WindowLevel[] {
-  const windowSamples = Math.max(1, Math.round((windowMs / 1000) * audioBuffer.sampleRate));
-  const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, channel) =>
-    audioBuffer.getChannelData(channel),
+  const windowSamples = Math.max(
+    1,
+    Math.round((windowMs / 1000) * audioBuffer.sampleRate),
+  );
+  const channels = Array.from(
+    { length: audioBuffer.numberOfChannels },
+    (_, channel) => audioBuffer.getChannelData(channel),
   );
   const levels: WindowLevel[] = [];
 
-  for (let startSample = 0; startSample < audioBuffer.length; startSample += windowSamples) {
+  for (
+    let startSample = 0;
+    startSample < audioBuffer.length;
+    startSample += windowSamples
+  ) {
     const endSample = Math.min(audioBuffer.length, startSample + windowSamples);
     levels.push({
       startSample,
@@ -117,7 +133,9 @@ function collectWindowLevels(
   return levels.map((level, index) => {
     const start = Math.max(0, index - radiusBefore);
     const end = Math.min(levels.length, index + radiusAfter + 1);
-    const power = ((powerPrefix[end] ?? 0) - (powerPrefix[start] ?? 0)) / Math.max(1, end - start);
+    const power =
+      ((powerPrefix[end] ?? 0) - (powerPrefix[start] ?? 0)) /
+      Math.max(1, end - start);
     return { ...level, rms: Math.sqrt(Math.max(0, power)) };
   });
 }
@@ -205,18 +223,34 @@ function resolveDetectionConfig(
     options.thresholdDb ??
     DEFAULT_SILENCE_THRESHOLD_DB;
   const requestedAudioThresholdDb =
-    estimated?.audioThresholdDb ?? options.audioThresholdDb ?? DEFAULT_AUDIO_THRESHOLD_DB;
-  const symmetricPaddingMs = clampNumber(options.paddingMs, DEFAULT_PADDING_MS, 0);
+    estimated?.audioThresholdDb ??
+    options.audioThresholdDb ??
+    DEFAULT_AUDIO_THRESHOLD_DB;
+  const symmetricPaddingMs = clampNumber(
+    options.paddingMs,
+    DEFAULT_PADDING_MS,
+    0,
+  );
   const toSamples = (milliseconds: number) =>
     Math.round((milliseconds / 1000) * audioBuffer.sampleRate);
 
   return {
-    audioThreshold: dbToAmplitude(Math.max(silenceThresholdDb + 1, requestedAudioThresholdDb)),
+    audioThreshold: dbToAmplitude(
+      Math.max(silenceThresholdDb + 1, requestedAudioThresholdDb),
+    ),
     levels: collectWindowLevels(audioBuffer, windowMs, smoothingMs),
-    minAudioSamples: toSamples(clampNumber(options.minAudioMs, DEFAULT_MIN_AUDIO_MS, 1)),
-    minSilenceSamples: toSamples(clampNumber(options.minSilenceMs, DEFAULT_MIN_SILENCE_MS, 1)),
-    paddingEndSamples: toSamples(clampNumber(options.paddingEndMs, symmetricPaddingMs, 0)),
-    paddingStartSamples: toSamples(clampNumber(options.paddingStartMs, symmetricPaddingMs, 0)),
+    minAudioSamples: toSamples(
+      clampNumber(options.minAudioMs, DEFAULT_MIN_AUDIO_MS, 1),
+    ),
+    minSilenceSamples: toSamples(
+      clampNumber(options.minSilenceMs, DEFAULT_MIN_SILENCE_MS, 1),
+    ),
+    paddingEndSamples: toSamples(
+      clampNumber(options.paddingEndMs, symmetricPaddingMs, 0),
+    ),
+    paddingStartSamples: toSamples(
+      clampNumber(options.paddingStartMs, symmetricPaddingMs, 0),
+    ),
     silenceThreshold: dbToAmplitude(silenceThresholdDb),
   };
 }

@@ -9,7 +9,10 @@ export function clipRenderWindow(
   const clipLeft = start * pixelsPerSecond;
   const clipWidth = Math.max(1, duration * pixelsPerSecond);
   const left = Math.max(0, Math.floor(scrollLeft - clipLeft - THUMB_WIDTH));
-  const right = Math.min(clipWidth, Math.ceil(scrollLeft + viewportWidth - clipLeft + THUMB_WIDTH));
+  const right = Math.min(
+    clipWidth,
+    Math.ceil(scrollLeft + viewportWidth - clipLeft + THUMB_WIDTH),
+  );
   return { left, width: Math.max(0, right - left), clipWidth };
 }
 export function thumbnailTiles(
@@ -21,7 +24,11 @@ export function thumbnailTiles(
 ) {
   const tiles: { x: number; time: number }[] = [];
   if (width <= 0 || pixelsPerSecond <= 0) return tiles;
-  for (let x = Math.floor(left / THUMB_WIDTH) * THUMB_WIDTH; x < left + width; x += THUMB_WIDTH) {
+  for (
+    let x = Math.floor(left / THUMB_WIDTH) * THUMB_WIDTH;
+    x < left + width;
+    x += THUMB_WIDTH
+  ) {
     tiles.push({
       x,
       time:

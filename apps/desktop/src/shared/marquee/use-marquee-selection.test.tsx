@@ -1,7 +1,14 @@
 import { useMemo, useRef, type ReactNode } from "react";
 
 import { act, fireEvent, render } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vite-plus/test";
 
 import { useMarqueeSelection, type Rect } from "./use-marquee-selection";
 
@@ -16,7 +23,12 @@ interface MarqueeHarnessProps {
   liveCommitThrottleMs?: number;
 }
 
-function createRect(left: number, top: number, right: number, bottom: number): Rect {
+function createRect(
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+): Rect {
   return {
     left,
     top,
@@ -70,7 +82,11 @@ function MarqueeHarness({
   });
 
   return (
-    <div ref={containerRef} data-marquee-active={isActive} data-testid="marquee-container">
+    <div
+      ref={containerRef}
+      data-marquee-active={isActive}
+      data-testid="marquee-container"
+    >
       {children}
     </div>
   );
@@ -113,7 +129,8 @@ describe("useMarqueeSelection deferred commits", () => {
   it("updates the lightweight preview during drag and commits global selection once on mouseup", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
     const onPreviewSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
       <MarqueeHarness
         onSelectionChange={onSelectionChange}
@@ -143,7 +160,10 @@ describe("useMarqueeSelection deferred commits", () => {
     fireEvent.mouseMove(document, { clientX: 100, clientY: 100 });
     flushAnimationFrames();
 
-    expect(onPreviewSelectionChange).toHaveBeenNthCalledWith(3, ["clip-1", "clip-2"]);
+    expect(onPreviewSelectionChange).toHaveBeenNthCalledWith(3, [
+      "clip-1",
+      "clip-2",
+    ]);
     expect(onSelectionChange).not.toHaveBeenCalled();
 
     fireEvent.mouseUp(document, { clientX: 100, clientY: 100 });
@@ -157,9 +177,13 @@ describe("useMarqueeSelection deferred commits", () => {
 
   it("keeps global selection frozen during a release-only canvas marquee", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
-      <MarqueeHarness onSelectionChange={onSelectionChange} onGestureEnd={onGestureEnd} />,
+      <MarqueeHarness
+        onSelectionChange={onSelectionChange}
+        onGestureEnd={onGestureEnd}
+      />,
     );
     const container = getByTestId("marquee-container");
 
@@ -190,7 +214,8 @@ describe("useMarqueeSelection deferred commits", () => {
   it("does not claim a drag that starts on a playhead handle", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
     const onPreviewSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
       <MarqueeHarness
         onSelectionChange={onSelectionChange}
@@ -225,7 +250,8 @@ describe("useMarqueeSelection deferred commits", () => {
   it("cancels an active drag on window blur instead of carrying it into the next gesture", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
     const onPreviewSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const onGestureCancel = vi.fn<(wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
       <MarqueeHarness
@@ -262,7 +288,11 @@ describe("useMarqueeSelection deferred commits", () => {
     expect(onGestureEnd).not.toHaveBeenCalled();
     expect(onSelectionChange).not.toHaveBeenCalled();
 
-    fireEvent.mouseDown(getByTestId("timeline-ruler"), { button: 0, clientX: 75, clientY: 5 });
+    fireEvent.mouseDown(getByTestId("timeline-ruler"), {
+      button: 0,
+      clientX: 75,
+      clientY: 5,
+    });
     fireEvent.mouseMove(document, { clientX: 120, clientY: 50 });
     flushAnimationFrames();
     fireEvent.mouseUp(document, { clientX: 120, clientY: 50 });
@@ -274,7 +304,8 @@ describe("useMarqueeSelection deferred commits", () => {
 
   it("drops a stale drag before an excluded surface starts a new interaction", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const onGestureCancel = vi.fn<(wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
       <MarqueeHarness
@@ -302,7 +333,11 @@ describe("useMarqueeSelection deferred commits", () => {
 
     expect(container).toHaveAttribute("data-marquee-active", "true");
 
-    fireEvent.mouseDown(getByTestId("timeline-ruler"), { button: 0, clientX: 75, clientY: 5 });
+    fireEvent.mouseDown(getByTestId("timeline-ruler"), {
+      button: 0,
+      clientX: 75,
+      clientY: 5,
+    });
     fireEvent.mouseMove(document, { clientX: 120, clientY: 50 });
     flushAnimationFrames();
     fireEvent.mouseUp(document, { clientX: 120, clientY: 50 });
@@ -315,9 +350,13 @@ describe("useMarqueeSelection deferred commits", () => {
 
   it("never starts marquee from an interaction shield", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
-      <MarqueeHarness onSelectionChange={onSelectionChange} onGestureEnd={onGestureEnd}>
+      <MarqueeHarness
+        onSelectionChange={onSelectionChange}
+        onGestureEnd={onGestureEnd}
+      >
         <div data-marquee-ignore data-testid="interaction-shield" />
       </MarqueeHarness>,
     );
@@ -349,7 +388,8 @@ describe("useMarqueeSelection deferred commits", () => {
   it("restores the committed selection when cancellation follows a throttled live commit", () => {
     vi.spyOn(performance, "now").mockReturnValue(100);
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
       <MarqueeHarness
         committedSelectionIds={["previous-selection"]}
@@ -384,7 +424,8 @@ describe("useMarqueeSelection deferred commits", () => {
 
   it("uses a batch geometry resolver for data-driven item surfaces", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
       <MarqueeHarness
         useBatchResolver
@@ -412,14 +453,22 @@ describe("useMarqueeSelection deferred commits", () => {
 
   it("does not claim a drag that starts on a compact density clip", () => {
     const onSelectionChange = vi.fn<(ids: string[]) => void>();
-    const onGestureEnd = vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
+    const onGestureEnd =
+      vi.fn<(event: MouseEvent, wasActualDrag: boolean) => void>();
     const { getByTestId } = render(
-      <MarqueeHarness onSelectionChange={onSelectionChange} onGestureEnd={onGestureEnd}>
+      <MarqueeHarness
+        onSelectionChange={onSelectionChange}
+        onGestureEnd={onGestureEnd}
+      >
         <div data-timeline-density-bucket data-testid="density-bucket" />
       </MarqueeHarness>,
     );
 
-    fireEvent.mouseDown(getByTestId("density-bucket"), { button: 0, clientX: 5, clientY: 5 });
+    fireEvent.mouseDown(getByTestId("density-bucket"), {
+      button: 0,
+      clientX: 5,
+      clientY: 5,
+    });
     fireEvent.mouseMove(document, { clientX: 100, clientY: 100 });
     flushAnimationFrames();
     fireEvent.mouseUp(document, { clientX: 100, clientY: 100 });

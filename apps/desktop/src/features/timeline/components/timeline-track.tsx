@@ -98,13 +98,20 @@ export const TimelineTrack = memo(function TimelineTrack({
         <div className="flex items-center gap-1.5">
           <span className={cn("h-4 w-0.5 rounded", style.dot)} />
           <Icon className="size-3 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate text-[10px] font-medium" title={layer.name}>
+          <span
+            className="min-w-0 flex-1 truncate text-[10px] font-medium"
+            title={layer.name}
+          >
             {layer.name}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button variant="ghost" size="icon-xs" aria-label={`Options for ${layer.name}`} />
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`Options for ${layer.name}`}
+                />
               }
             >
               <MoreHorizontal />
@@ -112,14 +119,18 @@ export const TimelineTrack = memo(function TimelineTrack({
             <DropdownMenuContent className="w-44">
               <DropdownMenuItem
                 disabled={layer.locked}
-                onClick={() => actions.moveLayer({ id: layer.id, direction: -1 })}
+                onClick={() =>
+                  actions.moveLayer({ id: layer.id, direction: -1 })
+                }
               >
                 <ArrowUp />
                 Move layer up
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={layer.locked}
-                onClick={() => actions.moveLayer({ id: layer.id, direction: 1 })}
+                onClick={() =>
+                  actions.moveLayer({ id: layer.id, direction: 1 })
+                }
               >
                 <ArrowDown />
                 Move layer down
@@ -160,7 +171,9 @@ export const TimelineTrack = memo(function TimelineTrack({
               aria-label={`${layer.hidden ? "Show" : "Hide"} ${layer.name}`}
               aria-pressed={layer.hidden}
               disabled={layer.locked}
-              onClick={() => actions.toggleLayer({ id: layer.id, property: "hidden" })}
+              onClick={() =>
+                actions.toggleLayer({ id: layer.id, property: "hidden" })
+              }
             >
               {layer.hidden ? <EyeOff className="text-primary" /> : <Eye />}
             </Button>
@@ -170,7 +183,9 @@ export const TimelineTrack = memo(function TimelineTrack({
             size="icon-xs"
             aria-label={`${layer.locked ? "Unlock" : "Lock"} ${layer.name} track`}
             aria-pressed={layer.locked}
-            onClick={() => actions.toggleLayer({ id: layer.id, property: "locked" })}
+            onClick={() =>
+              actions.toggleLayer({ id: layer.id, property: "locked" })
+            }
           >
             {layer.locked ? (
               <LockKeyhole className="text-primary" />
@@ -195,8 +210,14 @@ export const TimelineTrack = memo(function TimelineTrack({
         ))}
         {clips.map((clip) => {
           const clipLeft = (clip.start / timelineDuration) * width;
-          const clipWidth = Math.max(1, (clip.duration / timelineDuration) * width);
-          if (clipLeft + clipWidth < scrollLeft - 96 || clipLeft > scrollLeft + viewportWidth + 96)
+          const clipWidth = Math.max(
+            1,
+            (clip.duration / timelineDuration) * width,
+          );
+          if (
+            clipLeft + clipWidth < scrollLeft - 96 ||
+            clipLeft > scrollLeft + viewportWidth + 96
+          )
             return null;
           const visualMessage =
             clip.kind === "audio"
@@ -280,7 +301,9 @@ export const TimelineTrack = memo(function TimelineTrack({
                 {mediaClip && (
                   <>
                     <ContextMenuItem
-                      onClick={() => window.dispatchEvent(new Event("catty:rebuild-proxy"))}
+                      onClick={() =>
+                        window.dispatchEvent(new Event("catty:rebuild-proxy"))
+                      }
                     >
                       <RefreshCw />
                       Rebuild playback proxy

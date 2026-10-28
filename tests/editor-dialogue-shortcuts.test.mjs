@@ -16,7 +16,12 @@ const event = {
 test("merge dialogue shortcut supports Windows Control and macOS Command", () => {
   assert.equal(isMergeDialogueShortcut(event), true);
   assert.equal(
-    isMergeDialogueShortcut({ ...event, ctrlKey: false, metaKey: true, key: "M" }),
+    isMergeDialogueShortcut({
+      ...event,
+      ctrlKey: false,
+      metaKey: true,
+      key: "M",
+    }),
     true,
   );
 });

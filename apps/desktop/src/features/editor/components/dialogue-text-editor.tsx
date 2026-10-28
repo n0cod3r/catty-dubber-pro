@@ -54,7 +54,11 @@ export function DialogueTextEditor({
           <Button size="xs" variant="ghost" disabled={busy} onClick={onCancel}>
             Cancel
           </Button>
-          <Button size="xs" disabled={busy || !dirty || !draft.trim()} onClick={() => void save()}>
+          <Button
+            size="xs"
+            disabled={busy || !dirty || !draft.trim()}
+            onClick={() => void save()}
+          >
             {busy ? "Saving…" : "Save"}
           </Button>
         </div>

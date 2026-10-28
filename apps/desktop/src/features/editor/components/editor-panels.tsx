@@ -30,7 +30,9 @@ export function EditorPanels({
   timeline: ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(() => loadSize("catty:timeline-height", 300));
+  const [height, setHeight] = useState(() =>
+    loadSize("catty:timeline-height", 300),
+  );
   const [inspectorWidth, setInspectorWidth] = useState(() =>
     loadSize("catty:inspector-width", 320),
   );
@@ -39,20 +41,30 @@ export function EditorPanels({
   const maxHeight = Math.max(minHeight, available.height - 166);
   const actualHeight = clamp(height, minHeight, maxHeight);
   const minWidth = Math.min(240, Math.max(0, (available.width - 6) / 2));
-  const maxWidth = Math.max(minWidth, available.width - 6 - Math.min(280, available.width / 2));
+  const maxWidth = Math.max(
+    minWidth,
+    available.width - 6 - Math.min(280, available.width / 2),
+  );
   const actualWidth = clamp(inspectorWidth, minWidth, maxWidth);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setAvailable({ width: entry.contentRect.width, height: entry.contentRect.height });
+      if (entry)
+        setAvailable({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
     });
     observer.observe(root);
     return () => observer.disconnect();
   }, []);
   useEffect(() => saveSize("catty:timeline-height", height), [height]);
-  useEffect(() => saveSize("catty:inspector-width", inspectorWidth), [inspectorWidth]);
+  useEffect(
+    () => saveSize("catty:inspector-width", inspectorWidth),
+    [inspectorWidth],
+  );
 
   return (
     <div
@@ -64,7 +76,10 @@ export function EditorPanels({
         className="grid min-h-0 min-w-0 overflow-hidden"
         style={{ gridTemplateColumns: `minmax(0, 1fr) 6px ${actualWidth}px` }}
       >
-        <div id="editor-preview" className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <div
+          id="editor-preview"
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+        >
           {preview}
         </div>
         <PanelResizeHandle
@@ -76,9 +91,14 @@ export function EditorPanels({
           max={maxWidth}
           reset={320}
           onChange={setInspectorWidth}
-          valueAt={(x) => (rootRef.current?.getBoundingClientRect().right ?? x) - x}
+          valueAt={(x) =>
+            (rootRef.current?.getBoundingClientRect().right ?? x) - x
+          }
         />
-        <div id="editor-inspector" className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <div
+          id="editor-inspector"
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+        >
           {inspector}
         </div>
       </div>
@@ -91,7 +111,9 @@ export function EditorPanels({
         max={maxHeight}
         reset={300}
         onChange={setHeight}
-        valueAt={(_, y) => (rootRef.current?.getBoundingClientRect().bottom ?? y) - y}
+        valueAt={(_, y) =>
+          (rootRef.current?.getBoundingClientRect().bottom ?? y) - y
+        }
       />
       <div id="editor-timeline" className="min-h-0 overflow-hidden">
         {timeline}

@@ -92,8 +92,14 @@ export const BLEND_MODE_LABELS: Record<BlendMode, string> = {
 /** Grouped blend modes for UI dropdown */
 export const BLEND_MODE_GROUPS: { label: string; modes: BlendMode[] }[] = [
   { label: "Normal", modes: ["normal", "dissolve"] },
-  { label: "Darken", modes: ["darken", "multiply", "color-burn", "linear-burn"] },
-  { label: "Lighten", modes: ["lighten", "screen", "color-dodge", "linear-dodge"] },
+  {
+    label: "Darken",
+    modes: ["darken", "multiply", "color-burn", "linear-burn"],
+  },
+  {
+    label: "Lighten",
+    modes: ["lighten", "screen", "color-dodge", "linear-dodge"],
+  },
   {
     label: "Contrast",
     modes: [
@@ -106,6 +112,9 @@ export const BLEND_MODE_GROUPS: { label: string; modes: BlendMode[] }[] = [
       "hard-mix",
     ],
   },
-  { label: "Inversion", modes: ["difference", "exclusion", "subtract", "divide"] },
+  {
+    label: "Inversion",
+    modes: ["difference", "exclusion", "subtract", "divide"],
+  },
   { label: "Component", modes: ["hue", "saturation", "color", "luminosity"] },
 ];

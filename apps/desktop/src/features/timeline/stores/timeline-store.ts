@@ -15,11 +15,19 @@ import {
   updateTextEdit,
 } from "./timeline-edits.ts";
 
-type DialogueTimelineSegment = { id: string; start: number; end: number; text: string };
+type DialogueTimelineSegment = {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+};
 
 export type TimelineActions = {
   initialize: (input: Parameters<typeof initializeEdit>[1]) => void;
-  syncDialogue: (input: { sourceId: string; segments: DialogueTimelineSegment[] }) => void;
+  syncDialogue: (input: {
+    sourceId: string;
+    segments: DialogueTimelineSegment[];
+  }) => void;
   addLayer: (input: Parameters<typeof addLayerEdit>[1]) => void;
   removeLayer: (input: Parameters<typeof removeLayerEdit>[1]) => void;
   toggleLayer: (input: Parameters<typeof toggleLayerEdit>[1]) => void;
@@ -34,25 +42,41 @@ export type TimelineActions = {
 };
 export type TimelineState = { history: TimelineHistory } & TimelineActions;
 
-export function createTimelineStore(initialHistory: TimelineHistory = createTimeline()) {
+export function createTimelineStore(
+  initialHistory: TimelineHistory = createTimeline(),
+) {
   return createStore<TimelineState>()((set) => {
-    const commit = (edit: (document: TimelineDocument) => TimelineDocument, initialize = false) =>
+    const commit = (
+      edit: (document: TimelineDocument) => TimelineDocument,
+      initialize = false,
+    ) =>
       set((state) => {
         const history = state.history;
         const next = edit(history.present);
         if (next === history.present) return state;
         return {
           history: initialize
-            ? { past: history.past.map(edit), present: next, future: history.future.map(edit) }
-            : { past: [...history.past.slice(-99), history.present], present: next, future: [] },
+            ? {
+                past: history.past.map(edit),
+                present: next,
+                future: history.future.map(edit),
+              }
+            : {
+                past: [...history.past.slice(-99), history.present],
+                present: next,
+                future: [],
+              },
         };
       });
     return {
       history: initialHistory,
-      initialize: (input) => commit((document) => initializeEdit(document, input), true),
+      initialize: (input) =>
+        commit((document) => initializeEdit(document, input), true),
       syncDialogue: ({ sourceId, segments }) =>
         commit((document) => {
-          const subtitleLayer = document.layers.find((layer) => layer.id === "dialogue-subtitles");
+          const subtitleLayer = document.layers.find(
+            (layer) => layer.id === "dialogue-subtitles",
+          );
           const layers = subtitleLayer
             ? document.layers
             : [
@@ -68,10 +92,19 @@ export function createTimelineStore(initialHistory: TimelineHistory = createTime
                 ...document.layers.slice(1),
               ];
           const retained = document.clips.filter(
-            (clip) => !(clip.trackId === "dialogue-subtitles" && clip.sourceId === sourceId),
+            (clip) =>
+              !(
+                clip.trackId === "dialogue-subtitles" &&
+                clip.sourceId === sourceId
+              ),
           );
           const subtitles = segments
-            .filter((segment) => Number.isFinite(segment.start) && Number.isFinite(segment.end) && segment.end > segment.start)
+            .filter(
+              (segment) =>
+                Number.isFinite(segment.start) &&
+                Number.isFinite(segment.end) &&
+                segment.end > segment.start,
+            )
             .map((segment, index) => ({
               id: `dialogue:${sourceId}:${segment.id || index}`,
               trackId: "dialogue-subtitles",
@@ -85,21 +118,35 @@ export function createTimelineStore(initialHistory: TimelineHistory = createTime
             }));
           return { ...document, layers, clips: [...retained, ...subtitles] };
         }, true),
-      addLayer: (input) => commit((document) => addLayerEdit(document, input), false),
-      removeLayer: (input) => commit((document) => removeLayerEdit(document, input), false),
-      toggleLayer: (input) => commit((document) => toggleLayerEdit(document, input), false),
-      moveLayer: (input) => commit((document) => moveLayerEdit(document, input), false),
-      addClip: (input) => commit((document) => addClipEdit(document, input), false),
-      moveClip: (input) => commit((document) => moveClipEdit(document, input), false),
-      removeClip: (input) => commit((document) => removeClipEdit(document, input), false),
-      updateText: (input) => commit((document) => updateTextEdit(document, input), false),
+      addLayer: (input) =>
+        commit((document) => addLayerEdit(document, input), false),
+      removeLayer: (input) =>
+        commit((document) => removeLayerEdit(document, input), false),
+      toggleLayer: (input) =>
+        commit((document) => toggleLayerEdit(document, input), false),
+      moveLayer: (input) =>
+        commit((document) => moveLayerEdit(document, input), false),
+      addClip: (input) =>
+        commit((document) => addClipEdit(document, input), false),
+      moveClip: (input) =>
+        commit((document) => moveClipEdit(document, input), false),
+      removeClip: (input) =>
+        commit((document) => removeClipEdit(document, input), false),
+      updateText: (input) =>
+        commit((document) => updateTextEdit(document, input), false),
       split: (input) => commit((document) => splitEdit(document, input), false),
       undo: () =>
         set((state) => {
           const { past, present, future } = state.history;
           const previous = past.at(-1);
           return previous
-            ? { history: { past: past.slice(0, -1), present: previous, future: [present, ...future] } }
+            ? {
+                history: {
+                  past: past.slice(0, -1),
+                  present: previous,
+                  future: [present, ...future],
+                },
+              }
             : state;
         }),
       redo: () =>
@@ -107,7 +154,13 @@ export function createTimelineStore(initialHistory: TimelineHistory = createTime
           const { past, present, future } = state.history;
           const next = future[0];
           return next
-            ? { history: { past: [...past, present], present: next, future: future.slice(1) } }
+            ? {
+                history: {
+                  past: [...past, present],
+                  present: next,
+                  future: future.slice(1),
+                },
+              }
             : state;
         }),
     };

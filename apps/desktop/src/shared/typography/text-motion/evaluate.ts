@@ -22,40 +22,44 @@
  * settled (clamped) — never a blended or glitching intermediate.
  */
 
+import { easeIn, easeInOut, easeOut } from "@/shared/utils/easing";
+import { clamp } from "@/shared/utils/math";
 import type {
+  TextMotionEasing,
   TextMotionEffect,
   TextMotionOrder,
-  TextMotionEasing,
   TextMotionSlot,
   TextMotionSpec,
-} from '@/types/text-motion'
-import { clamp } from '@/shared/utils/math'
-import { easeIn, easeInOut, easeOut } from '@/shared/utils/easing'
-import { getTextMotionPreset, type TextMotionChannelContext } from './text-motion-presets'
+} from "@/types/text-motion";
+
+import {
+  getTextMotionPreset,
+  type TextMotionChannelContext,
+} from "./text-motion-presets";
 
 export interface GlyphMotionState {
-  dx: number
-  dy: number
+  dx: number;
+  dy: number;
   /** Uniform scale about the glyph center. 1 = identity. */
-  scale: number
+  scale: number;
   /** Rotation about the glyph center, radians. */
-  rotation: number
+  rotation: number;
   /** Opacity multiplier, 0–1. */
-  alpha: number
+  alpha: number;
   /** SDF edge widening (px-ish, rides the shadowBlur band). 0 = crisp. */
-  soften: number
+  soften: number;
 }
 
 export interface GlyphMotionContext {
   /** Frame relative to the item start, in project-fps frames. */
-  relativeFrame: number
-  fps: number
-  durationInFrames: number
-  unitIndex: number
-  unitCount: number
-  fontSize: number
-  boxWidth: number
-  boxHeight: number
+  relativeFrame: number;
+  fps: number;
+  durationInFrames: number;
+  unitIndex: number;
+  unitCount: number;
+  fontSize: number;
+  boxWidth: number;
+  boxHeight: number;
 }
 
 const IDENTITY: GlyphMotionState = {
@@ -65,7 +69,7 @@ const IDENTITY: GlyphMotionState = {
   rotation: 0,
   alpha: 1,
   soften: 0,
-}
+};
 
 function isIdentity(state: GlyphMotionState): boolean {
   return (
@@ -75,44 +79,44 @@ function isIdentity(state: GlyphMotionState): boolean {
     state.rotation === 0 &&
     state.alpha === 1 &&
     state.soften === 0
-  )
+  );
 }
 
 /** Back-out style single overshoot past 1, settling back to exactly 1. */
 function overshoot(t: number): number {
-  const s = 1.70158
-  const u = t - 1
-  return 1 + (s + 1) * u * u * u + s * u * u
+  const s = 1.70158;
+  const u = t - 1;
+  return 1 + (s + 1) * u * u * u + s * u * u;
 }
 
 function applyTextMotionEasing(t: number, easing: TextMotionEasing): number {
   switch (easing) {
-    case 'linear':
-      return t
-    case 'ease-in':
-      return easeIn(t)
-    case 'ease-out':
-      return easeOut(t)
-    case 'ease-in-out':
-      return easeInOut(t)
-    case 'overshoot':
-      return overshoot(t)
+    case "linear":
+      return t;
+    case "ease-in":
+      return easeIn(t);
+    case "ease-out":
+      return easeOut(t);
+    case "ease-in-out":
+      return easeInOut(t);
+    case "overshoot":
+      return overshoot(t);
     default: {
-      const _exhaustive: never = easing
-      return _exhaustive
+      const _exhaustive: never = easing;
+      return _exhaustive;
     }
   }
 }
 
 /** Mulberry32 PRNG — tiny, deterministic, good enough for order shuffles. */
 function mulberry32(seed: number): () => number {
-  let a = (seed | 0) + 0x9e3779b9
+  let a = (seed | 0) + 0x9e3779b9;
   return () => {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /**
@@ -120,35 +124,35 @@ function mulberry32(seed: number): () => number {
  * (unitCount, seed). Memoized because the evaluator runs once per glyph per
  * frame and an O(n) shuffle per glyph would be O(n²) per frame.
  */
-const randomRankCache = new Map<string, number[]>()
+const randomRankCache = new Map<string, number[]>();
 
 function randomRanks(unitCount: number, seed: number): number[] {
-  const key = `${unitCount}:${seed}`
-  const cached = randomRankCache.get(key)
-  if (cached) return cached
+  const key = `${unitCount}:${seed}`;
+  const cached = randomRankCache.get(key);
+  if (cached) return cached;
 
-  const firingOrder = Array.from({ length: unitCount }, (_, i) => i)
-  const random = mulberry32(seed)
+  const firingOrder = Array.from({ length: unitCount }, (_, i) => i);
+  const random = mulberry32(seed);
   for (let i = unitCount - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1))
-    const a = firingOrder[i] ?? i
-    firingOrder[i] = firingOrder[j] ?? j
-    firingOrder[j] = a
+    const j = Math.floor(random() * (i + 1));
+    const a = firingOrder[i] ?? i;
+    firingOrder[i] = firingOrder[j] ?? j;
+    firingOrder[j] = a;
   }
-  const ranks = new Array<number>(unitCount).fill(0)
+  const ranks = new Array<number>(unitCount).fill(0);
   firingOrder.forEach((unit, rank) => {
-    ranks[unit] = rank
-  })
+    ranks[unit] = rank;
+  });
 
   if (randomRankCache.size >= 32) {
     // Evict the oldest entry (Map preserves insertion order) rather than
     // flushing the whole cache, so only one entry is recomputed next frame
     // even when many `order: 'random'` clips render at once.
-    const oldestKey = randomRankCache.keys().next().value
-    if (oldestKey !== undefined) randomRankCache.delete(oldestKey)
+    const oldestKey = randomRankCache.keys().next().value;
+    if (oldestKey !== undefined) randomRankCache.delete(oldestKey);
   }
-  randomRankCache.set(key, ranks)
-  return ranks
+  randomRankCache.set(key, ranks);
+  return ranks;
 }
 
 function orderRank(
@@ -158,35 +162,35 @@ function orderRank(
   seed: number,
 ): number {
   switch (order) {
-    case 'forward':
-      return unitIndex
-    case 'backward':
-      return unitCount - 1 - unitIndex
-    case 'center':
+    case "forward":
+      return unitIndex;
+    case "backward":
+      return unitCount - 1 - unitIndex;
+    case "center":
       // Center-out: symmetric pairs share a rank (0 at the middle).
-      return Math.floor(Math.abs(unitIndex - (unitCount - 1) / 2))
-    case 'random':
-      return randomRanks(unitCount, seed)[unitIndex] ?? unitIndex
+      return Math.floor(Math.abs(unitIndex - (unitCount - 1) / 2));
+    case "random":
+      return randomRanks(unitCount, seed)[unitIndex] ?? unitIndex;
     default: {
-      const _exhaustive: never = order
-      return _exhaustive
+      const _exhaustive: never = order;
+      return _exhaustive;
     }
   }
 }
 
 /** Largest rank the order can produce — bounds the slot window exactly. */
 function maxOrderRank(order: TextMotionOrder, unitCount: number): number {
-  if (order === 'center') return Math.floor((unitCount - 1) / 2)
-  return Math.max(0, unitCount - 1)
+  if (order === "center") return Math.floor((unitCount - 1) / 2);
+  return Math.max(0, unitCount - 1);
 }
 
 interface ResolvedSlotWindow {
   /** Per-unit animation length after compression, frames. */
-  duration: number
+  duration: number;
   /** Per-rank stagger after compression, frames. */
-  stagger: number
+  stagger: number;
   /** Whole-slot window length (duration + stagger·maxRank), frames. */
-  totalWindow: number
+  totalWindow: number;
 }
 
 /**
@@ -198,15 +202,20 @@ function resolveSlotWindow(
   unitCount: number,
   durationInFrames: number,
 ): ResolvedSlotWindow {
-  const duration = Math.max(0, effect.durationFrames)
-  const stagger = Math.max(0, effect.staggerFrames)
-  const totalWindow = duration + stagger * maxOrderRank(effect.order, unitCount)
-  const maxWindow = durationInFrames / 2
+  const duration = Math.max(0, effect.durationFrames);
+  const stagger = Math.max(0, effect.staggerFrames);
+  const totalWindow =
+    duration + stagger * maxOrderRank(effect.order, unitCount);
+  const maxWindow = durationInFrames / 2;
   if (totalWindow > maxWindow && totalWindow > 0) {
-    const k = maxWindow / totalWindow
-    return { duration: duration * k, stagger: stagger * k, totalWindow: maxWindow }
+    const k = maxWindow / totalWindow;
+    return {
+      duration: duration * k,
+      stagger: stagger * k,
+      totalWindow: maxWindow,
+    };
   }
-  return { duration, stagger, totalWindow }
+  return { duration, stagger, totalWindow };
 }
 
 function buildChannelContext(
@@ -222,12 +231,12 @@ function buildChannelContext(
     boxHeight: ctx.boxHeight,
     intensity: clamp(effect.intensity, 0, 2),
     seed: effect.seed,
-  }
+  };
 }
 
 function finalize(partial: Partial<GlyphMotionState>): GlyphMotionState | null {
-  const state: GlyphMotionState = { ...IDENTITY, ...partial }
-  return isIdentity(state) ? null : state
+  const state: GlyphMotionState = { ...IDENTITY, ...partial };
+  return isIdentity(state) ? null : state;
 }
 
 /**
@@ -242,16 +251,20 @@ function evaluateOneShot(
   ctx: GlyphMotionContext,
   unitCount: number,
 ): GlyphMotionState | null {
-  const delay = orderRank(effect.order, ctx.unitIndex, unitCount, effect.seed) * window.stagger
+  const delay =
+    orderRank(effect.order, ctx.unitIndex, unitCount, effect.seed) *
+    window.stagger;
   const progress =
     window.duration <= 0
       ? localFrame >= delay
         ? 1
         : 0
-      : clamp((localFrame - delay) / window.duration, 0, 1)
-  const eased = applyTextMotionEasing(progress, effect.easing)
-  const preset = getTextMotionPreset(effect.presetId)
-  return finalize(preset.channels(eased, buildChannelContext(effect, ctx, unitCount)))
+      : clamp((localFrame - delay) / window.duration, 0, 1);
+  const eased = applyTextMotionEasing(progress, effect.easing);
+  const preset = getTextMotionPreset(effect.presetId);
+  return finalize(
+    preset.channels(eased, buildChannelContext(effect, ctx, unitCount)),
+  );
 }
 
 /**
@@ -266,24 +279,26 @@ function evaluateLoop(
   ctx: GlyphMotionContext,
   unitCount: number,
 ): GlyphMotionState | null {
-  const cycle = Math.max(1e-6, effect.durationFrames)
+  const cycle = Math.max(1e-6, effect.durationFrames);
   const delay =
     orderRank(effect.order, ctx.unitIndex, unitCount, effect.seed) *
-    Math.max(0, effect.staggerFrames)
-  const local = ctx.relativeFrame - loopStartFrame - delay
-  if (local <= 0) return null
-  const phase = (local / cycle) % 1
-  const preset = getTextMotionPreset(effect.presetId)
-  return finalize(preset.channels(phase, buildChannelContext(effect, ctx, unitCount)))
+    Math.max(0, effect.staggerFrames);
+  const local = ctx.relativeFrame - loopStartFrame - delay;
+  if (local <= 0) return null;
+  const phase = (local / cycle) % 1;
+  const preset = getTextMotionPreset(effect.presetId);
+  return finalize(
+    preset.channels(phase, buildChannelContext(effect, ctx, unitCount)),
+  );
 }
 
 interface ActiveSlotResolution {
-  slot: TextMotionSlot
-  effect: TextMotionEffect
+  slot: TextMotionSlot;
+  effect: TextMotionEffect;
   /** Resolved slot window (one-shot slots only, `null` for loop). */
-  window: ResolvedSlotWindow | null
+  window: ResolvedSlotWindow | null;
   /** Frame the slot takes over: out/in window start, or the loop start. */
-  startFrame: number
+  startFrame: number;
 }
 
 /**
@@ -300,42 +315,56 @@ function resolveActiveSlot(
   durationInFrames: number,
   unitCount: number,
 ): ActiveSlotResolution | null {
-  if (durationInFrames <= 0) return null
+  if (durationInFrames <= 0) return null;
 
-  const outWindow = spec.out ? resolveSlotWindow(spec.out, unitCount, durationInFrames) : null
+  const outWindow = spec.out
+    ? resolveSlotWindow(spec.out, unitCount, durationInFrames)
+    : null;
   if (spec.out && outWindow) {
     const outOffset = Math.min(
       Math.max(0, spec.out.offsetFrames ?? 0),
       Math.max(0, durationInFrames - outWindow.totalWindow),
-    )
-    const outStart = durationInFrames - outOffset - outWindow.totalWindow
+    );
+    const outStart = durationInFrames - outOffset - outWindow.totalWindow;
     if (relativeFrame >= outStart) {
-      return { slot: 'out', effect: spec.out, window: outWindow, startFrame: outStart }
+      return {
+        slot: "out",
+        effect: spec.out,
+        window: outWindow,
+        startFrame: outStart,
+      };
     }
   }
 
-  const inWindow = spec.in ? resolveSlotWindow(spec.in, unitCount, durationInFrames) : null
+  const inWindow = spec.in
+    ? resolveSlotWindow(spec.in, unitCount, durationInFrames)
+    : null;
   const inOffset =
     spec.in && inWindow
       ? Math.min(
           Math.max(0, spec.in.offsetFrames ?? 0),
           Math.max(0, durationInFrames - inWindow.totalWindow),
         )
-      : 0
+      : 0;
   if (spec.in && inWindow && relativeFrame < inOffset + inWindow.totalWindow) {
-    return { slot: 'in', effect: spec.in, window: inWindow, startFrame: inOffset }
+    return {
+      slot: "in",
+      effect: spec.in,
+      window: inWindow,
+      startFrame: inOffset,
+    };
   }
 
   if (spec.loop) {
     return {
-      slot: 'loop',
+      slot: "loop",
       effect: spec.loop,
       window: null,
       startFrame: inOffset + (inWindow?.totalWindow ?? 0),
-    }
+    };
   }
 
-  return null
+  return null;
 }
 
 /**
@@ -347,9 +376,14 @@ export function evaluateGlyphMotion(
   spec: TextMotionSpec,
   ctx: GlyphMotionContext,
 ): GlyphMotionState | null {
-  const unitCount = Math.max(1, ctx.unitCount)
-  const active = resolveActiveSlot(spec, ctx.relativeFrame, ctx.durationInFrames, unitCount)
-  if (!active) return null
+  const unitCount = Math.max(1, ctx.unitCount);
+  const active = resolveActiveSlot(
+    spec,
+    ctx.relativeFrame,
+    ctx.durationInFrames,
+    unitCount,
+  );
+  if (!active) return null;
   if (active.window) {
     return evaluateOneShot(
       active.effect,
@@ -357,9 +391,9 @@ export function evaluateGlyphMotion(
       active.window,
       ctx,
       unitCount,
-    )
+    );
   }
-  return evaluateLoop(active.effect, active.startFrame, ctx, unitCount)
+  return evaluateLoop(active.effect, active.startFrame, ctx, unitCount);
 }
 
 /**
@@ -382,8 +416,13 @@ export function getActiveTextMotionSlot(
   durationInFrames: number,
 ): TextMotionSlot | null {
   return (
-    resolveActiveSlot(spec, relativeFrame, durationInFrames, Number.MAX_SAFE_INTEGER)?.slot ?? null
-  )
+    resolveActiveSlot(
+      spec,
+      relativeFrame,
+      durationInFrames,
+      Number.MAX_SAFE_INTEGER,
+    )?.slot ?? null
+  );
 }
 
 /**
@@ -399,24 +438,25 @@ export function isTextMotionActive(
   _fps: number,
   durationInFrames: number,
 ): boolean {
-  if (durationInFrames <= 0 || relativeFrame < 0) return false
-  const maxWindow = durationInFrames / 2
-  if (spec.loop) return true
+  if (durationInFrames <= 0 || relativeFrame < 0) return false;
+  const maxWindow = durationInFrames / 2;
+  if (spec.loop) return true;
   if (spec.in) {
-    const offset = Math.max(0, spec.in.offsetFrames ?? 0)
+    const offset = Math.max(0, spec.in.offsetFrames ?? 0);
     const upper =
       spec.in.staggerFrames > 0
         ? maxWindow
-        : Math.min(Math.max(0, spec.in.durationFrames), maxWindow)
-    if (relativeFrame < Math.min(durationInFrames, offset + upper)) return true
+        : Math.min(Math.max(0, spec.in.durationFrames), maxWindow);
+    if (relativeFrame < Math.min(durationInFrames, offset + upper)) return true;
   }
   if (spec.out) {
-    const offset = Math.max(0, spec.out.offsetFrames ?? 0)
+    const offset = Math.max(0, spec.out.offsetFrames ?? 0);
     const upper =
       spec.out.staggerFrames > 0
         ? maxWindow
-        : Math.min(Math.max(0, spec.out.durationFrames), maxWindow)
-    if (relativeFrame >= Math.max(0, durationInFrames - offset - upper)) return true
+        : Math.min(Math.max(0, spec.out.durationFrames), maxWindow);
+    if (relativeFrame >= Math.max(0, durationInFrames - offset - upper))
+      return true;
   }
-  return false
+  return false;
 }

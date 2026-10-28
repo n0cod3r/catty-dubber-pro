@@ -8,11 +8,15 @@
  * Design doc: docs/plans/2026-07-03-001-feat-motion-text-plan.md
  */
 
-export { evaluateGlyphMotion, getActiveTextMotionSlot, isTextMotionActive } from './evaluate'
-export type { GlyphMotionState } from './evaluate'
+export {
+  evaluateGlyphMotion,
+  getActiveTextMotionSlot,
+  isTextMotionActive,
+} from "./evaluate";
+export type { GlyphMotionState } from "./evaluate";
 
-export { segmentTextUnits } from './segment-units'
-export type { TextUnitSegmentation } from './segment-units'
+export { segmentTextUnits } from "./segment-units";
+export type { TextUnitSegmentation } from "./segment-units";
 
 export {
   getTextMotionPreset,
@@ -20,5 +24,5 @@ export {
   TEXT_MOTION_IN_PRESETS,
   TEXT_MOTION_OUT_PRESETS,
   TEXT_MOTION_LOOP_PRESETS,
-} from './text-motion-presets'
-export type { TextMotionPreset } from './text-motion-presets'
+} from "./text-motion-presets";
+export type { TextMotionPreset } from "./text-motion-presets";

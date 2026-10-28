@@ -33,7 +33,9 @@ export function ProjectHome({
             <Sparkles className="size-4" />
           </div>
           <div>
-            <h1 className="text-base font-semibold tracking-tight">Catty Dubber Pro</h1>
+            <h1 className="text-base font-semibold tracking-tight">
+              Catty Dubber Pro
+            </h1>
             <p className="text-xs text-muted-foreground">
               ស្ទូឌីយោ dubbing សម្រាប់ការងារលឿន និងរៀបរយ
             </p>
@@ -43,8 +45,8 @@ export function ProjectHome({
         <section className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-medium">បង្កើត Project ថ្មី</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Project នឹងរក្សាទុក episodes, audio, transcript, voices និង exports ទាំងអស់នៅក្នុង
-            folder មួយ។
+            Project នឹងរក្សាទុក episodes, audio, transcript, voices និង exports
+            ទាំងអស់នៅក្នុង folder មួយ។
           </p>
           <div className="mt-4 flex gap-2">
             <Input
@@ -86,8 +88,12 @@ export function ProjectHome({
 
         <section className="mt-5">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-xs font-medium text-muted-foreground">Project ថ្មីៗ</h2>
-            <span className="text-[11px] text-muted-foreground">{recents.length}</span>
+            <h2 className="text-xs font-medium text-muted-foreground">
+              Project ថ្មីៗ
+            </h2>
+            <span className="text-[11px] text-muted-foreground">
+              {recents.length}
+            </span>
           </div>
           {recents.length === 0 ? (
             <div className="rounded-lg border border-dashed px-4 py-5 text-center text-xs text-muted-foreground">
@@ -105,7 +111,9 @@ export function ProjectHome({
                 >
                   <FolderOpen className="size-4 shrink-0 text-primary" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium">{project.name}</span>
+                    <span className="block truncate text-xs font-medium">
+                      {project.name}
+                    </span>
                     <span className="block truncate text-[11px] text-muted-foreground">
                       {project.directory}
                     </span>

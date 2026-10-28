@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { PersistedEpisode, TranscriptionProgress } from "@catty/contracts";
 
-import { listenTranscriptionProgress, requestEngine } from "@/features/editor/deps/engine";
+import {
+  listenTranscriptionProgress,
+  requestEngine,
+} from "@/features/editor/deps/engine";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 
 import { createDialogueSessionGuard } from "../utils/dialogue-session";
@@ -14,17 +17,25 @@ export function useDialogueEditing(
 ) {
   const [transcribing, setTranscribing] = useState(false);
   const [progress, setProgress] = useState<TranscriptionProgress | null>(null);
-  const [transcriptionStartedAt, setTranscriptionStartedAt] = useState<number | null>(null);
+  const [transcriptionStartedAt, setTranscriptionStartedAt] = useState<
+    number | null
+  >(null);
   const unsubscribeTranscription = useRef<(() => void) | null>(null);
   const [editing, setEditing] = useState(false);
   const sessionGuard = useRef(createDialogueSessionGuard());
   const sessionScope = JSON.stringify([projectDirectory, episode?.id ?? null]);
   const busy = transcribing || editing;
-  const undoStack = useRef<Array<{ before: PersistedEpisode; after: PersistedEpisode }>>([]);
-  const redoStack = useRef<Array<{ before: PersistedEpisode; after: PersistedEpisode }>>([]);
+  const undoStack = useRef<
+    Array<{ before: PersistedEpisode; after: PersistedEpisode }>
+  >([]);
+  const redoStack = useRef<
+    Array<{ before: PersistedEpisode; after: PersistedEpisode }>
+  >([]);
   const [historyCounts, setHistoryCounts] = useState({ undo: 0, redo: 0 });
   const loadPersistedEpisode = useCallback(async () => {
-    const project = await requestEngine("project.open", { project_directory: projectDirectory });
+    const project = await requestEngine("project.open", {
+      project_directory: projectDirectory,
+    });
     const persisted = project.episodes.find((item) => item.id === episode?.id);
     if (!persisted) throw new Error("Episode was not found.");
     return persisted;
@@ -72,7 +83,8 @@ export function useDialogueEditing(
         )
           return;
         setProgress(update);
-        if (update.phase === "completed" && update.episode) onEpisodePersisted(update.episode);
+        if (update.phase === "completed" && update.episode)
+          onEpisodePersisted(update.episode);
       });
       if (!sessionGuard.current.isCurrent(ticket)) return;
       unsubscribeTranscription.current = unlisten;
@@ -90,19 +102,27 @@ export function useDialogueEditing(
         vad_config: {},
       });
       if (!sessionGuard.current.isCurrent(ticket)) return;
-      const project = await requestEngine("project.open", { project_directory: projectDirectory });
+      const project = await requestEngine("project.open", {
+        project_directory: projectDirectory,
+      });
       if (!sessionGuard.current.isCurrent(ticket)) return;
       const persisted = project.episodes.find((item) => item.id === episode.id);
-      if (!persisted) throw new Error("Episode was not found after transcription.");
+      if (!persisted)
+        throw new Error("Episode was not found after transcription.");
       undoStack.current = [];
       redoStack.current = [];
-      setHistoryCounts({ undo: undoStack.current.length, redo: redoStack.current.length });
+      setHistoryCounts({
+        undo: undoStack.current.length,
+        redo: redoStack.current.length,
+      });
       setSpeakerWarning(transcription.speaker_error ?? null);
       onEpisodePersisted(persisted);
       return true;
     } catch (cause) {
       if (!sessionGuard.current.isCurrent(ticket)) return;
-      setError(cause instanceof Error ? cause.message : "មិនអាច Transcribe បានទេ។");
+      setError(
+        cause instanceof Error ? cause.message : "មិនអាច Transcribe បានទេ។",
+      );
     } finally {
       unlisten?.();
       if (sessionGuard.current.finish(ticket)) {
@@ -128,20 +148,32 @@ export function useDialogueEditing(
         split_at: splitAt,
       });
       if (!sessionGuard.current.isCurrent(ticket)) return;
-      undoStack.current = [...undoStack.current.slice(-49), { before, after: persisted }];
+      undoStack.current = [
+        ...undoStack.current.slice(-49),
+        { before, after: persisted },
+      ];
       redoStack.current = [];
-      setHistoryCounts({ undo: undoStack.current.length, redo: redoStack.current.length });
+      setHistoryCounts({
+        undo: undoStack.current.length,
+        redo: redoStack.current.length,
+      });
       onEpisodePersisted(persisted);
       return true;
     } catch (cause) {
       if (!sessionGuard.current.isCurrent(ticket)) return;
-      setError(cause instanceof Error ? cause.message : "មិនអាច Split segment បានទេ។");
+      setError(
+        cause instanceof Error ? cause.message : "មិនអាច Split segment បានទេ។",
+      );
     } finally {
       if (sessionGuard.current.finish(ticket)) setEditing(false);
     }
   };
 
-  const updateText = async (segmentId: string, text: string, expectedText: string) => {
+  const updateText = async (
+    segmentId: string,
+    text: string,
+    expectedText: string,
+  ) => {
     if (!episode) return;
     if (text.trim() === expectedText) return true;
     const ticket = sessionGuard.current.begin(sessionScope);
@@ -159,14 +191,21 @@ export function useDialogueEditing(
         expected_text: expectedText,
       });
       if (!sessionGuard.current.isCurrent(ticket)) return;
-      undoStack.current = [...undoStack.current.slice(-49), { before, after: persisted }];
+      undoStack.current = [
+        ...undoStack.current.slice(-49),
+        { before, after: persisted },
+      ];
       redoStack.current = [];
       setHistoryCounts({ undo: undoStack.current.length, redo: 0 });
       onEpisodePersisted(persisted);
       return true;
     } catch (cause) {
       if (sessionGuard.current.isCurrent(ticket))
-        setError(cause instanceof Error ? cause.message : "Could not save dialogue text.");
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not save dialogue text.",
+        );
     } finally {
       if (sessionGuard.current.finish(ticket)) setEditing(false);
     }
@@ -195,14 +234,19 @@ export function useDialogueEditing(
         create_new: createNew,
       });
       if (!sessionGuard.current.isCurrent(ticket)) return;
-      undoStack.current = [...undoStack.current.slice(-49), { before, after: persisted }];
+      undoStack.current = [
+        ...undoStack.current.slice(-49),
+        { before, after: persisted },
+      ];
       redoStack.current = [];
       setHistoryCounts({ undo: undoStack.current.length, redo: 0 });
       onEpisodePersisted(persisted);
       return true;
     } catch (cause) {
       if (sessionGuard.current.isCurrent(ticket))
-        setError(cause instanceof Error ? cause.message : "Could not correct speaker.");
+        setError(
+          cause instanceof Error ? cause.message : "Could not correct speaker.",
+        );
     } finally {
       if (sessionGuard.current.finish(ticket)) setEditing(false);
     }
@@ -224,19 +268,35 @@ export function useDialogueEditing(
           segment_id: segmentId,
         });
         if (!sessionGuard.current.isCurrent(ticket)) return;
-        undoStack.current = [...undoStack.current.slice(-49), { before, after: persisted }];
+        undoStack.current = [
+          ...undoStack.current.slice(-49),
+          { before, after: persisted },
+        ];
         redoStack.current = [];
-        setHistoryCounts({ undo: undoStack.current.length, redo: redoStack.current.length });
+        setHistoryCounts({
+          undo: undoStack.current.length,
+          redo: redoStack.current.length,
+        });
         onEpisodePersisted(persisted);
         return true;
       } catch (cause) {
         if (!sessionGuard.current.isCurrent(ticket)) return;
-        setError(cause instanceof Error ? cause.message : "មិនអាច Merge segment បានទេ។");
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "មិនអាច Merge segment បានទេ។",
+        );
       } finally {
         if (sessionGuard.current.finish(ticket)) setEditing(false);
       }
     },
-    [episode, projectDirectory, sessionScope, onEpisodePersisted, loadPersistedEpisode],
+    [
+      episode,
+      projectDirectory,
+      sessionScope,
+      onEpisodePersisted,
+      loadPersistedEpisode,
+    ],
   );
 
   const restore = async (redo: boolean) => {
@@ -261,12 +321,18 @@ export function useDialogueEditing(
       if (!sessionGuard.current.isCurrent(ticket)) return;
       stack.pop();
       (redo ? undoStack.current : redoStack.current).push(entry);
-      setHistoryCounts({ undo: undoStack.current.length, redo: redoStack.current.length });
+      setHistoryCounts({
+        undo: undoStack.current.length,
+        redo: redoStack.current.length,
+      });
       onEpisodePersisted(persisted);
       return true;
     } catch (cause) {
       if (!sessionGuard.current.isCurrent(ticket)) return;
-      if (cause instanceof Error && cause.message.includes("Dialogue changed since this edit")) {
+      if (
+        cause instanceof Error &&
+        cause.message.includes("Dialogue changed since this edit")
+      ) {
         // A genuine external edit invalidates these snapshots. Refresh directly
         // instead of leaving the editor stuck until the project is reopened.
         try {
@@ -281,9 +347,16 @@ export function useDialogueEditing(
           );
         } catch {
           if (!sessionGuard.current.isCurrent(ticket)) return;
-          setError("Could not refresh saved dialogue. Please reopen the project.");
+          setError(
+            "Could not refresh saved dialogue. Please reopen the project.",
+          );
         }
-      } else setError(cause instanceof Error ? cause.message : "Could not restore dialogue.");
+      } else
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not restore dialogue.",
+        );
     } finally {
       if (sessionGuard.current.finish(ticket)) setEditing(false);
     }

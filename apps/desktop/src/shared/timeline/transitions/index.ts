@@ -1,6 +1,6 @@
 // Auto-register built-in transitions on module load
-import { registerBuiltinTransitions } from './register-builtins'
+import { registerBuiltinTransitions } from "./register-builtins";
 
-registerBuiltinTransitions()
+registerBuiltinTransitions();
 
-export { transitionRegistry } from './registry'
+export { transitionRegistry } from "./registry";

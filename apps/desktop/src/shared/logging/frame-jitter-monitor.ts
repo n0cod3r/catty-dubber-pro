@@ -147,9 +147,13 @@ function createMonitor() {
         frame,
         renderMs,
         clockDeltaMs:
-          clockSamples.length > 0 ? clockSamples[clockSamples.length - 1]!.deltaMs : null,
+          clockSamples.length > 0
+            ? clockSamples[clockSamples.length - 1]!.deltaMs
+            : null,
         renderDeltaMs:
-          renderSamples.length > 0 ? renderSamples[renderSamples.length - 1]!.deltaMs : null,
+          renderSamples.length > 0
+            ? renderSamples[renderSamples.length - 1]!.deltaMs
+            : null,
         transitionId,
         progress: transitionProgress,
       };
@@ -181,7 +185,8 @@ function createMonitor() {
     const deltas = samples.map((s) => s.deltaMs);
     const sorted = [...deltas].sort((a, b) => a - b);
     const mean = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-    const variance = deltas.reduce((s, d) => s + (d - mean) ** 2, 0) / deltas.length;
+    const variance =
+      deltas.reduce((s, d) => s + (d - mean) ** 2, 0) / deltas.length;
     const stdDev = Math.sqrt(variance);
     const p50 = sorted[Math.floor(sorted.length * 0.5)]!;
     const p95 = sorted[Math.floor(sorted.length * 0.95)]!;
@@ -189,7 +194,17 @@ function createMonitor() {
     const min = sorted[0]!;
     const max = sorted[sorted.length - 1]!;
     const jitter = stdDev / mean;
-    return { mean, stdDev, jitter, p50, p95, p99, min, max, count: samples.length };
+    return {
+      mean,
+      stdDev,
+      jitter,
+      p50,
+      p95,
+      p99,
+      min,
+      max,
+      count: samples.length,
+    };
   }
 
   function dump() {
@@ -197,7 +212,10 @@ function createMonitor() {
     const renderStats = computeStats(renderSamples);
     const transitionStalls = stalls.filter((s) => s.inTransition);
 
-    console.group("%c Frame Jitter Report", "font-weight:bold;font-size:14px;color:#60a5fa");
+    console.group(
+      "%c Frame Jitter Report",
+      "font-weight:bold;font-size:14px;color:#60a5fa",
+    );
     console.log(`FPS: ${fps}, Expected frame: ${expectedFrameMs.toFixed(1)}ms`);
 
     if (clockStats) {
@@ -232,7 +250,9 @@ function createMonitor() {
       console.groupEnd();
     }
 
-    console.log(`Total stalls: ${stalls.length} (${transitionStalls.length} in transitions)`);
+    console.log(
+      `Total stalls: ${stalls.length} (${transitionStalls.length} in transitions)`,
+    );
     if (stalls.length > 0) {
       console.group("Stalls (>1.8x expected)");
       console.table(
@@ -326,7 +346,8 @@ export function getFrameJitterMonitor(): FrameJitterMonitor {
   if (!_instance) {
     _instance = createMonitor();
     if (typeof window !== "undefined") {
-      (window as unknown as Record<string, unknown>).__FRAME_JITTER__ = _instance;
+      (window as unknown as Record<string, unknown>).__FRAME_JITTER__ =
+        _instance;
     }
   }
   return _instance;

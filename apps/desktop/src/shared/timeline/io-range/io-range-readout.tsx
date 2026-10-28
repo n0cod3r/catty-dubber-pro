@@ -1,6 +1,7 @@
-import { memo } from 'react'
-import { createPortal } from 'react-dom'
-import { useIoRangeReadoutStore } from './io-range-readout-store'
+import { memo } from "react";
+import { createPortal } from "react-dom";
+
+import { useIoRangeReadoutStore } from "./io-range-readout-store";
 
 /**
  * Floating readout shown at the cursor during an IO drag (mirrors the clip trim
@@ -9,8 +10,8 @@ import { useIoRangeReadoutStore } from './io-range-readout-store'
  * every IO surface (Edit ruler, mini-timeline, source monitor).
  */
 export const IoDragReadout = memo(function IoDragReadout() {
-  const readout = useIoRangeReadoutStore((s) => s.readout)
-  if (!readout) return null
+  const readout = useIoRangeReadoutStore((s) => s.readout);
+  if (!readout) return null;
 
   // Matches the clip trim readout (TrimInfoOverlay) for a consistent look;
   // positioned centered above the cursor rather than anchored to a clip edge.
@@ -20,11 +21,11 @@ export const IoDragReadout = memo(function IoDragReadout() {
       style={{
         left: readout.x,
         top: readout.y - 16,
-        transform: 'translate(-50%, -100%)',
+        transform: "translate(-50%, -100%)",
       }}
     >
       {readout.label}
     </div>,
     document.body,
-  )
-})
+  );
+});

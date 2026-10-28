@@ -5,5 +5,9 @@ import { createTimelineStore } from "../stores/timeline-store";
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
   const [store] = useState(createTimelineStore);
-  return <TimelineStoreContext.Provider value={store}>{children}</TimelineStoreContext.Provider>;
+  return (
+    <TimelineStoreContext.Provider value={store}>
+      {children}
+    </TimelineStoreContext.Provider>
+  );
 }

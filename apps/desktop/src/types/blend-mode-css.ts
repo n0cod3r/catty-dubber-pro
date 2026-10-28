@@ -7,7 +7,10 @@
 import type { BlendMode } from "./blend-modes";
 
 /** Map blend mode to CSS mix-blend-mode value */
-export const BLEND_MODE_CSS: Record<BlendMode, React.CSSProperties["mixBlendMode"]> = {
+export const BLEND_MODE_CSS: Record<
+  BlendMode,
+  React.CSSProperties["mixBlendMode"]
+> = {
   normal: "normal",
   dissolve: "normal", // no CSS equivalent
   darken: "darken",
@@ -68,7 +71,9 @@ const BLEND_MODE_COMPOSITE_OP: Record<BlendMode, GlobalCompositeOperation> = {
  * Get the Canvas2D composite operation for a blend mode.
  * Falls back to 'source-over' for unsupported modes.
  */
-export function getCompositeOperation(mode: BlendMode): GlobalCompositeOperation {
+export function getCompositeOperation(
+  mode: BlendMode,
+): GlobalCompositeOperation {
   const op = BLEND_MODE_COMPOSITE_OP[mode];
   // Some composite operations aren't supported in all browsers — validate
   if (op === ("color-over" as GlobalCompositeOperation)) return "source-over";

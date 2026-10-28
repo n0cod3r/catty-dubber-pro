@@ -4,11 +4,23 @@
  * Includes: slide
  */
 
-import type { TransitionRegistry, TransitionRenderer } from '../registry'
-import type { TransitionDefinition, SlideDirection } from '@/types/transition'
+import type { SlideDirection, TransitionDefinition } from "@/types/transition";
 
-const ALL_DIRECTIONS: SlideDirection[] = ['from-left', 'from-right', 'from-top', 'from-bottom']
-const ALL_TIMINGS = ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'cubic-bezier'] as const
+import type { TransitionRegistry, TransitionRenderer } from "../registry";
+
+const ALL_DIRECTIONS: SlideDirection[] = [
+  "from-left",
+  "from-right",
+  "from-top",
+  "from-bottom",
+];
+const ALL_TIMINGS = [
+  "linear",
+  "ease-in",
+  "ease-out",
+  "ease-in-out",
+  "cubic-bezier",
+] as const;
 
 function getSlideOffset(
   progress: number,
@@ -17,21 +29,21 @@ function getSlideOffset(
   w: number,
   h: number,
 ): { x: number; y: number } {
-  const p = isOutgoing ? progress : progress - 1
+  const p = isOutgoing ? progress : progress - 1;
   // Round to whole pixels — sub-pixel offsets cause drawImage to
   // interpolate between source pixels, producing visible shimmering
   // on high-frequency content (text, edges, fine detail).
   switch (direction) {
-    case 'from-left':
-      return { x: Math.round(p * w), y: 0 }
-    case 'from-right':
-      return { x: Math.round(-p * w), y: 0 }
-    case 'from-top':
-      return { x: 0, y: Math.round(p * h) }
-    case 'from-bottom':
-      return { x: 0, y: Math.round(-p * h) }
+    case "from-left":
+      return { x: Math.round(p * w), y: 0 };
+    case "from-right":
+      return { x: Math.round(-p * w), y: 0 };
+    case "from-top":
+      return { x: 0, y: Math.round(p * h) };
+    case "from-bottom":
+      return { x: 0, y: Math.round(-p * h) };
     default:
-      return { x: 0, y: 0 }
+      return { x: 0, y: 0 };
   }
 }
 
@@ -40,36 +52,36 @@ function getSlideOffset(
 // ============================================================================
 
 const slideRenderer: TransitionRenderer = {
-  gpuTransitionId: 'slide',
+  gpuTransitionId: "slide",
   renderCanvas(ctx, leftCanvas, rightCanvas, progress, direction, canvas) {
-    const dir = (direction as SlideDirection) || 'from-left'
-    const w = canvas?.width ?? leftCanvas.width
-    const h = canvas?.height ?? leftCanvas.height
-    const rightOff = getSlideOffset(progress, dir, false, w, h)
-    ctx.drawImage(rightCanvas, rightOff.x, rightOff.y)
-    const leftOff = getSlideOffset(progress, dir, true, w, h)
-    ctx.drawImage(leftCanvas, leftOff.x, leftOff.y)
+    const dir = (direction as SlideDirection) || "from-left";
+    const w = canvas?.width ?? leftCanvas.width;
+    const h = canvas?.height ?? leftCanvas.height;
+    const rightOff = getSlideOffset(progress, dir, false, w, h);
+    ctx.drawImage(rightCanvas, rightOff.x, rightOff.y);
+    const leftOff = getSlideOffset(progress, dir, true, w, h);
+    ctx.drawImage(leftCanvas, leftOff.x, leftOff.y);
   },
-}
+};
 
 const slideDef: TransitionDefinition = {
-  id: 'slide',
-  label: 'Push',
-  description: 'Push between clips from a direction',
-  category: 'motion',
-  icon: 'MoveRight',
+  id: "slide",
+  label: "Push",
+  description: "Push between clips from a direction",
+  category: "motion",
+  icon: "MoveRight",
   hasDirection: true,
   directions: ALL_DIRECTIONS,
   supportedTimings: [...ALL_TIMINGS],
   defaultDuration: 30,
   minDuration: 5,
   maxDuration: 90,
-}
+};
 
 // ============================================================================
 // Registration
 // ============================================================================
 
 export function registerSlideTransitions(registry: TransitionRegistry): void {
-  registry.register('slide', slideDef, slideRenderer)
+  registry.register("slide", slideDef, slideRenderer);
 }

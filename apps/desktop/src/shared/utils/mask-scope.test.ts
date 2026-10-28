@@ -1,16 +1,17 @@
 // @vitest-environment node
 
-import { describe, expect, it } from 'vite-plus/test'
-import { doesMaskAffectTrack } from './mask-scope'
+import { describe, expect, it } from "vite-plus/test";
 
-describe('doesMaskAffectTrack', () => {
-  it('applies masks only to lower tracks', () => {
-    expect(doesMaskAffectTrack(0, 1)).toBe(true)
-    expect(doesMaskAffectTrack(0, 3)).toBe(true)
-  })
+import { doesMaskAffectTrack } from "./mask-scope";
 
-  it('does not apply masks to the same track or tracks above the mask', () => {
-    expect(doesMaskAffectTrack(1, 1)).toBe(false)
-    expect(doesMaskAffectTrack(2, 0)).toBe(false)
-  })
-})
+describe("doesMaskAffectTrack", () => {
+  it("applies masks only to lower tracks", () => {
+    expect(doesMaskAffectTrack(0, 1)).toBe(true);
+    expect(doesMaskAffectTrack(0, 3)).toBe(true);
+  });
+
+  it("does not apply masks to the same track or tracks above the mask", () => {
+    expect(doesMaskAffectTrack(1, 1)).toBe(false);
+    expect(doesMaskAffectTrack(2, 0)).toBe(false);
+  });
+});

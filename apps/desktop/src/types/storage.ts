@@ -191,9 +191,14 @@ export interface ThumbnailData {
 }
 
 export type MediaTranscriptModel =
-  "parakeet-tdt-v3" | "whisper-tiny" | "whisper-base" | "whisper-small" | "whisper-large";
+  | "parakeet-tdt-v3"
+  | "whisper-tiny"
+  | "whisper-base"
+  | "whisper-small"
+  | "whisper-large";
 
-export type MediaTranscriptQuantization = "hybrid" | "fp32" | "fp16" | "q8" | "q4";
+export type MediaTranscriptQuantization =
+  "hybrid" | "fp32" | "fp16" | "q8" | "q4";
 
 export interface MediaTranscriptSegment {
   text: string;
@@ -285,7 +290,8 @@ export interface DecodedPreviewAudioBin {
   createdAt?: number;
 }
 
-export type DecodedPreviewAudio = DecodedPreviewAudioMeta | DecodedPreviewAudioBin;
+export type DecodedPreviewAudio =
+  DecodedPreviewAudioMeta | DecodedPreviewAudioBin;
 
 // GIF frame data for pre-extracted animation frames
 export interface GifFrameData {

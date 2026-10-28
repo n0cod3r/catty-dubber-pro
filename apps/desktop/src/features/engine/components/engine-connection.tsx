@@ -10,7 +10,12 @@ import { requestEngine } from "../services/client";
 
 export function EngineConnection() {
   const [state, setState] = useState<
-    "checking" | "ready" | "missing-ffprobe" | "missing-ffmpeg" | "offline" | "web"
+    | "checking"
+    | "ready"
+    | "missing-ffprobe"
+    | "missing-ffmpeg"
+    | "offline"
+    | "web"
   >("checking");
   const [message, setMessage] = useState("");
   const check = useCallback(async (active: () => boolean = () => true) => {
@@ -37,7 +42,9 @@ export function EngineConnection() {
     } catch (cause) {
       if (active()) {
         setState("offline");
-        setMessage(cause instanceof Error ? cause.message : "Engine unavailable");
+        setMessage(
+          cause instanceof Error ? cause.message : "Engine unavailable",
+        );
       }
     }
   }, []);
@@ -56,7 +63,10 @@ export function EngineConnection() {
       onClick={() => {
         void check();
       }}
-      title={message || "The Python engine is available in the desktop app. Click to check again."}
+      title={
+        message ||
+        "The Python engine is available in the desktop app. Click to check again."
+      }
       aria-label="Check engine connection"
     >
       {state === "checking" ? (

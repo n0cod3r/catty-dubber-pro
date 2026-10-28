@@ -15,7 +15,11 @@ import {
   makeStar,
   makeTriangle,
 } from "./shape-generators";
-import { getTaperStrokeSegments, hasActiveTaper, type TaperPathValues } from "./taper-path";
+import {
+  getTaperStrokeSegments,
+  hasActiveTaper,
+  type TaperPathValues,
+} from "./taper-path";
 import { getTrimPathSvgProps, type TrimPathValues } from "./trim-path";
 
 interface BaseShapeProps extends TrimPathValues, TaperPathValues {
@@ -123,7 +127,13 @@ export const Rect: React.FC<
       className={className}
     >
       {fillDefinition}
-      <ShapePath d={path} fill={fill} stroke={stroke} strokeWidth={strokeWidth} {...trim} />
+      <ShapePath
+        d={path}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        {...trim}
+      />
     </svg>
   );
 };
@@ -135,7 +145,16 @@ export const Circle: React.FC<
   BaseShapeProps & {
     radius: number;
   }
-> = ({ radius, fill, fillDefinition, stroke, strokeWidth, style, className, ...trim }) => {
+> = ({
+  radius,
+  fill,
+  fillDefinition,
+  stroke,
+  strokeWidth,
+  style,
+  className,
+  ...trim
+}) => {
   const { path, width, height } = makeCircle({ radius });
 
   return (
@@ -148,7 +167,13 @@ export const Circle: React.FC<
       className={className}
     >
       {fillDefinition}
-      <ShapePath d={path} fill={fill} stroke={stroke} strokeWidth={strokeWidth} {...trim} />
+      <ShapePath
+        d={path}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        {...trim}
+      />
     </svg>
   );
 };
@@ -161,7 +186,17 @@ export const Ellipse: React.FC<
     rx: number;
     ry: number;
   }
-> = ({ rx, ry, fill, fillDefinition, stroke, strokeWidth, style, className, ...trim }) => {
+> = ({
+  rx,
+  ry,
+  fill,
+  fillDefinition,
+  stroke,
+  strokeWidth,
+  style,
+  className,
+  ...trim
+}) => {
   const { path, width, height } = makeEllipse({ rx, ry });
 
   return (
@@ -174,7 +209,13 @@ export const Ellipse: React.FC<
       className={className}
     >
       {fillDefinition}
-      <ShapePath d={path} fill={fill} stroke={stroke} strokeWidth={strokeWidth} {...trim} />
+      <ShapePath
+        d={path}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        {...trim}
+      />
     </svg>
   );
 };
@@ -200,7 +241,11 @@ export const Triangle: React.FC<
   className,
   ...trim
 }) => {
-  const { path, width, height } = makeTriangle({ length, direction, cornerRadius });
+  const { path, width, height } = makeTriangle({
+    length,
+    direction,
+    cornerRadius,
+  });
 
   return (
     <svg
@@ -212,7 +257,13 @@ export const Triangle: React.FC<
       className={className}
     >
       {fillDefinition}
-      <ShapePath d={path} fill={fill} stroke={stroke} strokeWidth={strokeWidth} {...trim} />
+      <ShapePath
+        d={path}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        {...trim}
+      />
     </svg>
   );
 };
@@ -240,7 +291,12 @@ export const Star: React.FC<
   className,
   ...trim
 }) => {
-  const { path, width, height } = makeStar({ points, outerRadius, innerRadius, cornerRadius });
+  const { path, width, height } = makeStar({
+    points,
+    outerRadius,
+    innerRadius,
+    cornerRadius,
+  });
 
   return (
     <svg
@@ -252,7 +308,13 @@ export const Star: React.FC<
       className={className}
     >
       {fillDefinition}
-      <ShapePath d={path} fill={fill} stroke={stroke} strokeWidth={strokeWidth} {...trim} />
+      <ShapePath
+        d={path}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        {...trim}
+      />
     </svg>
   );
 };
@@ -290,7 +352,13 @@ export const Polygon: React.FC<
       className={className}
     >
       {fillDefinition}
-      <ShapePath d={path} fill={fill} stroke={stroke} strokeWidth={strokeWidth} {...trim} />
+      <ShapePath
+        d={path}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        {...trim}
+      />
     </svg>
   );
 };
@@ -302,7 +370,16 @@ export const Heart: React.FC<
   BaseShapeProps & {
     height: number;
   }
-> = ({ height, fill, fillDefinition, stroke, strokeWidth, style, className, ...trim }) => {
+> = ({
+  height,
+  fill,
+  fillDefinition,
+  stroke,
+  strokeWidth,
+  style,
+  className,
+  ...trim
+}) => {
   const result = makeHeart({ height });
 
   return (
@@ -315,7 +392,13 @@ export const Heart: React.FC<
       className={className}
     >
       {fillDefinition}
-      <ShapePath d={result.path} fill={fill} stroke={stroke} strokeWidth={strokeWidth} {...trim} />
+      <ShapePath
+        d={result.path}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        {...trim}
+      />
     </svg>
   );
 };

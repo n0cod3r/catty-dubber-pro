@@ -20,7 +20,10 @@ function safeDirectoryName(name: string) {
   const printable = Array.from(name.trim(), (character) =>
     character.charCodeAt(0) < 32 ? "-" : character,
   ).join("");
-  return printable.replace(INVALID_DIRECTORY_CHARS, "-").replace(/[. ]+$/, "") || "Catty Project";
+  return (
+    printable.replace(INVALID_DIRECTORY_CHARS, "-").replace(/[. ]+$/, "") ||
+    "Catty Project"
+  );
 }
 
 function loadRecents(): RecentProject[] {
@@ -34,32 +37,40 @@ function loadRecents(): RecentProject[] {
 
 export function useProject() {
   const [current, setCurrent] = useState<OpenProject | null>(null);
-  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(loadRecents);
+  const [recentProjects, setRecentProjects] =
+    useState<RecentProject[]>(loadRecents);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const remember = useCallback((directory: string, project: PersistedProject) => {
-    setRecentProjects((items) => {
-      const next = [
-        { directory, name: project.name, openedAt: new Date().toISOString() },
-        ...items.filter((item) => item.directory !== directory),
-      ].slice(0, 8);
-      localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  const remember = useCallback(
+    (directory: string, project: PersistedProject) => {
+      setRecentProjects((items) => {
+        const next = [
+          { directory, name: project.name, openedAt: new Date().toISOString() },
+          ...items.filter((item) => item.directory !== directory),
+        ].slice(0, 8);
+        localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [],
+  );
 
   const load = useCallback(
     async (directory: string) => {
       setBusy(true);
       setError(null);
       try {
-        const project = await requestEngine("project.open", { project_directory: directory });
+        const project = await requestEngine("project.open", {
+          project_directory: directory,
+        });
         await allowAssetPath(directory);
         setCurrent({ directory, project });
         remember(directory, project);
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "មិនអាចបើក Project បានទេ។");
+        setError(
+          cause instanceof Error ? cause.message : "មិនអាចបើក Project បានទេ។",
+        );
       } finally {
         setBusy(false);
       }
@@ -70,7 +81,9 @@ export function useProject() {
   const create = useCallback(
     async (name: string) => {
       if (!isTauri()) {
-        setError("ការបង្កើត Project folder ត្រូវដំណើរការក្នុង Catty desktop app។");
+        setError(
+          "ការបង្កើត Project folder ត្រូវដំណើរការក្នុង Catty desktop app។",
+        );
         return;
       }
       const parent = await open({
@@ -91,7 +104,11 @@ export function useProject() {
         setCurrent({ directory, project });
         remember(directory, project);
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "មិនអាចបង្កើត Project បានទេ។");
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "មិនអាចបង្កើត Project បានទេ។",
+        );
       } finally {
         setBusy(false);
       }
@@ -104,7 +121,11 @@ export function useProject() {
       setError("ការបើក Project folder ត្រូវដំណើរការក្នុង Catty desktop app។");
       return;
     }
-    const directory = await open({ directory: true, multiple: false, title: "បើក Catty Project" });
+    const directory = await open({
+      directory: true,
+      multiple: false,
+      title: "បើក Catty Project",
+    });
     if (directory && !Array.isArray(directory)) await load(directory);
   }, [load]);
 
@@ -123,6 +144,16 @@ export function useProject() {
       close,
       dismissError,
     }),
-    [current, recentProjects, busy, error, create, chooseAndOpen, load, close, dismissError],
+    [
+      current,
+      recentProjects,
+      busy,
+      error,
+      create,
+      chooseAndOpen,
+      load,
+      close,
+      dismissError,
+    ],
   );
 }

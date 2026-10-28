@@ -11,36 +11,40 @@
 
 export interface FontMetrics {
   /** Distance from the alphabetic baseline up to the font bounding-box top. */
-  ascent: number
+  ascent: number;
   /** Distance from the alphabetic baseline down to the font bounding-box bottom. */
-  descent: number
+  descent: number;
 }
 
 export interface TextMeasurer {
   /** Advance width including trailing letter-spacing (CSS semantics). */
-  measure(text: string, cssFont: string, letterSpacing: number): number
+  measure(text: string, cssFont: string, letterSpacing: number): number;
   /** Line-box metrics for the given font. */
-  fontMetrics(cssFont: string): FontMetrics
+  fontMetrics(cssFont: string): FontMetrics;
 }
 
-type AnyCanvasContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+type AnyCanvasContext =
+  CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 /** Optional memoizer so the canvas path can reuse its per-frame width cache. */
-export type MeasureWidthFn = (text: string, letterSpacing: number) => number
+export type MeasureWidthFn = (text: string, letterSpacing: number) => number;
 
 /** Extract the `px` font size from a canvas/CSS `font` shorthand. */
 export function parseFontSizePx(cssFont: string): number {
-  const match = /(\d+(?:\.\d+)?)px/.exec(cssFont)
-  return match ? parseFloat(match[1]!) : 16
+  const match = /(\d+(?:\.\d+)?)px/.exec(cssFont);
+  return match ? parseFloat(match[1]!) : 16;
 }
 
 /**
  * Set `letterSpacing` on a canvas context if the property is supported
  * (newer Chrome). No-op on environments/mocks without it.
  */
-export function applyCanvasLetterSpacing(ctx: AnyCanvasContext, letterSpacing: number): void {
-  if ('letterSpacing' in ctx) {
-    ;(ctx as { letterSpacing: string }).letterSpacing = `${letterSpacing}px`
+export function applyCanvasLetterSpacing(
+  ctx: AnyCanvasContext,
+  letterSpacing: number,
+): void {
+  if ("letterSpacing" in ctx) {
+    (ctx as { letterSpacing: string }).letterSpacing = `${letterSpacing}px`;
   }
 }
 
@@ -55,23 +59,25 @@ export function createCanvasTextMeasurer(
   ctx: AnyCanvasContext,
   measureWidth?: MeasureWidthFn,
 ): TextMeasurer {
-  if ('fontKerning' in ctx) {
-    ;(ctx as { fontKerning: string }).fontKerning = 'normal'
+  if ("fontKerning" in ctx) {
+    (ctx as { fontKerning: string }).fontKerning = "normal";
   }
   return {
     measure(text, cssFont, letterSpacing) {
-      if (ctx.font !== cssFont) ctx.font = cssFont
-      applyCanvasLetterSpacing(ctx, letterSpacing)
-      return measureWidth ? measureWidth(text, letterSpacing) : ctx.measureText(text).width
+      if (ctx.font !== cssFont) ctx.font = cssFont;
+      applyCanvasLetterSpacing(ctx, letterSpacing);
+      return measureWidth
+        ? measureWidth(text, letterSpacing)
+        : ctx.measureText(text).width;
     },
     fontMetrics(cssFont) {
-      if (ctx.font !== cssFont) ctx.font = cssFont
-      const fontSize = parseFontSizePx(cssFont)
-      const metrics = ctx.measureText('Hg')
+      if (ctx.font !== cssFont) ctx.font = cssFont;
+      const fontSize = parseFontSizePx(cssFont);
+      const metrics = ctx.measureText("Hg");
       return {
         ascent: metrics.fontBoundingBoxAscent || fontSize * 0.8,
         descent: metrics.fontBoundingBoxDescent || fontSize * 0.2,
-      }
+      };
     },
-  }
+  };
 }

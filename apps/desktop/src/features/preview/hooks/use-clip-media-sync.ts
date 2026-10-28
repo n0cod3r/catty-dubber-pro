@@ -30,7 +30,9 @@ export function useClipMediaSync(
       const time = clamp(
         sourceTime,
         0,
-        Number.isFinite(media.duration) ? Math.max(0, media.duration - 0.001) : 0,
+        Number.isFinite(media.duration)
+          ? Math.max(0, media.duration - 0.001)
+          : 0,
       );
       const nextMapping = { source, offset };
       if (

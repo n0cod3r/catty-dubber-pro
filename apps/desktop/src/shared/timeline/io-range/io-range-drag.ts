@@ -1,8 +1,9 @@
-import type { PointerEvent as ReactPointerEvent } from 'react'
+import type { PointerEvent as ReactPointerEvent } from "react";
+
 import {
   useIoRangeReadoutStore,
   type IoDragReadout,
-} from './io-range-readout-store'
+} from "./io-range-readout-store";
 
 /**
  * Start a pointer drag for an IO marker / range strip.
@@ -25,52 +26,54 @@ export function beginIoPointerDrag(
   onMove: (clientX: number) => string | IoDragReadout | void,
   onEnd?: () => void,
 ): (() => void) | null {
-  if (e.button !== 0) return null
-  e.preventDefault()
-  e.stopPropagation()
+  if (e.button !== 0) return null;
+  e.preventDefault();
+  e.stopPropagation();
 
-  const target = e.currentTarget
-  const { pointerId } = e
+  const target = e.currentTarget;
+  const { pointerId } = e;
   try {
-    target.setPointerCapture(pointerId)
+    target.setPointerCapture(pointerId);
   } catch {
     // Pointer capture unsupported (e.g. jsdom) — the document listeners below
     // still drive the drag; capture is only a robustness upgrade.
   }
 
   const publish = (clientX: number, clientY: number) => {
-    const update = onMove(clientX)
-    useIoRangeReadoutStore.getState().setReadout(
-      typeof update === 'string'
-        ? { label: update, x: clientX, y: clientY }
-        : (update ?? null),
-    )
-  }
+    const update = onMove(clientX);
+    useIoRangeReadoutStore
+      .getState()
+      .setReadout(
+        typeof update === "string"
+          ? { label: update, x: clientX, y: clientY }
+          : (update ?? null),
+      );
+  };
 
   // Function declarations (hoisted) so move/end/cleanup can reference each other.
   function move(ev: PointerEvent) {
-    if (ev.pointerId === pointerId) publish(ev.clientX, ev.clientY)
+    if (ev.pointerId === pointerId) publish(ev.clientX, ev.clientY);
   }
   function end(ev: PointerEvent) {
-    if (ev.pointerId === pointerId) cleanup()
+    if (ev.pointerId === pointerId) cleanup();
   }
   function cleanup() {
-    document.removeEventListener('pointermove', move)
-    document.removeEventListener('pointerup', end)
-    document.removeEventListener('pointercancel', end)
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", end);
+    document.removeEventListener("pointercancel", end);
     try {
-      target.releasePointerCapture(pointerId)
+      target.releasePointerCapture(pointerId);
     } catch {
       // Already released (the normal case on pointerup) — ignore.
     }
-    useIoRangeReadoutStore.getState().setReadout(null)
-    onEnd?.()
+    useIoRangeReadoutStore.getState().setReadout(null);
+    onEnd?.();
   }
 
-  document.addEventListener('pointermove', move)
-  document.addEventListener('pointerup', end)
-  document.addEventListener('pointercancel', end)
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", end);
+  document.addEventListener("pointercancel", end);
   // Show the readout immediately on grab (before the first move).
-  publish(e.clientX, e.clientY)
-  return cleanup
+  publish(e.clientX, e.clientY);
+  return cleanup;
 }

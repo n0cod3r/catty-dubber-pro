@@ -25,7 +25,9 @@ describe("bezier path geometry", () => {
   });
 
   it("closes paths only when requested", () => {
-    expect(buildBezierPathData(line, 200, 100, true)).toBe("M 0 0 L 200 0 L 0 0 Z");
+    expect(buildBezierPathData(line, 200, 100, true)).toBe(
+      "M 0 0 L 200 0 L 0 0 Z",
+    );
     expect(flattenBezierPath(line, 200, 100, true).totalLength).toBe(400);
   });
 
@@ -45,7 +47,9 @@ describe("bezier path geometry", () => {
       ...line,
       { position: [1, 1], inHandle: [0, 0], outHandle: [0, 0] },
     ];
-    expect(rotateClosedPathStart(vertices, 2).map((vertex) => vertex.position)).toEqual([
+    expect(
+      rotateClosedPathStart(vertices, 2).map((vertex) => vertex.position),
+    ).toEqual([
       [1, 1],
       [0, 0],
       [1, 0],

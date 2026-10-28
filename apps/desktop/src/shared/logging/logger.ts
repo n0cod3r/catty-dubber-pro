@@ -160,7 +160,10 @@ function makeLogger(prefix: string, level: number): Logger {
       };
     },
     child(childPrefix: string): Logger {
-      return makeLogger(prefix ? `${prefix}:${childPrefix}` : childPrefix, currentLevel);
+      return makeLogger(
+        prefix ? `${prefix}:${childPrefix}` : childPrefix,
+        currentLevel,
+      );
     },
     setLevel(newLevel: number): void {
       currentLevel = newLevel;

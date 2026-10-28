@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildTaperedOutline, getTaperedOutlineFillPath } from "./taper-outline";
+import {
+  buildTaperedOutline,
+  getTaperedOutlineFillPath,
+} from "./taper-outline";
 
 describe("buildTaperedOutline", () => {
   it("builds one continuous pointed outline without a start cap blob", () => {

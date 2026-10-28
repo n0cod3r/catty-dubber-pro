@@ -14,7 +14,9 @@ export function ImportedCat() {
     ])
       .then(([{ default: lottie }, { default: data }]) => {
         if (disposed) return;
-        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const reducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        );
         const animation = lottie.loadAnimation({
           container: host,
           renderer: "svg",

@@ -1,11 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { clampFinite as clamp } from "@/shared/utils/math";
 
 import { TIMELINE } from "../constants";
 import { pointerToTime } from "../utils/geometry";
 
-export function useTimelineViewport(duration: number, currentTime: number, follow: boolean) {
+export function useTimelineViewport(
+  duration: number,
+  currentTime: number,
+  follow: boolean,
+) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const currentTimeRef = useRef(currentTime);
   useEffect(() => {
@@ -23,7 +33,9 @@ export function useTimelineViewport(duration: number, currentTime: number, follo
     const viewport = viewportRef.current;
     if (!viewport) return;
     const observer = new ResizeObserver(() =>
-      setViewportWidth(Math.max(1, viewport.clientWidth - TIMELINE.headerWidth)),
+      setViewportWidth(
+        Math.max(1, viewport.clientWidth - TIMELINE.headerWidth),
+      ),
     );
     observer.observe(viewport);
     return () => observer.disconnect();
@@ -42,7 +54,10 @@ export function useTimelineViewport(duration: number, currentTime: number, follo
               viewportWidth,
             )
           : clamp(clientX - left, 0, viewportWidth);
-      anchorRef.current = { time: ((viewport.scrollLeft + offset) / width) * duration, offset };
+      anchorRef.current = {
+        time: ((viewport.scrollLeft + offset) / width) * duration,
+        offset,
+      };
       setZoom(clamp(next, TIMELINE.minZoom, TIMELINE.maxZoom));
     },
     [duration, viewportWidth, width],

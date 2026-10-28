@@ -3,7 +3,9 @@ import { lazy, Suspense, type ComponentProps } from "react";
 import { LoaderCircle } from "lucide-react";
 
 const Workspace = lazy(() =>
-  import("./editor-workspace").then((module) => ({ default: module.EditorWorkspace })),
+  import("./editor-workspace").then((module) => ({
+    default: module.EditorWorkspace,
+  })),
 );
 
 export function LazyEditorWorkspace(props: ComponentProps<typeof Workspace>) {

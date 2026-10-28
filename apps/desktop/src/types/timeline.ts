@@ -7,7 +7,11 @@ import type { ItemEffect } from "./effects";
 import type { MotionAnimationLayer, MotionModifier } from "./motion";
 import type { TextLayoutDrafts, TextSpan, TextStyleFields } from "./text";
 import type { TextMotionSpec } from "./text-motion";
-import type { CropSettings, TransformParentBinding, TransformProperties } from "./transform";
+import type {
+  CropSettings,
+  TransformParentBinding,
+  TransformProperties,
+} from "./transform";
 
 export interface TimelineItemCornerPin {
   topLeft: [number, number];
@@ -301,7 +305,14 @@ export type LottieItem = BaseTimelineItem & {
 };
 
 export type ShapeType =
-  "rectangle" | "circle" | "triangle" | "ellipse" | "star" | "polygon" | "heart" | "path";
+  | "rectangle"
+  | "circle"
+  | "triangle"
+  | "ellipse"
+  | "star"
+  | "polygon"
+  | "heart"
+  | "path";
 
 export interface ShapeStyleFields {
   // Fill

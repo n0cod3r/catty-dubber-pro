@@ -1,6 +1,7 @@
 // @vitest-environment node
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, it } from "vite-plus/test";
+
 import {
   clampAudioPitchCents,
   clampAudioPitchSemitones,
@@ -8,26 +9,26 @@ import {
   getAudioPitchShiftSemitones,
   isAudioPitchShiftActive,
   resolvePreviewAudioPitchShiftSemitones,
-} from './audio-pitch'
+} from "./audio-pitch";
 
-describe('audio pitch utils', () => {
-  it('clamps semitones and cents to the supported range', () => {
-    expect(clampAudioPitchSemitones(18)).toBe(12)
-    expect(clampAudioPitchSemitones(-14)).toBe(-12)
-    expect(clampAudioPitchCents(140)).toBe(100)
-    expect(clampAudioPitchCents(-180)).toBe(-100)
-  })
+describe("audio pitch utils", () => {
+  it("clamps semitones and cents to the supported range", () => {
+    expect(clampAudioPitchSemitones(18)).toBe(12);
+    expect(clampAudioPitchSemitones(-14)).toBe(-12);
+    expect(clampAudioPitchCents(140)).toBe(100);
+    expect(clampAudioPitchCents(-180)).toBe(-100);
+  });
 
-  it('combines semitones and cents into a single pitch shift value', () => {
+  it("combines semitones and cents into a single pitch shift value", () => {
     expect(
       getAudioPitchShiftSemitones({
         audioPitchSemitones: 3,
         audioPitchCents: 25,
       }),
-    ).toBe(3.25)
-  })
+    ).toBe(3.25);
+  });
 
-  it('preserves inherited pitch while preview overrides the local clip fields', () => {
+  it("preserves inherited pitch while preview overrides the local clip fields", () => {
     expect(
       resolvePreviewAudioPitchShiftSemitones({
         base: {
@@ -39,12 +40,12 @@ describe('audio pitch utils', () => {
         },
         additionalSemitones: 1.5,
       }),
-    ).toBe(3)
-  })
+    ).toBe(3);
+  });
 
-  it('detects active shifts and converts them to SoundTouch ratios', () => {
-    expect(isAudioPitchShiftActive(0)).toBe(false)
-    expect(isAudioPitchShiftActive(0.25)).toBe(true)
-    expect(getAudioPitchRatioFromSemitones(12)).toBeCloseTo(2, 5)
-  })
-})
+  it("detects active shifts and converts them to SoundTouch ratios", () => {
+    expect(isAudioPitchShiftActive(0)).toBe(false);
+    expect(isAudioPitchShiftActive(0.25)).toBe(true);
+    expect(getAudioPitchRatioFromSemitones(12)).toBeCloseTo(2, 5);
+  });
+});

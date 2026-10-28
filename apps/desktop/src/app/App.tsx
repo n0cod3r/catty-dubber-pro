@@ -1,6 +1,12 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
-import { AlertCircle, ChevronLeft, LoaderCircle, Settings2, X } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronLeft,
+  LoaderCircle,
+  Settings2,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -18,7 +24,10 @@ import { SettingsDialog } from "@/features/settings";
 
 export function App() {
   const projects = useProject();
-  const source = useEpisode(projects.current?.directory ?? null, projects.current?.project ?? null);
+  const source = useEpisode(
+    projects.current?.directory ?? null,
+    projects.current?.project ?? null,
+  );
   const closing = useDesktopShutdown();
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -80,7 +89,9 @@ export function App() {
               >
                 <ChevronLeft />
               </Button>
-              <span className="truncate text-xs font-medium">{projects.current.project.name}</span>
+              <span className="truncate text-xs font-medium">
+                {projects.current.project.name}
+              </span>
               <span className="hidden truncate text-[10px] text-muted-foreground md:block">
                 {projects.current.directory}
               </span>

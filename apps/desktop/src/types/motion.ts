@@ -9,18 +9,26 @@
  * The evaluator lives in `@/features/keyframes/utils/motion-modifier-eval`.
  */
 
-import type { EasingConfig, EasingType, TransformAnimatableProperty } from "./keyframe";
+import type {
+  EasingConfig,
+  EasingType,
+  TransformAnimatableProperty,
+} from "./keyframe";
 
-export type MotionModifierType = "float-drift" | "breath-pulse" | "micro-shake" | "sway" | "spin";
+export type MotionModifierType =
+  "float-drift" | "breath-pulse" | "micro-shake" | "sway" | "spin";
 
 /** Transform channels a procedural modifier may target. */
-export type MotionModifierChannel = "x" | "y" | "width" | "height" | "rotation" | "opacity";
+export type MotionModifierChannel =
+  "x" | "y" | "width" | "height" | "rotation" | "opacity";
 
 /**
  * Per-channel gain. A missing map is the v1 compatibility form and means 100%
  * on every channel supported by the modifier type; zero mutes one channel.
  */
-export type MotionModifierChannelGains = Partial<Record<MotionModifierChannel, number>>;
+export type MotionModifierChannelGains = Partial<
+  Record<MotionModifierChannel, number>
+>;
 
 export interface MotionModifier {
   /** v2 adds independently typed channel gains; omitted values are legacy v1. */

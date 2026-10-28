@@ -5,7 +5,11 @@ export function dialogueSplitTarget(
   time: number,
 ) {
   const prefix = `dialogue:${sourceId}:`;
-  if (!sourceId || !Number.isFinite(time) || (selectedId && !selectedId.startsWith(prefix)))
+  if (
+    !sourceId ||
+    !Number.isFinite(time) ||
+    (selectedId && !selectedId.startsWith(prefix))
+  )
     return null;
   return (
     segments.find(

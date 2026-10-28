@@ -77,12 +77,16 @@ export function getPreviewTraceEvents(): readonly PreviewTraceEvent[] {
   return events;
 }
 
-export function recordPumpTrace(event: Omit<PreviewPumpTraceEvent, "ch">): void {
+export function recordPumpTrace(
+  event: Omit<PreviewPumpTraceEvent, "ch">,
+): void {
   if (!enabled || events.length >= MAX_EVENTS) return;
   events.push({ ch: "pump", ...event });
 }
 
-export function recordRenderTrace(event: Omit<PreviewRenderTraceEvent, "ch">): void {
+export function recordRenderTrace(
+  event: Omit<PreviewRenderTraceEvent, "ch">,
+): void {
   if (!enabled || events.length >= MAX_EVENTS) return;
   events.push({ ch: "render", ...event });
 }
@@ -174,14 +178,30 @@ export function analyzePreviewTrace(
   events: readonly PreviewTraceEvent[],
   window: PreviewTraceWindow,
 ): PreviewTraceAnalysis {
-  const pump = events.filter((e): e is PreviewPumpTraceEvent => e.ch === "pump");
-  const render = events.filter((e): e is PreviewRenderTraceEvent => e.ch === "render");
+  const pump = events.filter(
+    (e): e is PreviewPumpTraceEvent => e.ch === "pump",
+  );
+  const render = events.filter(
+    (e): e is PreviewRenderTraceEvent => e.ch === "render",
+  );
 
-  const firstHalf = summarizeHalf(pump, render, window.startFrame, window.cutPoint);
-  const secondHalf = summarizeHalf(pump, render, window.cutPoint, window.endFrame);
+  const firstHalf = summarizeHalf(
+    pump,
+    render,
+    window.startFrame,
+    window.cutPoint,
+  );
+  const secondHalf = summarizeHalf(
+    pump,
+    render,
+    window.cutPoint,
+    window.endFrame,
+  );
 
   const pumpFrameSet = new Set(
-    pump.filter((e) => e.f >= window.startFrame && e.f < window.endFrame).map((e) => e.f),
+    pump
+      .filter((e) => e.f >= window.startFrame && e.f < window.endFrame)
+      .map((e) => e.f),
   );
   const gapFrames: number[] = [];
   for (let f = window.startFrame; f < window.endFrame; f++) {
@@ -190,11 +210,19 @@ export function analyzePreviewTrace(
   const gapRanges = compressRanges(gapFrames);
 
   const forceFastValues = new Set(
-    pump.filter((e) => e.f >= window.startFrame && e.f < window.endFrame).map((e) => e.forceFast),
+    pump
+      .filter((e) => e.f >= window.startFrame && e.f < window.endFrame)
+      .map((e) => e.forceFast),
   );
   const forceFastFlipped = forceFastValues.size > 1;
 
-  const verdict = buildVerdict(window, firstHalf, secondHalf, gapRanges, forceFastFlipped);
+  const verdict = buildVerdict(
+    window,
+    firstHalf,
+    secondHalf,
+    gapRanges,
+    forceFastFlipped,
+  );
 
   return {
     window,
@@ -215,9 +243,13 @@ function buildVerdict(
   forceFastFlipped: boolean,
 ): string {
   const secondHalfFrames = window.endFrame - window.cutPoint;
-  const biggestGap = gapRanges.reduce((m, r) => Math.max(m, r.to - r.from + 1), 0);
+  const biggestGap = gapRanges.reduce(
+    (m, r) => Math.max(m, r.to - r.from + 1),
+    0,
+  );
   const secondHalfStarved =
-    secondHalfFrames > 4 && secondHalf.compositedFrames * 3 < firstHalf.compositedFrames;
+    secondHalfFrames > 4 &&
+    secondHalf.compositedFrames * 3 < firstHalf.compositedFrames;
 
   if (secondHalfStarved || biggestGap > secondHalfFrames / 2) {
     const cause = forceFastFlipped

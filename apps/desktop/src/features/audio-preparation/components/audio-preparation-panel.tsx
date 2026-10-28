@@ -6,7 +6,10 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { AudioLines, Check, FolderOpen, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { cancelAudio, prepareAudio } from "@/features/audio-preparation/deps/engine";
+import {
+  cancelAudio,
+  prepareAudio,
+} from "@/features/audio-preparation/deps/engine";
 import type { EpisodeMedia } from "@/features/audio-preparation/deps/episodes";
 
 function errorMessage(error: unknown) {
@@ -16,7 +19,10 @@ function errorMessage(error: unknown) {
 }
 function cancelled(error: unknown) {
   return (
-    typeof error === "object" && error !== null && "code" in error && error.code === "CANCELLED"
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "CANCELLED"
   );
 }
 
@@ -24,14 +30,21 @@ export function AudioPreparationPanel({ episode }: { episode: EpisodeMedia }) {
   const [asset, setAsset] = useState<AudioAsset | null>(null);
   const [directory, setDirectory] = useState<string | null>(null);
   const [state, setState] = useState<
-    "idle" | "choosing" | "running" | "cancelling" | "ready" | "cancelled" | "error"
+    | "idle"
+    | "choosing"
+    | "running"
+    | "cancelling"
+    | "ready"
+    | "cancelled"
+    | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(false);
   const busyRef = useRef(false);
   const jobRef = useRef<string | null>(null);
   const desktop = isTauri() && !episode.path.startsWith("blob:");
-  const busy = state === "choosing" || state === "running" || state === "cancelling";
+  const busy =
+    state === "choosing" || state === "running" || state === "cancelling";
 
   useEffect(() => {
     mounted.current = true;
@@ -110,7 +123,8 @@ export function AudioPreparationPanel({ episode }: { episode: EpisodeMedia }) {
         Audio preparation
       </h3>
       <p className="leading-relaxed text-muted-foreground">
-        Extract a 16 kHz mono WAV for speech recognition. The original media stays unchanged.
+        Extract a 16 kHz mono WAV for speech recognition. The original media
+        stays unchanged.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -121,7 +135,13 @@ export function AudioPreparationPanel({ episode }: { episode: EpisodeMedia }) {
             void prepare();
           }}
         >
-          {busy ? <LoaderCircle className="animate-spin" /> : asset ? <Check /> : <AudioLines />}
+          {busy ? (
+            <LoaderCircle className="animate-spin" />
+          ) : asset ? (
+            <Check />
+          ) : (
+            <AudioLines />
+          )}
           {state === "choosing"
             ? "Choose folder…"
             : busy
@@ -158,10 +178,15 @@ export function AudioPreparationPanel({ episode }: { episode: EpisodeMedia }) {
         )}
       </div>
       {!desktop && (
-        <p className="text-muted-foreground">Available for videos imported in the desktop app.</p>
+        <p className="text-muted-foreground">
+          Available for videos imported in the desktop app.
+        </p>
       )}
       {busy && (
-        <p role="status" className="flex items-center gap-2 text-muted-foreground">
+        <p
+          role="status"
+          className="flex items-center gap-2 text-muted-foreground"
+        >
           <LoaderCircle className="size-3 animate-spin" />
           {state === "choosing"
             ? "Choose an output folder."
@@ -183,11 +208,14 @@ export function AudioPreparationPanel({ episode }: { episode: EpisodeMedia }) {
       {asset && (
         <div className="space-y-1 border-t pt-2">
           <p role="status" className="text-emerald-400">
-            {state === "ready" ? "Speech audio ready" : "Previous speech audio"} ·{" "}
-            {asset.sample_rate.toLocaleString()} Hz ·{" "}
+            {state === "ready" ? "Speech audio ready" : "Previous speech audio"}{" "}
+            · {asset.sample_rate.toLocaleString()} Hz ·{" "}
             {asset.channels === 1 ? "Mono" : `${asset.channels} channels`}
           </p>
-          <p className="font-mono text-[9px] break-all text-muted-foreground" title={asset.path}>
+          <p
+            className="font-mono text-[9px] break-all text-muted-foreground"
+            title={asset.path}
+          >
             {asset.path}
           </p>
         </div>

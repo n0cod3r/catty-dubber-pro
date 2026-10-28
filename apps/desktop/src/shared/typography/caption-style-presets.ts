@@ -12,159 +12,204 @@
  * time by `resolveCaptionStylePatch`.
  */
 
-import type { TransformProperties } from '@/types/transform'
-import type { SubtitleSegmentItem, TextItem } from '@/types/timeline'
+import type { SubtitleSegmentItem, TextItem } from "@/types/timeline";
+import type { TransformProperties } from "@/types/transform";
 
 export type CaptionStylePatch = Pick<
   TextItem,
-  | 'fontSize'
-  | 'fontFamily'
-  | 'fontWeight'
-  | 'fontStyle'
-  | 'underline'
-  | 'color'
-  | 'backgroundColor'
-  | 'backgroundRadius'
-  | 'textAlign'
-  | 'verticalAlign'
-  | 'lineHeight'
-  | 'letterSpacing'
-  | 'textPadding'
-  | 'textShadow'
-  | 'stroke'
-> & { transform?: TransformProperties }
+  | "fontSize"
+  | "fontFamily"
+  | "fontWeight"
+  | "fontStyle"
+  | "underline"
+  | "color"
+  | "backgroundColor"
+  | "backgroundRadius"
+  | "textAlign"
+  | "verticalAlign"
+  | "lineHeight"
+  | "letterSpacing"
+  | "textPadding"
+  | "textShadow"
+  | "stroke"
+> & { transform?: TransformProperties };
 
 export interface CaptionStylePreset {
-  id: string
-  label: string
+  id: string;
+  label: string;
   /** i18n key for the one-line description shown as button tooltip. */
-  hintKey: string
-  patch: Omit<CaptionStylePatch, 'transform' | 'fontSize'>
+  hintKey: string;
+  patch: Omit<CaptionStylePatch, "transform" | "fontSize">;
   /** Canvas-relative layout overrides — see top-of-file comment. */
   layout?: {
     /** fontSize = round(canvasHeight * fontSizeRatio). */
-    fontSizeRatio?: number
+    fontSizeRatio?: number;
     /** transform.y = round(canvasHeight * yRatio). 0 = vertical center, +ve = below. */
-    yRatio?: number
+    yRatio?: number;
     /** transform.width = round(canvasWidth * widthRatio). */
-    widthRatio?: number
+    widthRatio?: number;
     /** transform.height = round(canvasHeight * heightRatio). */
-    heightRatio?: number
-  }
+    heightRatio?: number;
+  };
 }
 
 export const CAPTION_STYLE_PRESETS: readonly CaptionStylePreset[] = [
   {
-    id: 'netflix',
-    label: 'Netflix',
-    hintKey: 'editor.captionPresets.netflixHint',
+    id: "netflix",
+    label: "Netflix",
+    hintKey: "editor.captionPresets.netflixHint",
     patch: {
-      fontFamily: 'Inter',
-      fontWeight: 'semibold',
-      fontStyle: 'normal',
+      fontFamily: "Inter",
+      fontWeight: "semibold",
+      fontStyle: "normal",
       underline: false,
-      color: '#ffffff',
-      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      color: "#ffffff",
+      backgroundColor: "rgba(0, 0, 0, 0.55)",
       backgroundRadius: 4,
-      textAlign: 'center',
-      verticalAlign: 'middle',
+      textAlign: "center",
+      verticalAlign: "middle",
       lineHeight: 1.15,
       letterSpacing: 0,
       textPadding: 12,
-      textShadow: { offsetX: 0, offsetY: 2, blur: 6, color: 'rgba(0, 0, 0, 0.6)' },
+      textShadow: {
+        offsetX: 0,
+        offsetY: 2,
+        blur: 6,
+        color: "rgba(0, 0, 0, 0.6)",
+      },
       stroke: undefined,
     },
-    layout: { fontSizeRatio: 0.04, yRatio: 0.36, widthRatio: 0.7, heightRatio: 0.16 },
+    layout: {
+      fontSizeRatio: 0.04,
+      yRatio: 0.36,
+      widthRatio: 0.7,
+      heightRatio: 0.16,
+    },
   },
   {
-    id: 'youtube',
-    label: 'YouTube',
-    hintKey: 'editor.captionPresets.youtubeHint',
+    id: "youtube",
+    label: "YouTube",
+    hintKey: "editor.captionPresets.youtubeHint",
     patch: {
-      fontFamily: 'Roboto',
-      fontWeight: 'medium',
-      fontStyle: 'normal',
+      fontFamily: "Roboto",
+      fontWeight: "medium",
+      fontStyle: "normal",
       underline: false,
-      color: '#ffffff',
+      color: "#ffffff",
       backgroundColor: undefined,
       backgroundRadius: 0,
-      textAlign: 'center',
-      verticalAlign: 'middle',
+      textAlign: "center",
+      verticalAlign: "middle",
       lineHeight: 1.2,
       letterSpacing: 0,
       textPadding: 0,
-      textShadow: { offsetX: 0, offsetY: 4, blur: 14, color: 'rgba(0, 0, 0, 0.85)' },
+      textShadow: {
+        offsetX: 0,
+        offsetY: 4,
+        blur: 14,
+        color: "rgba(0, 0, 0, 0.85)",
+      },
       stroke: undefined,
     },
-    layout: { fontSizeRatio: 0.045, yRatio: 0.34, widthRatio: 0.85, heightRatio: 0.18 },
+    layout: {
+      fontSizeRatio: 0.045,
+      yRatio: 0.34,
+      widthRatio: 0.85,
+      heightRatio: 0.18,
+    },
   },
   {
-    id: 'bold-yellow',
-    label: 'Bold Yellow',
-    hintKey: 'editor.captionPresets.boldYellowHint',
+    id: "bold-yellow",
+    label: "Bold Yellow",
+    hintKey: "editor.captionPresets.boldYellowHint",
     patch: {
-      fontFamily: 'Roboto Slab',
-      fontWeight: 'bold',
-      fontStyle: 'normal',
+      fontFamily: "Roboto Slab",
+      fontWeight: "bold",
+      fontStyle: "normal",
       underline: false,
-      color: '#FFD400',
+      color: "#FFD400",
       backgroundColor: undefined,
       backgroundRadius: 0,
-      textAlign: 'center',
-      verticalAlign: 'middle',
+      textAlign: "center",
+      verticalAlign: "middle",
       lineHeight: 1.1,
       letterSpacing: 0,
       textPadding: 0,
-      textShadow: { offsetX: 0, offsetY: 3, blur: 5, color: 'rgba(0, 0, 0, 1)' },
-      stroke: { width: 1.5, color: '#000000' },
+      textShadow: {
+        offsetX: 0,
+        offsetY: 3,
+        blur: 5,
+        color: "rgba(0, 0, 0, 1)",
+      },
+      stroke: { width: 1.5, color: "#000000" },
     },
-    layout: { fontSizeRatio: 0.05, yRatio: 0.38, widthRatio: 0.85, heightRatio: 0.18 },
+    layout: {
+      fontSizeRatio: 0.05,
+      yRatio: 0.38,
+      widthRatio: 0.85,
+      heightRatio: 0.18,
+    },
   },
   {
-    id: 'minimal-stroke',
-    label: 'Outlined',
-    hintKey: 'editor.captionPresets.outlinedHint',
+    id: "minimal-stroke",
+    label: "Outlined",
+    hintKey: "editor.captionPresets.outlinedHint",
     patch: {
-      fontFamily: 'Manrope',
-      fontWeight: 'medium',
-      fontStyle: 'normal',
+      fontFamily: "Manrope",
+      fontWeight: "medium",
+      fontStyle: "normal",
       underline: false,
-      color: '#ffffff',
+      color: "#ffffff",
       backgroundColor: undefined,
       backgroundRadius: 0,
-      textAlign: 'center',
-      verticalAlign: 'middle',
+      textAlign: "center",
+      verticalAlign: "middle",
       lineHeight: 1.2,
       letterSpacing: 0,
       textPadding: 0,
       textShadow: undefined,
-      stroke: { width: 1, color: '#000000' },
+      stroke: { width: 1, color: "#000000" },
     },
-    layout: { fontSizeRatio: 0.04, yRatio: 0.34, widthRatio: 0.85, heightRatio: 0.16 },
+    layout: {
+      fontSizeRatio: 0.04,
+      yRatio: 0.34,
+      widthRatio: 0.85,
+      heightRatio: 0.16,
+    },
   },
   {
-    id: 'tiktok',
-    label: 'TikTok',
-    hintKey: 'editor.captionPresets.tiktokHint',
+    id: "tiktok",
+    label: "TikTok",
+    hintKey: "editor.captionPresets.tiktokHint",
     patch: {
-      fontFamily: 'Anton',
-      fontWeight: 'normal',
-      fontStyle: 'normal',
+      fontFamily: "Anton",
+      fontWeight: "normal",
+      fontStyle: "normal",
       underline: false,
-      color: '#ffffff',
+      color: "#ffffff",
       backgroundColor: undefined,
       backgroundRadius: 0,
-      textAlign: 'center',
-      verticalAlign: 'middle',
+      textAlign: "center",
+      verticalAlign: "middle",
       lineHeight: 1.05,
       letterSpacing: 1,
       textPadding: 0,
-      textShadow: { offsetX: 0, offsetY: 4, blur: 8, color: 'rgba(0, 0, 0, 0.9)' },
-      stroke: { width: 2, color: '#000000' },
+      textShadow: {
+        offsetX: 0,
+        offsetY: 4,
+        blur: 8,
+        color: "rgba(0, 0, 0, 0.9)",
+      },
+      stroke: { width: 2, color: "#000000" },
     },
-    layout: { fontSizeRatio: 0.075, yRatio: 0, widthRatio: 0.9, heightRatio: 0.22 },
+    layout: {
+      fontSizeRatio: 0.075,
+      yRatio: 0,
+      widthRatio: 0.9,
+      heightRatio: 0.22,
+    },
   },
-] as const
+] as const;
 
 /**
  * Heuristic match: pick the preset whose patch most closely matches the
@@ -172,12 +217,12 @@ export const CAPTION_STYLE_PRESETS: readonly CaptionStylePreset[] = [
  * the UI. Returns null when nothing matches well — the user has tweaked.
  */
 export function detectActiveCaptionPreset(
-  item: SubtitleSegmentItem | (TextItem & { textRole?: 'caption' }),
+  item: SubtitleSegmentItem | (TextItem & { textRole?: "caption" }),
 ): CaptionStylePreset | null {
   for (const preset of CAPTION_STYLE_PRESETS) {
-    if (matchesPreset(item, preset.patch)) return preset
+    if (matchesPreset(item, preset.patch)) return preset;
   }
-  return null
+  return null;
 }
 
 /**
@@ -192,11 +237,14 @@ export function resolveCaptionStylePatch(
   canvasHeight: number,
   baseTransform?: TransformProperties,
 ): CaptionStylePatch {
-  const layout = preset.layout
-  const patch: CaptionStylePatch = { ...preset.patch }
+  const layout = preset.layout;
+  const patch: CaptionStylePatch = { ...preset.patch };
 
   if (layout?.fontSizeRatio !== undefined) {
-    patch.fontSize = Math.max(8, Math.round(canvasHeight * layout.fontSizeRatio))
+    patch.fontSize = Math.max(
+      8,
+      Math.round(canvasHeight * layout.fontSizeRatio),
+    );
   }
 
   if (
@@ -221,32 +269,44 @@ export function resolveCaptionStylePatch(
           : (baseTransform?.height ?? canvasHeight * 0.16),
       rotation: baseTransform?.rotation ?? 0,
       opacity: baseTransform?.opacity ?? 1,
-    }
+    };
   }
 
-  return patch
+  return patch;
 }
 
-function matchesPreset(item: SubtitleSegmentItem | TextItem, patch: CaptionStylePatch): boolean {
+function matchesPreset(
+  item: SubtitleSegmentItem | TextItem,
+  patch: CaptionStylePatch,
+): boolean {
   for (const key of Object.keys(patch) as Array<keyof CaptionStylePatch>) {
-    const expected = patch[key]
-    const actual = item[key]
-    if (!equalShallow(expected, actual)) return false
+    const expected = patch[key];
+    const actual = item[key];
+    if (!equalShallow(expected, actual)) return false;
   }
-  return true
+  return true;
 }
 
 function equalShallow(a: unknown, b: unknown): boolean {
-  if (a === b) return true
-  if (a === undefined || b === undefined) return a === b
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
-  const aKeys = Object.keys(a as Record<string, unknown>)
-  const bKeys = Object.keys(b as Record<string, unknown>)
-  if (aKeys.length !== bKeys.length) return false
+  if (a === b) return true;
+  if (a === undefined || b === undefined) return a === b;
+  if (
+    typeof a !== "object" ||
+    typeof b !== "object" ||
+    a === null ||
+    b === null
+  )
+    return false;
+  const aKeys = Object.keys(a as Record<string, unknown>);
+  const bKeys = Object.keys(b as Record<string, unknown>);
+  if (aKeys.length !== bKeys.length) return false;
   for (const key of aKeys) {
-    if ((a as Record<string, unknown>)[key] !== (b as Record<string, unknown>)[key]) {
-      return false
+    if (
+      (a as Record<string, unknown>)[key] !==
+      (b as Record<string, unknown>)[key]
+    ) {
+      return false;
     }
   }
-  return true
+  return true;
 }

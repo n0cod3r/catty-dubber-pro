@@ -80,28 +80,33 @@ export type BuiltinTransitionPresentation =
  * Widened to `string` so the registry can accept custom IDs.
  * All BuiltinTransitionPresentation values are valid.
  */
-export type TransitionPresentation = BuiltinTransitionPresentation | (string & {});
+export type TransitionPresentation =
+  BuiltinTransitionPresentation | (string & {});
 
 /**
  * Wipe direction options
  */
-export type WipeDirection = "from-left" | "from-right" | "from-top" | "from-bottom";
+export type WipeDirection =
+  "from-left" | "from-right" | "from-top" | "from-bottom";
 
 /**
  * Slide direction options
  */
-export type SlideDirection = "from-left" | "from-right" | "from-top" | "from-bottom";
+export type SlideDirection =
+  "from-left" | "from-right" | "from-top" | "from-bottom";
 
 /**
  * Flip direction options
  */
-export type FlipDirection = "from-left" | "from-right" | "from-top" | "from-bottom";
+export type FlipDirection =
+  "from-left" | "from-right" | "from-top" | "from-bottom";
 
 /**
  * Timing function for transitions.
  * Extended with standard CSS easing names.
  */
-export type TransitionTiming = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "cubic-bezier";
+export type TransitionTiming =
+  "linear" | "ease-in" | "ease-out" | "ease-in-out" | "cubic-bezier";
 
 /**
  * Bezier control points for cubic-bezier timing
@@ -191,7 +196,11 @@ export interface TransitionRepairResult {
   /** Transitions that are still valid (unmodified) */
   valid: Transition[];
   /** Transitions that were repaired (modified) */
-  repaired: Array<{ original: Transition; repaired: Transition; action: string }>;
+  repaired: Array<{
+    original: Transition;
+    repaired: Transition;
+    action: string;
+  }>;
   /** Transitions that could not be repaired */
   broken: TransitionBreakage[];
 }

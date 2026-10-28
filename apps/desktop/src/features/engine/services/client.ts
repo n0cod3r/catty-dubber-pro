@@ -8,7 +8,10 @@ export async function requestEngine<M extends keyof EngineMethods>(
   params: EngineMethods[M]["params"],
 ): Promise<EngineMethods[M]["result"]> {
   try {
-    return await invoke<EngineMethods[M]["result"]>("engine_request", { method, params });
+    return await invoke<EngineMethods[M]["result"]>("engine_request", {
+      method,
+      params,
+    });
   } catch (cause) {
     const message =
       typeof cause === "object" &&

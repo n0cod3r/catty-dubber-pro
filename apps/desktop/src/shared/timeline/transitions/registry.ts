@@ -9,15 +9,15 @@
  * - A TransitionRenderer (canvas/GPU render logic for export and preview)
  */
 
+import { createLogger } from "@/shared/logging/logger";
 import type {
+  FlipDirection,
+  SlideDirection,
   TransitionDefinition,
   WipeDirection,
-  SlideDirection,
-  FlipDirection,
-} from '@/types/transition'
-import { createLogger } from '@/shared/logging/logger'
+} from "@/types/transition";
 
-const log = createLogger('TransitionRegistry')
+const log = createLogger("TransitionRegistry");
 
 /**
  * Renderer interface for transitions.
@@ -42,18 +42,18 @@ export interface TransitionRenderer {
     direction?: WipeDirection | SlideDirection | FlipDirection,
     canvas?: { width: number; height: number },
     properties?: Record<string, unknown>,
-  ): void
+  ): void;
 
   /** GPU transition ID for WebGPU-accelerated rendering via TransitionPipeline */
-  gpuTransitionId?: string
+  gpuTransitionId?: string;
 }
 
 /**
  * Entry stored in the registry for each transition.
  */
 interface TransitionRegistryEntry {
-  definition: TransitionDefinition
-  renderer: TransitionRenderer
+  definition: TransitionDefinition;
+  renderer: TransitionRenderer;
 }
 
 /**
@@ -61,69 +61,73 @@ interface TransitionRegistryEntry {
  * Stores transition definitions and renderers by presentation ID.
  */
 export class TransitionRegistry {
-  private entries: Map<string, TransitionRegistryEntry> = new Map()
+  private entries: Map<string, TransitionRegistryEntry> = new Map();
 
   /**
    * Register a transition with its definition and renderer.
    */
-  register(id: string, definition: TransitionDefinition, renderer: TransitionRenderer): void {
+  register(
+    id: string,
+    definition: TransitionDefinition,
+    renderer: TransitionRenderer,
+  ): void {
     if (this.entries.has(id)) {
-      log.warn(`Transition "${id}" is being overwritten`)
+      log.warn(`Transition "${id}" is being overwritten`);
     }
-    this.entries.set(id, { definition, renderer })
+    this.entries.set(id, { definition, renderer });
   }
 
   /**
    * Unregister a transition by ID.
    */
   unregister(id: string): boolean {
-    return this.entries.delete(id)
+    return this.entries.delete(id);
   }
 
   /**
    * Get just the renderer for a transition ID.
    */
   getRenderer(id: string): TransitionRenderer | undefined {
-    return this.entries.get(id)?.renderer
+    return this.entries.get(id)?.renderer;
   }
 
   /**
    * Get just the definition for a transition ID.
    */
   getDefinition(id: string): TransitionDefinition | undefined {
-    return this.entries.get(id)?.definition
+    return this.entries.get(id)?.definition;
   }
 
   /**
    * Check if a transition ID is registered.
    */
   has(id: string): boolean {
-    return this.entries.has(id)
+    return this.entries.has(id);
   }
 
   /**
    * Get all definitions (for UI listing).
    */
   getDefinitions(): TransitionDefinition[] {
-    return Array.from(this.entries.values()).map((e) => e.definition)
+    return Array.from(this.entries.values()).map((e) => e.definition);
   }
 
   /**
    * Get all registered IDs.
    */
   getIds(): string[] {
-    return Array.from(this.entries.keys())
+    return Array.from(this.entries.keys());
   }
 
   /**
    * Get count of registered transitions.
    */
   get size(): number {
-    return this.entries.size
+    return this.entries.size;
   }
 }
 
 /**
  * Global singleton transition registry.
  */
-export const transitionRegistry = new TransitionRegistry()
+export const transitionRegistry = new TransitionRegistry();

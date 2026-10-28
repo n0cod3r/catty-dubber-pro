@@ -10,16 +10,38 @@ test("translation progress is scoped to the operation, project and episode", () 
     episode_id: "ep",
     episode: { id: "ep" },
   };
-  assert.equal(isCurrentTranslationProgress(event, "new", "/project", "ep"), true);
-  assert.equal(isCurrentTranslationProgress(event, "old", "/project", "ep"), false);
-  assert.equal(isCurrentTranslationProgress(event, "new", "/other-project", "ep"), false);
-  assert.equal(isCurrentTranslationProgress(event, "new", "/project", "other-ep"), false);
   assert.equal(
-    isCurrentTranslationProgress({ ...event, episode: { id: "wrong" } }, "new", "/project", "ep"),
+    isCurrentTranslationProgress(event, "new", "/project", "ep"),
+    true,
+  );
+  assert.equal(
+    isCurrentTranslationProgress(event, "old", "/project", "ep"),
     false,
   );
   assert.equal(
-    isCurrentTranslationProgress({ ...event, episode: null }, "new", "/project", "ep"),
+    isCurrentTranslationProgress(event, "new", "/other-project", "ep"),
+    false,
+  );
+  assert.equal(
+    isCurrentTranslationProgress(event, "new", "/project", "other-ep"),
+    false,
+  );
+  assert.equal(
+    isCurrentTranslationProgress(
+      { ...event, episode: { id: "wrong" } },
+      "new",
+      "/project",
+      "ep",
+    ),
+    false,
+  );
+  assert.equal(
+    isCurrentTranslationProgress(
+      { ...event, episode: null },
+      "new",
+      "/project",
+      "ep",
+    ),
     true,
   );
 });

@@ -12,7 +12,11 @@
  * @param scaleY - Vertical scale factor (defaults to scaleX for uniform scaling)
  * @returns The scaled path string
  */
-export function scalePath(path: string, scaleX: number, scaleY: number = scaleX): string {
+export function scalePath(
+  path: string,
+  scaleX: number,
+  scaleY: number = scaleX,
+): string {
   // Parse and transform the path
   const commands = path.match(/[MLHVCSQTAZ][^MLHVCSQTAZ]*/gi) || [];
   const result: string[] = [];
@@ -195,7 +199,12 @@ export function translatePath(path: string, dx: number, dy: number): string {
         // Smooth cubic: x2 y2 x y
         const translated: number[] = [];
         for (let i = 0; i < args.length; i += 4) {
-          translated.push(args[i]! + dx, args[i + 1]! + dy, args[i + 2]! + dx, args[i + 3]! + dy);
+          translated.push(
+            args[i]! + dx,
+            args[i + 1]! + dy,
+            args[i + 2]! + dx,
+            args[i + 3]! + dy,
+          );
         }
         result.push(`${type} ${translated.join(" ")}`);
         break;
@@ -204,7 +213,12 @@ export function translatePath(path: string, dx: number, dy: number): string {
         // Quadratic bezier: x1 y1 x y
         const translated: number[] = [];
         for (let i = 0; i < args.length; i += 4) {
-          translated.push(args[i]! + dx, args[i + 1]! + dy, args[i + 2]! + dx, args[i + 3]! + dy);
+          translated.push(
+            args[i]! + dx,
+            args[i + 1]! + dy,
+            args[i + 2]! + dx,
+            args[i + 3]! + dy,
+          );
         }
         result.push(`${type} ${translated.join(" ")}`);
         break;

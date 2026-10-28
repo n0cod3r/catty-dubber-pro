@@ -8,14 +8,23 @@ const errors = [];
 function walk(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(directory, entry.name);
-    return entry.isDirectory() ? walk(file) : /\.tsx?$/.test(file) ? [file] : [];
+    return entry.isDirectory()
+      ? walk(file)
+      : /\.tsx?$/.test(file)
+        ? [file]
+        : [];
   });
 }
 for (const file of walk(root)) {
   const relative = path.relative(root, file).split(path.sep).join("/");
   const owner = /^features\/([^/]+)\//.exec(relative)?.[1];
-  if (relative.startsWith("components/") && !relative.startsWith("components/ui/")) {
-    errors.push(`${relative}: feature UI belongs in features/<name>/components`);
+  if (
+    relative.startsWith("components/") &&
+    !relative.startsWith("components/ui/")
+  ) {
+    errors.push(
+      `${relative}: feature UI belongs in features/<name>/components`,
+    );
   }
   const source = ts.createSourceFile(
     file,
@@ -27,7 +36,8 @@ for (const file of walk(root)) {
     const specifier =
       ts.isImportDeclaration(node) || ts.isExportDeclaration(node)
         ? node.moduleSpecifier
-        : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+        : ts.isCallExpression(node) &&
+            node.expression.kind === ts.SyntaxKind.ImportKeyword
           ? node.arguments[0]
           : undefined;
     if (specifier && ts.isStringLiteral(specifier)) {
@@ -37,15 +47,26 @@ for (const file of walk(root)) {
         : value.startsWith(".")
           ? path.resolve(path.dirname(file), value)
           : null;
-      const destination = target && path.relative(root, target).split(path.sep).join("/");
-      const feature = destination && /^features\/([^/]+)(?:\/(.*))?$/.exec(destination);
+      const destination =
+        target && path.relative(root, target).split(path.sep).join("/");
+      const feature =
+        destination && /^features\/([^/]+)(?:\/(.*))?$/.exec(destination);
       if (feature && feature[1] !== owner) {
         const publicEntry = !feature[2] || /^index(?:\.ts)?$/.test(feature[2]);
-        if (!publicEntry || (owner && !relative.startsWith(`features/${owner}/deps/`))) {
-          errors.push(`${relative}: access ${value} through a public entry and a deps/ adapter`);
+        if (
+          !publicEntry ||
+          (owner && !relative.startsWith(`features/${owner}/deps/`))
+        ) {
+          errors.push(
+            `${relative}: access ${value} through a public entry and a deps/ adapter`,
+          );
         }
       }
-      if (relative.startsWith("shared/") && destination && /^(features|app)\//.test(destination)) {
+      if (
+        relative.startsWith("shared/") &&
+        destination &&
+        /^(features|app)\//.test(destination)
+      ) {
         errors.push(`${relative}: shared code cannot depend on ${value}`);
       }
     }

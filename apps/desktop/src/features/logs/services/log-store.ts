@@ -43,9 +43,12 @@ function redact(message: string) {
 }
 export async function pollNativeLogs() {
   if (!isTauri()) return;
-  const batch = await invoke<Array<Omit<LogEntry, "id"> & { id: number }>>("app_logs", {
-    after: cursor,
-  });
+  const batch = await invoke<Array<Omit<LogEntry, "id"> & { id: number }>>(
+    "app_logs",
+    {
+      after: cursor,
+    },
+  );
   const fresh = batch.filter((entry) => entry.id > cursor);
   if (!fresh.length) return;
   cursor = fresh[fresh.length - 1]!.id;

@@ -20,8 +20,11 @@ type PerformanceState = {
 };
 
 function getState(): PerformanceState {
-  return (globalThis as typeof globalThis & { __PREVIEW_SCRUB_PERF__: PerformanceState })
-    .__PREVIEW_SCRUB_PERF__;
+  return (
+    globalThis as typeof globalThis & {
+      __PREVIEW_SCRUB_PERF__: PerformanceState;
+    }
+  ).__PREVIEW_SCRUB_PERF__;
 }
 
 beforeEach(() => getState().reset());
@@ -29,8 +32,12 @@ beforeEach(() => getState().reset());
 describe("preview scrub fallback performance", () => {
   it("publishes the serialized DOM snapshot only when explicitly requested", () => {
     expect(shouldPublishPreviewScrubDomSnapshot("")).toBe(false);
-    expect(shouldPublishPreviewScrubDomSnapshot("?previewScrubPerfSnapshot=0")).toBe(false);
-    expect(shouldPublishPreviewScrubDomSnapshot("?previewScrubPerfSnapshot=1")).toBe(true);
+    expect(
+      shouldPublishPreviewScrubDomSnapshot("?previewScrubPerfSnapshot=0"),
+    ).toBe(false);
+    expect(
+      shouldPublishPreviewScrubDomSnapshot("?previewScrubPerfSnapshot=1"),
+    ).toBe(true);
   });
 
   it("tracks first fallback visibility and later exact-frame replacement latency", () => {
@@ -46,7 +53,9 @@ describe("preview scrub fallback performance", () => {
     });
 
     recordPreviewScrubPresentationQuality(120, false);
-    expect(getState().fallbacks[0]!.exactReplacementMs).toEqual(expect.any(Number));
+    expect(getState().fallbacks[0]!.exactReplacementMs).toEqual(
+      expect.any(Number),
+    );
   });
 
   it("does not attach an exact replacement to a superseded fallback request", () => {
@@ -69,6 +78,8 @@ describe("preview scrub fallback performance", () => {
     recordPreviewScrubPresentationQuality(240, false);
 
     expect(getState().fallbacks).toHaveLength(1);
-    expect(getState().fallbacks[0]!.exactReplacementMs).toEqual(expect.any(Number));
+    expect(getState().fallbacks[0]!.exactReplacementMs).toEqual(
+      expect.any(Number),
+    );
   });
 });

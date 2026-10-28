@@ -46,8 +46,16 @@ function WorkspaceContent({
   onMetadata,
   onEpisodePersisted,
 }: EditorWorkspaceProps) {
-  const dialogue = useDialogueEditing(episode, projectDirectory, onEpisodePersisted);
-  const translation = useTranslation(episode, projectDirectory, onEpisodePersisted);
+  const dialogue = useDialogueEditing(
+    episode,
+    projectDirectory,
+    onEpisodePersisted,
+  );
+  const translation = useTranslation(
+    episode,
+    projectDirectory,
+    onEpisodePersisted,
+  );
   const [muted, setMuted] = useState(false);
   const history = useTimelineStore((state) => state.history);
   const initialize = useTimelineStore((state) => state.initialize);

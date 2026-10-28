@@ -94,7 +94,12 @@ export const EFFECT_PRESETS: EffectPreset[] = [
       {
         type: "gpu-effect",
         gpuEffectType: "gpu-crt",
-        params: { curvature: 0.35, scanlines: 0.35, vignette: 0.35, chroma: 0.5 },
+        params: {
+          curvature: 0.35,
+          scanlines: 0.35,
+          vignette: 0.35,
+          chroma: 0.5,
+        },
       },
       {
         type: "gpu-effect",
@@ -115,7 +120,13 @@ export const EFFECT_PRESETS: EffectPreset[] = [
       {
         type: "gpu-effect",
         gpuEffectType: "gpu-vhs",
-        params: { bleed: 0.5, waviness: 0.4, noise: 0.2, scanline: 0.2, speed: 1 },
+        params: {
+          bleed: 0.5,
+          waviness: 0.4,
+          noise: 0.2,
+          scanline: 0.2,
+          speed: 1,
+        },
       },
       {
         type: "gpu-effect",
@@ -133,50 +144,106 @@ export const EFFECT_PRESETS: EffectPreset[] = [
     id: "vintage",
     name: "Vintage",
     effects: [
-      { type: "gpu-effect", gpuEffectType: "gpu-sepia", params: { amount: 0.4 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-contrast", params: { amount: 1.1 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-brightness", params: { amount: -0.1 } },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-sepia",
+        params: { amount: 0.4 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-contrast",
+        params: { amount: 1.1 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-brightness",
+        params: { amount: -0.1 },
+      },
     ],
   },
   {
     id: "noir",
     name: "Noir",
     effects: [
-      { type: "gpu-effect", gpuEffectType: "gpu-grayscale", params: { amount: 1 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-contrast", params: { amount: 1.3 } },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-grayscale",
+        params: { amount: 1 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-contrast",
+        params: { amount: 1.3 },
+      },
     ],
   },
   {
     id: "cold",
     name: "Cold",
     effects: [
-      { type: "gpu-effect", gpuEffectType: "gpu-hue-shift", params: { shift: 0.5 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-saturation", params: { amount: 0.8 } },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-hue-shift",
+        params: { shift: 0.5 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-saturation",
+        params: { amount: 0.8 },
+      },
     ],
   },
   {
     id: "warm",
     name: "Warm",
     effects: [
-      { type: "gpu-effect", gpuEffectType: "gpu-sepia", params: { amount: 0.2 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-saturation", params: { amount: 1.2 } },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-sepia",
+        params: { amount: 0.2 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-saturation",
+        params: { amount: 1.2 },
+      },
     ],
   },
   {
     id: "dramatic",
     name: "Dramatic",
     effects: [
-      { type: "gpu-effect", gpuEffectType: "gpu-contrast", params: { amount: 1.5 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-saturation", params: { amount: 1.3 } },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-contrast",
+        params: { amount: 1.5 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-saturation",
+        params: { amount: 1.3 },
+      },
     ],
   },
   {
     id: "faded",
     name: "Faded",
     effects: [
-      { type: "gpu-effect", gpuEffectType: "gpu-contrast", params: { amount: 0.8 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-brightness", params: { amount: 0.1 } },
-      { type: "gpu-effect", gpuEffectType: "gpu-saturation", params: { amount: 0.7 } },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-contrast",
+        params: { amount: 0.8 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-brightness",
+        params: { amount: 0.1 },
+      },
+      {
+        type: "gpu-effect",
+        gpuEffectType: "gpu-saturation",
+        params: { amount: 0.7 },
+      },
     ],
   },
 ];

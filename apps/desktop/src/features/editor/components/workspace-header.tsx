@@ -23,7 +23,9 @@ export function WorkspaceHeader({
       <div className="h-5 w-px bg-border" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <h1 className="truncate text-xs font-semibold">{episode?.name ?? "Untitled project"}</h1>
+          <h1 className="truncate text-xs font-semibold">
+            {episode?.name ?? "Untitled project"}
+          </h1>
           <Badge variant="outline">{episode ? "Imported" : "Draft"}</Badge>
           {episode && (
             <span className="w-16 shrink-0" aria-hidden="true">
@@ -41,7 +43,11 @@ export function WorkspaceHeader({
       </span>
       <Button size="sm" disabled={importing} onClick={onImport}>
         {importing ? <LoaderCircle className="animate-spin" /> : <FolderOpen />}
-        {importing ? "Opening…" : episode ? "Replace episode" : "Import episode"}
+        {importing
+          ? "Opening…"
+          : episode
+            ? "Replace episode"
+            : "Import episode"}
       </Button>
     </header>
   );

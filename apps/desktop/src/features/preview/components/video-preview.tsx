@@ -34,7 +34,9 @@ type VideoPreviewProps = {
   onSeek: (time: number) => void;
   seekRevision: number;
   onMediaClock: (clock: (() => number | null) | null) => void;
-  onMetadata: (metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">) => void;
+  onMetadata: (
+    metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">,
+  ) => void;
   muted: boolean;
   onMuteChange: (muted: boolean) => void;
   onImport: () => void;
@@ -66,7 +68,11 @@ export function VideoPreview({
       : convertFileSrc(playbackPath)
     : undefined;
   const ready = duration > 0 && !mediaError;
-  const activeVideo = activeVideoAt(document, currentTime, episode ? [episode] : []);
+  const activeVideo = activeVideoAt(
+    document,
+    currentTime,
+    episode ? [episode] : [],
+  );
   const pictureVisible = activeVideo !== null;
   const activeClip = activeVideo?.clip;
   useEffect(() => {
@@ -74,7 +80,10 @@ export function VideoPreview({
       const video = videoRef.current;
       if (!activeClip || !video || video.ended) return null;
       // Keep the clock still while the native element buffers or seeks.
-      return activeClip.start + Math.max(0, video.currentTime - activeClip.sourceStart);
+      return (
+        activeClip.start +
+        Math.max(0, video.currentTime - activeClip.sourceStart)
+      );
     });
     return () => onMediaClock(null);
   }, [activeClip, onMediaClock]);
@@ -89,13 +98,18 @@ export function VideoPreview({
   );
   useClipMediaSync(
     videoRef,
-    activeVideo ? activeVideo.clip.sourceStart + currentTime - activeVideo.clip.start : null,
+    activeVideo
+      ? activeVideo.clip.sourceStart + currentTime - activeVideo.clip.start
+      : null,
     playing,
     activeVideo?.clip.id,
     reportPlaybackError,
     seekRevision,
     activeVideo && src
-      ? { source: src, offset: activeVideo.clip.sourceStart - activeVideo.clip.start }
+      ? {
+          source: src,
+          offset: activeVideo.clip.sourceStart - activeVideo.clip.start,
+        }
       : undefined,
   );
   const togglePlayback = useCallback(() => {
@@ -106,7 +120,13 @@ export function VideoPreview({
   }, [currentTime, duration, onPlayingChange, onSeek, playing, ready]);
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !ready)
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        !ready
+      )
         return;
       const target = event.target;
       if (
@@ -128,7 +148,9 @@ export function VideoPreview({
               (event.shiftKey
                 ? 5
                 : 1 /
-                  (episode?.fps && Number.isFinite(episode.fps) && episode.fps > 0
+                  (episode?.fps &&
+                  Number.isFinite(episode.fps) &&
+                  episode.fps > 0
                     ? episode.fps
                     : 30)),
         );
@@ -185,7 +207,10 @@ export function VideoPreview({
                   style={{ visibility: pictureVisible ? "visible" : "hidden" }}
                   onLoadedMetadata={(event) => {
                     const video = event.currentTarget;
-                    if (!Number.isFinite(video.duration) || video.duration <= 0) {
+                    if (
+                      !Number.isFinite(video.duration) ||
+                      video.duration <= 0
+                    ) {
                       setMediaError(true);
                       setNotice("This media has no valid duration.");
                       return;
@@ -201,7 +226,9 @@ export function VideoPreview({
                   onError={() => {
                     setMediaError(true);
                     onPlayingChange(false);
-                    setNotice("Playback media could not be loaded. Rebuild the episode preview.");
+                    setNotice(
+                      "Playback media could not be loaded. Rebuild the episode preview.",
+                    );
                   }}
                 />
                 <PreviewLayers
@@ -216,13 +243,22 @@ export function VideoPreview({
         ) : (
           <div className="max-w-xs text-center">
             <div className="mx-auto mb-4 grid size-14 place-items-center rounded-xl border bg-card">
-              <Film className="size-6 text-muted-foreground" strokeWidth={1.3} />
+              <Film
+                className="size-6 text-muted-foreground"
+                strokeWidth={1.3}
+              />
             </div>
             <h2 className="text-sm font-medium">Your story starts here</h2>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Import an episode to preview the source video and build your Khmer dubbing timeline.
+              Import an episode to preview the source video and build your Khmer
+              dubbing timeline.
             </p>
-            <Button className="mt-5" size="sm" onClick={onImport} disabled={importing}>
+            <Button
+              className="mt-5"
+              size="sm"
+              onClick={onImport}
+              disabled={importing}
+            >
               <Upload />
               Import episode
             </Button>

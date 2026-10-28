@@ -52,7 +52,10 @@ function wrap01(value: number): number {
   return ((value % 1) + 1) % 1;
 }
 
-function pointAtProgress(points: FlattenedPathPoint[], progress: number): FlattenedPathPoint {
+function pointAtProgress(
+  points: FlattenedPathPoint[],
+  progress: number,
+): FlattenedPathPoint {
   const target = clamp01(progress);
   if (target <= 0) return { ...points[0]!, progress: target };
   if (target >= 1) return { ...points.at(-1)!, progress: target };
@@ -76,7 +79,10 @@ function pointAtProgress(points: FlattenedPathPoint[], progress: number): Flatte
   };
 }
 
-function getVisibleRanges(path: FlattenedPath, options: TaperOutlineOptions): VisibleRange[] {
+function getVisibleRanges(
+  path: FlattenedPath,
+  options: TaperOutlineOptions,
+): VisibleRange[] {
   const start = clamp01((options.trimPathStart ?? 0) / 100);
   const end = clamp01((options.trimPathEnd ?? 100) / 100);
   if (start === 0 && end === 1) {
@@ -111,9 +117,15 @@ function buildSampledCenterlines(
   options: TaperOutlineOptions,
 ): FlattenedPathPoint[][] {
   const ranges = getVisibleRanges(path, options);
-  const totalVisibleLength = ranges.reduce((sum, range) => sum + range.length, 0);
+  const totalVisibleLength = ranges.reduce(
+    (sum, range) => sum + range.length,
+    0,
+  );
   if (totalVisibleLength <= 0) return [];
-  const totalSampleCount = Math.max(48, Math.min(256, Math.ceil(path.totalLength / 2)));
+  const totalSampleCount = Math.max(
+    48,
+    Math.min(256, Math.ceil(path.totalLength / 2)),
+  );
 
   return ranges.map((range) => {
     const sampleCount = Math.max(
@@ -123,9 +135,13 @@ function buildSampledCenterlines(
     return Array.from({ length: sampleCount + 1 }, (_, index) => {
       const rangeProgress = index / sampleCount;
       const visibleProgress =
-        range.visibleProgressStart + (rangeProgress * range.length) / totalVisibleLength;
+        range.visibleProgressStart +
+        (rangeProgress * range.length) / totalVisibleLength;
       const pathProgress = range.start + rangeProgress * range.length;
-      const point = pointAtProgress(path.points, path.closed ? wrap01(pathProgress) : pathProgress);
+      const point = pointAtProgress(
+        path.points,
+        path.closed ? wrap01(pathProgress) : pathProgress,
+      );
       return { ...point, progress: visibleProgress };
     });
   });
@@ -147,7 +163,10 @@ function getSquareOffset(
   return index === lastIndex ? radius : 0;
 }
 
-function buildOutlineEdges(centerline: FlattenedPathPoint[], options: TaperOutlineOptions) {
+function buildOutlineEdges(
+  centerline: FlattenedPathPoint[],
+  options: TaperOutlineOptions,
+) {
   const left: Array<[number, number]> = [];
   const right: Array<[number, number]> = [];
   const radii: number[] = [];
@@ -157,8 +176,14 @@ function buildOutlineEdges(centerline: FlattenedPathPoint[], options: TaperOutli
     const previous = centerline[Math.max(0, index - 1)]!;
     const next = centerline[Math.min(lastIndex, index + 1)]!;
     const [tx, ty] = normalize(next.x - previous.x, next.y - previous.y);
-    const radius = (options.strokeWidth * getTaperWidthScale(point.progress, options)) / 2;
-    const squareOffset = getSquareOffset(options.lineCap, index, lastIndex, radius);
+    const radius =
+      (options.strokeWidth * getTaperWidthScale(point.progress, options)) / 2;
+    const squareOffset = getSquareOffset(
+      options.lineCap,
+      index,
+      lastIndex,
+      radius,
+    );
     const x = point.x + tx * squareOffset;
     const y = point.y + ty * squareOffset;
     const nx = -ty;
@@ -180,7 +205,8 @@ function buildRoundCaps(
   const first = centerline[0]!;
   const last = centerline.at(-1)!;
   if (radii[0]! > 0) caps.push({ x: first.x, y: first.y, radius: radii[0]! });
-  if (radii.at(-1)! > 0) caps.push({ x: last.x, y: last.y, radius: radii.at(-1)! });
+  if (radii.at(-1)! > 0)
+    caps.push({ x: last.x, y: last.y, radius: radii.at(-1)! });
   return caps;
 }
 
@@ -188,7 +214,12 @@ export function buildTaperedOutline(
   path: FlattenedPath,
   options: TaperOutlineOptions,
 ): TaperOutline | null {
-  if (path.points.length < 2 || path.totalLength <= 0 || options.strokeWidth <= 0) return null;
+  if (
+    path.points.length < 2 ||
+    path.totalLength <= 0 ||
+    options.strokeWidth <= 0
+  )
+    return null;
   const centerlines = buildSampledCenterlines(path, options).filter(
     (centerline) => centerline.length >= 2,
   );

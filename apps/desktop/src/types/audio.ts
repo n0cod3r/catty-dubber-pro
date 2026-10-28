@@ -1,7 +1,10 @@
 export type AudioEqCutSlopeDbPerOct = 6 | 12 | 18 | 24;
-export type AudioEqBand1Type = "low-shelf" | "peaking" | "high-shelf" | "high-pass";
-export type AudioEqInnerBandType = "low-shelf" | "peaking" | "high-shelf" | "notch";
-export type AudioEqBand6Type = "low-pass" | "low-shelf" | "peaking" | "high-shelf";
+export type AudioEqBand1Type =
+  "low-shelf" | "peaking" | "high-shelf" | "high-pass";
+export type AudioEqInnerBandType =
+  "low-shelf" | "peaking" | "high-shelf" | "notch";
+export type AudioEqBand6Type =
+  "low-pass" | "low-shelf" | "peaking" | "high-shelf";
 
 export interface AudioEqSettings {
   enabled?: boolean;

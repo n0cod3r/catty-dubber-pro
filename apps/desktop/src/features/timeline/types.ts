@@ -21,7 +21,11 @@ export type TimelineClip = {
   text?: string;
   color?: string;
 };
-export type TimelineDocument = { layers: Layer[]; clips: TimelineClip[]; initialized: boolean };
+export type TimelineDocument = {
+  layers: Layer[];
+  clips: TimelineClip[];
+  initialized: boolean;
+};
 export type TimelineHistory = {
   past: TimelineDocument[];
   present: TimelineDocument;

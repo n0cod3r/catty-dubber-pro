@@ -17,19 +17,32 @@ export function PreviewFrame({
     const host = hostRef.current;
     if (!host) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      if (entry)
+        setSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
     });
     observer.observe(host);
     return () => observer.disconnect();
   }, []);
-  const frame = fitVideoFrame(size.width, size.height, source?.width, source?.height);
+  const frame = fitVideoFrame(
+    size.width,
+    size.height,
+    source?.width,
+    source?.height,
+  );
   return (
     <div
       ref={hostRef}
       className="flex size-full min-h-0 items-center justify-center p-3"
       data-preview-viewport
     >
-      <div className="relative shrink-0 overflow-hidden bg-black" data-preview-frame style={frame}>
+      <div
+        className="relative shrink-0 overflow-hidden bg-black"
+        data-preview-frame
+        style={frame}
+      >
         {children(frame.width)}
       </div>
     </div>

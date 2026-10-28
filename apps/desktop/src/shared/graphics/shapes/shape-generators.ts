@@ -69,7 +69,9 @@ export function makeEllipse(options: { rx: number; ry: number }): ShapeResult {
 
   // Ellipse using two arcs
   const path =
-    `M ${rx} 0 ` + `A ${rx} ${ry} 0 1 1 ${rx} ${height} ` + `A ${rx} ${ry} 0 1 1 ${rx} 0 Z`;
+    `M ${rx} 0 ` +
+    `A ${rx} ${ry} 0 1 1 ${rx} ${height} ` +
+    `A ${rx} ${ry} 0 1 1 ${rx} 0 Z`;
 
   return { path, width, height };
 }
@@ -131,7 +133,9 @@ export function makeTriangle(options: {
   }
 
   const path =
-    cornerRadius > 0 ? makeRoundedPolygonPath(points, cornerRadius) : makePolygonPath(points);
+    cornerRadius > 0
+      ? makeRoundedPolygonPath(points, cornerRadius)
+      : makePolygonPath(points);
 
   return { path, width, height: h };
 }
@@ -160,7 +164,9 @@ export function makeStar(options: {
   }
 
   const path =
-    cornerRadius > 0 ? makeRoundedPolygonPath(vertices, cornerRadius) : makePolygonPath(vertices);
+    cornerRadius > 0
+      ? makeRoundedPolygonPath(vertices, cornerRadius)
+      : makePolygonPath(vertices);
 
   return { path, width: diameter, height: diameter };
 }
@@ -187,7 +193,9 @@ export function makePolygon(options: {
   }
 
   const path =
-    cornerRadius > 0 ? makeRoundedPolygonPath(vertices, cornerRadius) : makePolygonPath(vertices);
+    cornerRadius > 0
+      ? makeRoundedPolygonPath(vertices, cornerRadius)
+      : makePolygonPath(vertices);
 
   return { path, width: diameter, height: diameter };
 }
@@ -252,7 +260,10 @@ function makePolygonPath(points: [number, number][]): string {
 /**
  * Helper: Create a rounded polygon path from points
  */
-function makeRoundedPolygonPath(points: [number, number][], radius: number): string {
+function makeRoundedPolygonPath(
+  points: [number, number][],
+  radius: number,
+): string {
   if (points.length < 3) return "";
 
   const commands: string[] = [];

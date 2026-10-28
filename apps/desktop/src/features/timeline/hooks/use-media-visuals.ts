@@ -4,7 +4,11 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 
 import type { EpisodeMedia } from "@/features/timeline/deps/episodes";
 
-import type { VisualRequest, VisualResponse, Waveform } from "../types/media-visuals";
+import type {
+  VisualRequest,
+  VisualResponse,
+  Waveform,
+} from "../types/media-visuals";
 
 export function useMediaVisuals(episode: EpisodeMedia | null) {
   const workerRef = useRef<Worker | null>(null);
@@ -20,9 +24,12 @@ export function useMediaVisuals(episode: EpisodeMedia | null) {
     const frames = framesRef.current;
     let worker: Worker;
     try {
-      worker = new Worker(new URL("../workers/media-visuals.worker.ts", import.meta.url), {
-        type: "module",
-      });
+      worker = new Worker(
+        new URL("../workers/media-visuals.worker.ts", import.meta.url),
+        {
+          type: "module",
+        },
+      );
     } catch {
       setVideoError("Media workers are unavailable in this browser.");
       return;
@@ -42,7 +49,8 @@ export function useMediaVisuals(episode: EpisodeMedia | null) {
       };
       setRevision((value) => value + 1);
     };
-    worker.onerror = () => fail("Media analysis failed. You can still use the editor.");
+    worker.onerror = () =>
+      fail("Media analysis failed. You can still use the editor.");
     worker.onmessage = ({ data }: MessageEvent<VisualResponse>) => {
       if (data.type === "thumbnail") {
         frames.get(data.time)?.close();

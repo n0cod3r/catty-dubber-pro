@@ -132,7 +132,8 @@ interface CompletedRender {
   renderEndedAtMs: number;
 }
 
-const SHOULD_PROFILE_PREVIEW_SCRUB = import.meta.env.DEV || import.meta.env.MODE === "perf";
+const SHOULD_PROFILE_PREVIEW_SCRUB =
+  import.meta.env.DEV || import.meta.env.MODE === "perf";
 const MAX_PERF_SAMPLES = 3000;
 const PERF_SNAPSHOT_ELEMENT_ID = "freecut-preview-scrub-performance";
 const PERF_SNAPSHOT_DEBOUNCE_MS = 100;
@@ -143,7 +144,8 @@ export function shouldPublishPreviewScrubDomSnapshot(search: string): boolean {
 }
 
 const SHOULD_PUBLISH_DOM_SNAPSHOT =
-  typeof location !== "undefined" && shouldPublishPreviewScrubDomSnapshot(location.search);
+  typeof location !== "undefined" &&
+  shouldPublishPreviewScrubDomSnapshot(location.search);
 
 let requestSequence = 0;
 let latestRequest: PendingRequest | null = null;
@@ -173,7 +175,11 @@ function resetInternalState(): void {
 }
 
 function scheduleDomSnapshot(state: PreviewScrubPerformanceState): void {
-  if (!SHOULD_PUBLISH_DOM_SNAPSHOT || typeof document === "undefined" || snapshotTimer !== null) {
+  if (
+    !SHOULD_PUBLISH_DOM_SNAPSHOT ||
+    typeof document === "undefined" ||
+    snapshotTimer !== null
+  ) {
     return;
   }
   snapshotTimer = setTimeout(() => {
@@ -254,7 +260,8 @@ export function recordPreviewScrubRequest(
   // frames that arrive for an older target must not be attributed to this
   // request, including when the user later revisits the same frame.
   for (const pendingFrame of fallbackPresentationByFrame.keys()) {
-    if (pendingFrame !== frame) fallbackPresentationByFrame.delete(pendingFrame);
+    if (pendingFrame !== frame)
+      fallbackPresentationByFrame.delete(pendingFrame);
   }
 
   const request: PendingRequest = {
@@ -295,7 +302,13 @@ export function recordPreviewScrubRenderCompleted(frame: number): void {
 export function recordPreviewScrubPresented(frame: number): void {
   const state = getPerformanceState();
   const render = completedRendersByFrame.get(frame);
-  if (!state || !render || render.renderStartedAtMs === 0 || render.renderEndedAtMs === 0) return;
+  if (
+    !state ||
+    !render ||
+    render.renderStartedAtMs === 0 ||
+    render.renderEndedAtMs === 0
+  )
+    return;
 
   const presentedAtMs = performance.now();
   pushBounded(state.presented, {
@@ -304,10 +317,18 @@ export function recordPreviewScrubPresented(frame: number): void {
     requestedFrame: render.request.frame,
     renderedFrame: frame,
     direction: render.request.direction,
-    requestToDequeueMs: Number((render.dequeuedAtMs - render.request.atMs).toFixed(2)),
-    requestToRenderStartMs: Number((render.renderStartedAtMs - render.request.atMs).toFixed(2)),
-    requestToPresentMs: Number((presentedAtMs - render.request.atMs).toFixed(2)),
-    renderMs: Number((render.renderEndedAtMs - render.renderStartedAtMs).toFixed(2)),
+    requestToDequeueMs: Number(
+      (render.dequeuedAtMs - render.request.atMs).toFixed(2),
+    ),
+    requestToRenderStartMs: Number(
+      (render.renderStartedAtMs - render.request.atMs).toFixed(2),
+    ),
+    requestToPresentMs: Number(
+      (presentedAtMs - render.request.atMs).toFixed(2),
+    ),
+    renderMs: Number(
+      (render.renderEndedAtMs - render.renderStartedAtMs).toFixed(2),
+    ),
     supersededByRequests: Math.max(
       0,
       (latestRequest?.seq ?? render.request.seq) - render.request.seq,
@@ -320,7 +341,10 @@ export function recordPreviewScrubPresented(frame: number): void {
   scheduleDomSnapshot(state);
 }
 
-export function recordPreviewScrubPresentationQuality(frame: number, usedFallback: boolean): void {
+export function recordPreviewScrubPresentationQuality(
+  frame: number,
+  usedFallback: boolean,
+): void {
   const state = getPerformanceState();
   if (!state) return;
   const now = performance.now();
@@ -349,27 +373,37 @@ export function recordPreviewScrubPresentationQuality(frame: number, usedFallbac
   scheduleDomSnapshot(state);
 }
 
-export function recordPreviewCompositionRender(sample: PreviewCompositionRenderSample): void {
+export function recordPreviewCompositionRender(
+  sample: PreviewCompositionRenderSample,
+): void {
   const state = getPerformanceState();
   if (!state) return;
   pushBounded(state.renders, sample);
   scheduleDomSnapshot(state);
 }
 
-export function recordPreviewVideoSource(sample: PreviewVideoSourceSample): void {
+export function recordPreviewVideoSource(
+  sample: PreviewVideoSourceSample,
+): void {
   const state = getPerformanceState();
   if (!state) return;
   pushBounded(state.videoSources, sample);
   scheduleDomSnapshot(state);
 }
 
-export function recordPreviewPreseekPlan(frame: number, bySource: Map<string, number[]>): void {
+export function recordPreviewPreseekPlan(
+  frame: number,
+  bySource: Map<string, number[]>,
+): void {
   const state = getPerformanceState();
   if (!state) return;
   pushBounded(state.preseeks, {
     frame,
     sourceCount: bySource.size,
-    timestampCount: [...bySource.values()].reduce((sum, timestamps) => sum + timestamps.length, 0),
+    timestampCount: [...bySource.values()].reduce(
+      (sum, timestamps) => sum + timestamps.length,
+      0,
+    ),
     atMs: performance.now(),
   });
   scheduleDomSnapshot(state);
@@ -392,7 +426,9 @@ export function recordPreviewCanvasPool(sample: PreviewCanvasPoolSample): void {
   scheduleDomSnapshot(state);
 }
 
-export function recordPreviewDecoderMetrics(sample: PreviewDecoderMetricsSample): void {
+export function recordPreviewDecoderMetrics(
+  sample: PreviewDecoderMetricsSample,
+): void {
   const state = getPerformanceState();
   if (!state) return;
   state.decoder = { ...sample };
