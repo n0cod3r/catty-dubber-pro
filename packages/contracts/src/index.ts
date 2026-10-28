@@ -33,8 +33,8 @@ export type AppSettings = {
 };
 export type TranslationProviderInfo = { id: TranslationProviderId; name: string; offline: boolean; requires_credentials: boolean; supports_model_discovery: boolean; contextual: boolean; credential_configured: boolean; selected_model: string | null };
 export type ModelInstallStatus = "idle" | "downloading" | "installed" | "failed";
-export type TranslationModel = { id: string; name: string; description?: string | null; kind?: string; repository?: string; license?: string; approximate_size_mb?: number; installed?: boolean; path?: string | null; install_status?: ModelInstallStatus; install_error?: string | null };
-export type ModelStatus = { model_id: string; status: ModelInstallStatus; error: string | null };
+export type TranslationModel = { id: string; name: string; description?: string | null; kind?: string; repository?: string; license?: string; approximate_size_mb?: number; installed?: boolean; path?: string | null; install_status?: ModelInstallStatus; install_error?: string | null; downloaded_bytes?: number; total_bytes?: number; download_progress?: number };
+export type ModelStatus = { model_id: string; status: ModelInstallStatus; error: string | null; downloaded_bytes?: number; total_bytes?: number; progress?: number };
 export type ConnectionTestResult = { ok: boolean; message: string };
 export type SettingsSnapshot = { settings: AppSettings; credentials: Partial<Record<TranslationProviderId, boolean>>; credential_ids?: Partial<Record<TranslationProviderId, string[]>> };
 
