@@ -111,6 +111,9 @@ class DubSegment(BaseModel):
     audio_path: str | None = None
     generated_duration: float | None = None
     target_duration: float
+    speed: float = Field(default=1.0, ge=0.5, le=2.0)
+    pitch: int = Field(default=0, ge=-100, le=100)
+    volume: int = Field(default=0, ge=-100, le=100)
     status: DubStatus = DubStatus.PENDING
     generated_at: datetime | None = None
 
