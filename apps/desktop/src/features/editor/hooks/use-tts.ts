@@ -33,6 +33,9 @@ export function useTts(
   const [assigningSpeakerId, setAssigningSpeakerId] = useState<string | null>(
     null,
   );
+  const [assigningSegmentId, setAssigningSegmentId] = useState<string | null>(
+    null,
+  );
   const [progress, setProgress] = useState<TtsProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const operationRef = useRef<string | null>(null);
@@ -46,6 +49,7 @@ export function useTts(
     setGenerating(false);
     setPreviewing(false);
     setAssigningSpeakerId(null);
+    setAssigningSegmentId(null);
     setProgress(null);
     setPendingSegmentIds([]);
     setFailedSegmentId(null);
@@ -60,26 +64,34 @@ export function useTts(
 
   useEffect(() => {
     let active = true;
-    void requestEngine("tts.voices", {})
-      .then((items) => {
-        if (!active) return;
-        const khmer = items.filter((voice) =>
-          voice.locale.toLowerCase().startsWith("km"),
-        );
-        const available = khmer.length ? khmer : items;
-        setVoices(available);
-        setVoiceId((current) => current ?? available[0]?.id ?? null);
-      })
-      .catch((cause: unknown) => {
-        if (active)
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "មិនអាចទាញយកសំឡេង Edge TTS បានទេ។",
+    const refresh = () =>
+      void requestEngine("tts.voices", {})
+        .then((items) => {
+          if (!active) return;
+          const khmer = items.filter((voice) =>
+            voice.locale.toLowerCase().startsWith("km"),
           );
-      });
+          const available = khmer.length ? khmer : items;
+          setVoices(available);
+          setVoiceId((current) =>
+            available.some((voice) => voice.id === current)
+              ? current
+              : (available[0]?.id ?? null),
+          );
+        })
+        .catch((cause: unknown) => {
+          if (active)
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "មិនអាចទាញយកសំឡេង Edge TTS បានទេ។",
+            );
+        });
+    refresh();
+    window.addEventListener("catty:voices-changed", refresh);
     return () => {
       active = false;
+      window.removeEventListener("catty:voices-changed", refresh);
     };
   }, []);
 
@@ -96,7 +108,8 @@ export function useTts(
 
   const assignSpeakerVoice = useCallback(
     async (speakerId: string, edgeVoiceId: string) => {
-      if (!episode || generating || assigningSpeakerId) return false;
+      if (!episode || generating || assigningSpeakerId || assigningSegmentId)
+        return false;
       const ticket = revision.current;
       setAssigningSpeakerId(speakerId);
       setError(null);
@@ -131,6 +144,57 @@ export function useTts(
       }
     },
     [
+      assigningSegmentId,
+      assigningSpeakerId,
+      episode,
+      generating,
+      onEpisodePersisted,
+      projectDirectory,
+      voices,
+    ],
+  );
+
+  const assignSegmentVoice = useCallback(
+    async (segmentId: string, edgeVoiceId: string | null) => {
+      if (!episode || generating || assigningSpeakerId || assigningSegmentId)
+        return false;
+      const ticket = revision.current;
+      setAssigningSegmentId(segmentId);
+      setError(null);
+      try {
+        const profile = edgeVoiceId
+          ? await requestEngine("tts.ensure_voice", {
+              project_directory: projectDirectory,
+              voice_id: edgeVoiceId,
+              name:
+                voices.find((item) => item.id === edgeVoiceId)?.name ??
+                edgeVoiceId,
+            })
+          : null;
+        if (ticket !== revision.current) return false;
+        const persisted = await requestEngine("tts.assign_segment_voice", {
+          project_directory: projectDirectory,
+          episode_id: episode.id,
+          segment_id: segmentId,
+          voice_profile_id: profile?.id ?? null,
+        });
+        if (ticket !== revision.current) return false;
+        onEpisodePersisted(persisted);
+        return true;
+      } catch (cause) {
+        if (ticket === revision.current)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "មិនអាច assign សំឡេងទៅបន្ទាត់នេះបានទេ។",
+          );
+        return false;
+      } finally {
+        if (ticket === revision.current) setAssigningSegmentId(null);
+      }
+    },
+    [
+      assigningSegmentId,
       assigningSpeakerId,
       episode,
       generating,
@@ -248,8 +312,13 @@ export function useTts(
   }, [generating]);
 
   const preview = useCallback(
-    async (segmentId: string, tuning: TtsTuning = DEFAULT_TTS_TUNING) => {
-      if (!episode || !voiceId || previewing) return null;
+    async (
+      segmentId: string,
+      tuning: TtsTuning = DEFAULT_TTS_TUNING,
+      voiceOverride?: string | null,
+    ) => {
+      const voice = voiceOverride ?? voiceId;
+      if (!episode || !voice || previewing) return null;
       const segment = episode.dialogueSegments?.find(
         (item) => item.id === segmentId,
       );
@@ -265,7 +334,7 @@ export function useTts(
         const result = await requestEngine("tts.preview", {
           project_directory: projectDirectory,
           text,
-          voice_id: voiceId,
+          voice_id: voice,
           speed: tuning.speed,
           pitch: tuning.pitch,
           volume: tuning.volume,
@@ -291,6 +360,7 @@ export function useTts(
     generating,
     previewing,
     assigningSpeakerId,
+    assigningSegmentId,
     progress,
     pendingSegmentIds,
     failedSegmentId,
@@ -298,6 +368,7 @@ export function useTts(
     clearError: () => setError(null),
     dubByDialogue,
     assignSpeakerVoice,
+    assignSegmentVoice,
     generate,
     preview,
     cancel,

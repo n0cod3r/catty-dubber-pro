@@ -191,3 +191,119 @@ def test_speaker_voice_assignment_rejects_unknown_ids(tmp_path: Path):
         service.assign_speaker_voice(tmp_path, episode.id, uuid4(), voice.id)
     with pytest.raises(ValueError, match="Voice profile not found"):
         service.assign_speaker_voice(tmp_path, episode.id, speaker.id, uuid4())
+
+
+def _speaker_project(tmp_path: Path, voice: VoiceProfile):
+    projects = ProjectService()
+    project = projects.open_project(tmp_path)
+    episode = project.episode(project.episodes[0].id)
+    speaker = EpisodeSpeaker(
+        name="S1",
+        segment_ids=[segment.id for segment in episode.dialogue_segments],
+        voice_profile_id=voice.id,
+    )
+    episode.speakers.append(speaker)
+    for segment in episode.dialogue_segments:
+        segment.speaker_id = speaker.id
+    projects.save_project(tmp_path, project)
+    return projects, episode, speaker
+
+
+def test_segment_voice_override_wins_over_speaker_voice(tmp_path: Path):
+    projects, episode, voice = fixture_project(tmp_path)
+    first, second = episode.dialogue_segments
+    override_voice = VoiceProfile(
+        name="Sokha", engine=VoiceEngine.EDGE, engine_voice_id="km-KH-SokhaNeural"
+    )
+    project = projects.open_project(tmp_path)
+    project.voice_profiles.append(override_voice)
+    projects.save_project(tmp_path, project)
+    projects, episode, _ = _speaker_project(tmp_path, voice)
+
+    fake = FakeEdge()
+    service = TTSService(edge=fake)
+    original = service.generate_segment(tmp_path, episode.id, first.id, voice.id)
+    service.assign_segment_voice(tmp_path, episode.id, first.id, override_voice.id)
+
+    reopened = projects.open_project(tmp_path).episode(episode.id)
+    assert reopened.dialogue_segments[0].voice_profile_id == override_voice.id
+    assert reopened.dub_segments[0].id == original.id
+    assert reopened.dub_segments[0].status.value == "outdated"
+
+    service.generate_episode(
+        tmp_path, episode.id, voice.id, mode="selected", segment_ids={first.id, second.id}
+    )
+    persisted = projects.open_project(tmp_path).episode(episode.id)
+    by_segment = {dub.dialogue_segment_id: dub for dub in persisted.dub_segments}
+    assert by_segment[first.id].voice_profile_id == override_voice.id
+    assert by_segment[second.id].voice_profile_id == voice.id
+    assert fake.kwargs["voice"] == "km-KH-SreymomNeural"
+
+
+def test_segment_voice_override_survives_translation_edits_and_can_be_cleared(tmp_path: Path):
+    projects, episode, voice = fixture_project(tmp_path)
+    first = episode.dialogue_segments[0]
+    override_voice = VoiceProfile(
+        name="Sokha", engine=VoiceEngine.EDGE, engine_voice_id="km-KH-SokhaNeural"
+    )
+    project = projects.open_project(tmp_path)
+    project.voice_profiles.append(override_voice)
+    projects.save_project(tmp_path, project)
+    projects, episode, _ = _speaker_project(tmp_path, voice)
+    service = TTSService(edge=FakeEdge())
+    service.assign_segment_voice(tmp_path, episode.id, first.id, override_voice.id)
+
+    project = projects.open_project(tmp_path)
+    projects.update_dialogue_translation(
+        tmp_path, project, episode.id, first.id, "សួស្តីថ្មី", "សួស្តី"
+    )
+    edited = projects.open_project(tmp_path).episode(episode.id)
+    assert edited.dialogue_segments[0].voice_profile_id == override_voice.id
+    assert edited.dub_segments == []
+
+    service.assign_segment_voice(tmp_path, episode.id, first.id, None)
+    cleared = projects.open_project(tmp_path).episode(episode.id)
+    assert cleared.dialogue_segments[0].voice_profile_id is None
+    service.generate_episode(
+        tmp_path, episode.id, voice.id, mode="selected", segment_ids={first.id}
+    )
+    dub = projects.open_project(tmp_path).episode(episode.id).dub_segments[0]
+    assert dub.voice_profile_id == voice.id
+
+
+def test_speaker_voice_change_skips_segments_with_overrides(tmp_path: Path):
+    projects, episode, voice = fixture_project(tmp_path)
+    first, second = episode.dialogue_segments
+    override_voice = VoiceProfile(
+        name="Sokha", engine=VoiceEngine.EDGE, engine_voice_id="km-KH-SokhaNeural"
+    )
+    replacement = VoiceProfile(
+        name="Piseth", engine=VoiceEngine.EDGE, engine_voice_id="km-KH-PisethNeural"
+    )
+    project = projects.open_project(tmp_path)
+    project.voice_profiles.extend([override_voice, replacement])
+    projects.save_project(tmp_path, project)
+    projects, episode, speaker = _speaker_project(tmp_path, voice)
+    service = TTSService(edge=FakeEdge())
+    service.assign_segment_voice(tmp_path, episode.id, first.id, override_voice.id)
+    service.generate_episode(tmp_path, episode.id, voice.id, mode="missing")
+    ready = {dub.dialogue_segment_id: dub for dub in projects.open_project(tmp_path).episode(episode.id).dub_segments}
+    assert ready[first.id].status.value == "ready"
+    assert ready[second.id].status.value == "ready"
+
+    service.assign_speaker_voice(tmp_path, episode.id, speaker.id, replacement.id)
+    persisted = projects.open_project(tmp_path).episode(episode.id)
+    by_segment = {dub.dialogue_segment_id: dub for dub in persisted.dub_segments}
+    assert by_segment[first.id].status.value == "ready"
+    assert by_segment[second.id].status.value == "outdated"
+    assert persisted.processing.dubbing.value == "idle"
+
+
+def test_segment_voice_assignment_rejects_unknown_ids(tmp_path: Path):
+    _, episode, voice = fixture_project(tmp_path)
+    service = TTSService(edge=FakeEdge())
+    first = episode.dialogue_segments[0]
+    with pytest.raises(ValueError, match="Dialogue segment not found"):
+        service.assign_segment_voice(tmp_path, episode.id, uuid4(), voice.id)
+    with pytest.raises(ValueError, match="Voice profile not found"):
+        service.assign_segment_voice(tmp_path, episode.id, first.id, uuid4())

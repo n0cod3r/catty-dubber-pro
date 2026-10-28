@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from catty_engine.progress import emit_tts_progress
 from catty_engine.project import ProjectService
 from catty_engine.tts.service import TTSGenerationCancelled, TTSService
+from catty_engine.tts.edge import EdgeTTSError
+import logging
 
 
 class TTSVoicesParams(BaseModel):
@@ -44,6 +46,14 @@ class TTSGenerateParams(BaseModel):
         return self
 
 
+class TTSAssignSegmentVoiceParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project_directory: Path
+    episode_id: UUID
+    segment_id: UUID
+    voice_profile_id: UUID | None = None
+
+
 class TTSPreviewParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
@@ -60,20 +70,47 @@ def _episode(project_directory: Path, episode_id: UUID) -> dict[str, Any] | None
     return episode.model_dump(mode="json") if episode is not None else None
 
 
-def list_voices(params: dict[str, Any]) -> list[dict[str, str]]:
+def list_voices(params: dict[str, Any]) -> list[dict[str, Any]]:
     TTSVoicesParams.model_validate(params)
-    return TTSService().list_edge_voices()
+    from .library import VoiceLibrary
+    try:
+        voices: list[dict[str, Any]] = [dict(item) for item in TTSService().list_edge_voices()]
+    except EdgeTTSError:
+        logging.getLogger(__name__).warning("Edge voice discovery unavailable; local voice library remains available")
+        voices = []
+    for voice in VoiceLibrary().list():
+        voices.append({"id": f"library:{voice.id}", "name": f"{'Built-in' if voice.origin == 'builtin' else 'My voices'} · {voice.name} ({voice.engine})",
+            "locale": "km-KH", "gender": voice.gender, "engine": voice.engine,
+            "tuning": {"speed": voice.speed, "pitch": voice.pitch, "volume": voice.volume}})
+    return voices
 
 
 def ensure_voice(params: dict[str, Any]) -> dict[str, Any]:
     parsed = TTSEnsureVoiceParams.model_validate(params)
+    if parsed.voice_id.startswith("library:"):
+        from .library import VoiceLibrary
+        return VoiceLibrary().use_in_project(parsed.voice_id.removeprefix("library:"), parsed.project_directory).model_dump(mode="json")
     return TTSService().ensure_edge_voice_profile(
         parsed.project_directory, voice_id=parsed.voice_id, name=parsed.name
     ).model_dump(mode="json")
 
 
+def assign_segment_voice(params: dict[str, Any]) -> dict[str, Any]:
+    parsed = TTSAssignSegmentVoiceParams.model_validate(params)
+    episode = TTSService().assign_segment_voice(
+        parsed.project_directory,
+        parsed.episode_id,
+        parsed.segment_id,
+        parsed.voice_profile_id,
+    )
+    return episode.model_dump(mode="json")
+
+
 def preview(params: dict[str, Any]) -> dict[str, str]:
     parsed = TTSPreviewParams.model_validate(params)
+    if parsed.voice_id.startswith("library:"):
+        from .library import VoiceLibrary
+        return {"path": str(VoiceLibrary().preview(voice_id=parsed.voice_id.removeprefix("library:"), text=parsed.text))}
     output = TTSService().preview(
         parsed.project_directory,
         parsed.text,

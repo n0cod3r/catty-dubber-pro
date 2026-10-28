@@ -50,6 +50,7 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
       start: segment.start,
       end: segment.end,
       speakerId: segment.speaker_id,
+      voiceProfileId: segment.voice_profile_id ?? null,
       sourceLanguage: segment.source_language,
       sourceText: segment.source_text,
       confidence: segment.confidence,

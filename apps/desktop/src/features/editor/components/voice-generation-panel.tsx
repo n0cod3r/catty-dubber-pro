@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Settings2,
   Square,
+  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 import type { TranslationEditing } from "../hooks/use-translation";
 import type { TtsEditing, TtsTuning } from "../hooks/use-tts";
+import type { VoiceAssignments } from "../hooks/use-voice-assignments";
 import {
   DEFAULT_TTS_TUNING,
   EDGE_VOICE_PRESETS,
@@ -47,10 +49,12 @@ export function VoiceGenerationPanel({
   episode,
   translation,
   tts,
+  speakerVoices,
 }: {
   episode: EpisodeMedia | null;
   translation: TranslationEditing;
   tts: TtsEditing;
+  speakerVoices: VoiceAssignments;
 }) {
   const rows = useMemo(
     () =>
@@ -65,8 +69,14 @@ export function VoiceGenerationPanel({
   );
   const voice = tts.voices.find((item) => item.id === tts.voiceId);
   const [tuning, setTuning] = useState<TtsTuning>(DEFAULT_TTS_TUNING);
+  const savedProfile = voice?.id.startsWith("library:") ?? false;
+  const displayedTuning = voice?.tuning ?? tuning;
   const [preferredPreset, setPreferredPreset] = useState("normal");
-  const presetId = matchingVoicePreset(tuning, voice?.gender, preferredPreset);
+  const presetId = matchingVoicePreset(
+    displayedTuning,
+    voice?.gender,
+    preferredPreset,
+  );
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(
     null,
@@ -94,11 +104,11 @@ export function VoiceGenerationPanel({
     (row) => tts.dubByDialogue.get(row.id)?.status === "ready",
   ).length;
 
-  const preview = async (segmentId: string) => {
+  const preview = async (segmentId: string, voiceId: string | null) => {
     if (tts.previewing) return;
     setPreviewingId(segmentId);
     try {
-      const path = await tts.preview(segmentId, tuning);
+      const path = await tts.preview(segmentId, tuning, voiceId);
       if (!path || !mounted.current) return;
       audioRef.current?.pause();
       const audio = new Audio(convertFileSrc(path));
@@ -142,7 +152,8 @@ export function VoiceGenerationPanel({
             {voice?.name ?? "No voice selected"}
           </span>
           <span className="shrink-0 text-[8px] tabular-nums text-muted-foreground">
-            {tuning.speed.toFixed(2)}× · p{tuning.pitch} · v{tuning.volume}
+            {displayedTuning.speed.toFixed(2)}× · p{displayedTuning.pitch} · v
+            {displayedTuning.volume}
           </span>
           <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
         </summary>
@@ -173,9 +184,20 @@ export function VoiceGenerationPanel({
               </SelectGroup>
             </SelectContent>
           </Select>
+          {savedProfile && (
+            <p className="text-[9px] text-muted-foreground">
+              Saved voice tuning is managed in Settings → Voices &amp; TTS.
+            </p>
+          )}
+          {voice?.engine === "voxcpm2" && (
+            <p className="text-[9px] text-muted-foreground">
+              VoxCPM2 uses the saved reference and style. Edge tuning does not
+              apply.
+            </p>
+          )}
           <Select
             value={presetId}
-            disabled={tts.generating}
+            disabled={tts.generating || savedProfile}
             onValueChange={(id) => {
               const preset = EDGE_VOICE_PRESETS.find((item) => item.id === id);
               if (!preset) return;
@@ -230,29 +252,29 @@ export function VoiceGenerationPanel({
           <div className="flex items-center gap-1">
             <NumberControl
               label="Speed"
-              value={tuning.speed}
+              value={displayedTuning.speed}
               min={0.5}
               max={2}
               step={0.05}
-              disabled={tts.generating}
+              disabled={tts.generating || savedProfile}
               onChange={(speed) => setTuning((value) => ({ ...value, speed }))}
             />
             <NumberControl
               label="Pitch"
-              value={tuning.pitch}
+              value={displayedTuning.pitch}
               min={-100}
               max={100}
               step={1}
-              disabled={tts.generating}
+              disabled={tts.generating || savedProfile}
               onChange={(pitch) => setTuning((value) => ({ ...value, pitch }))}
             />
             <NumberControl
               label="Volume"
-              value={tuning.volume}
+              value={displayedTuning.volume}
               min={-100}
               max={100}
               step={1}
-              disabled={tts.generating}
+              disabled={tts.generating || savedProfile}
               onChange={(volume) =>
                 setTuning((value) => ({ ...value, volume }))
               }
@@ -260,6 +282,74 @@ export function VoiceGenerationPanel({
           </div>
         </div>
       </details>
+
+      {!!episode.speakers?.length && (
+        <details className="group shrink-0 border-b">
+          <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 px-2 text-[10px] outline-none select-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <Users className="size-3 shrink-0 text-muted-foreground" />
+            <span className="shrink-0 font-medium">Speakers</span>
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+              Default voice per speaker
+            </span>
+            <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+          </summary>
+          <div className="space-y-1 border-t px-2 py-2">
+            {episode.speakers.map((speaker) => {
+              const assigning = tts.assigningSpeakerId === speaker.id;
+              return (
+                <div key={speaker.id} className="flex items-center gap-1.5">
+                  <span
+                    className="min-w-0 flex-1 truncate text-[10px]"
+                    title={speaker.name}
+                  >
+                    {speaker.name}
+                  </span>
+                  {assigning && (
+                    <LoaderCircle className="size-3 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+                  )}
+                  <Select
+                    value={speakerVoices.voiceBySpeaker[speaker.id] ?? ""}
+                    disabled={
+                      tts.generating ||
+                      !!tts.assigningSpeakerId ||
+                      !!tts.assigningSegmentId
+                    }
+                    onValueChange={(voiceId) => {
+                      if (voiceId)
+                        void speakerVoices.assignSpeaker(speaker.id, voiceId);
+                    }}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      aria-label={`Default voice for ${speaker.name}`}
+                      className="w-36 text-[9px]"
+                    >
+                      <SelectValue placeholder="Speaker default" />
+                    </SelectTrigger>
+                    <SelectContent align="end" className="min-w-56">
+                      <SelectGroup>
+                        {tts.voices.map((item) => (
+                          <SelectItem
+                            key={item.id}
+                            value={item.id}
+                            className="text-[10px]"
+                          >
+                            {item.name} · {item.gender}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            })}
+            <p className="text-[8px] leading-snug text-muted-foreground">
+              Lines with their own voice override keep it when the speaker
+              default changes.
+            </p>
+          </div>
+        </details>
+      )}
 
       <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b px-2 py-1.5">
         <Button
@@ -324,6 +414,15 @@ export function VoiceGenerationPanel({
           const speaker = row.speakerId
             ? (speakerNames.get(row.speakerId) ?? "Speaker")
             : null;
+          const lineVoice =
+            speakerVoices.voiceBySegment[row.id] ??
+            (row.speakerId
+              ? speakerVoices.voiceBySpeaker[row.speakerId]
+              : undefined) ??
+            tts.voiceId;
+          const lineVoiceName = tts.voices.find(
+            (item) => item.id === lineVoice,
+          )?.name;
           const isEditing = editing?.id === row.id;
           const canEdit = !tts.generating && !translation.busy;
           return (
@@ -364,15 +463,15 @@ export function VoiceGenerationPanel({
                     variant="ghost"
                     size="icon-xs"
                     aria-label={`Preview line ${index + 1}`}
-                    title={`Preview line ${index + 1} with current voice`}
+                    title={`Preview line ${index + 1}${lineVoiceName ? ` with ${lineVoiceName}` : ""}`}
                     disabled={
-                      !tts.voiceId ||
+                      !lineVoice ||
                       tts.generating ||
                       tts.previewing ||
                       translation.busy ||
                       !!editing
                     }
-                    onClick={() => void preview(row.id)}
+                    onClick={() => void preview(row.id, lineVoice ?? null)}
                   >
                     {previewingId === row.id ? (
                       <LoaderCircle className="animate-spin motion-reduce:animate-none" />

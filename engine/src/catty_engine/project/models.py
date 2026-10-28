@@ -60,6 +60,7 @@ class DialogueSegment(BaseModel):
     start: float
     end: float
     speaker_id: UUID | None = None
+    voice_profile_id: UUID | None = None
     source_language: str
     source_text: str
     confidence: float | None = None
@@ -102,6 +103,12 @@ class VoiceProfile(BaseModel):
     language: str = "km-KH"
     engine_voice_id: str | None = None
     reference_audio_path: str | None = None
+    reference_text: str | None = None
+    style_prompt: str = ""
+    library_voice_id: str | None = None
+    speed: float | None = Field(default=None, ge=0.5, le=2)
+    pitch: int | None = Field(default=None, ge=-100, le=100)
+    volume: int | None = Field(default=None, ge=-100, le=100)
     created_at: datetime = Field(default_factory=utc_now)
 
 

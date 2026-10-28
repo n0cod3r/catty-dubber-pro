@@ -6,7 +6,11 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from catty_engine.tts.rpc import TTSGenerateParams, TTSPreviewParams
+from catty_engine.tts.rpc import (
+    TTSAssignSegmentVoiceParams,
+    TTSGenerateParams,
+    TTSPreviewParams,
+)
 
 
 def test_tts_generate_params_reject_invalid_controls(tmp_path: Path) -> None:
@@ -39,3 +43,19 @@ def test_tts_selected_generation_accepts_segment_ids(tmp_path: Path) -> None:
 def test_tts_preview_requires_text(tmp_path: Path) -> None:
     with pytest.raises(ValidationError):
         TTSPreviewParams(project_directory=tmp_path, text="", voice_id="km-KH-SreymomNeural")
+
+
+def test_tts_assign_segment_voice_allows_clearing_override(tmp_path: Path) -> None:
+    params = TTSAssignSegmentVoiceParams(
+        project_directory=tmp_path,
+        episode_id=uuid4(),
+        segment_id=uuid4(),
+    )
+    assert params.voice_profile_id is None
+    with pytest.raises(ValidationError):
+        TTSAssignSegmentVoiceParams(
+            project_directory=tmp_path,
+            episode_id=uuid4(),
+            segment_id=uuid4(),
+            voice_profile_id="",
+        )

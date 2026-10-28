@@ -28,6 +28,7 @@ export type EpisodeMedia = {
     start: number;
     end: number;
     speakerId?: string | null;
+    voiceProfileId?: string | null;
     sourceLanguage: string;
     sourceText: string;
     confidence: number | null;

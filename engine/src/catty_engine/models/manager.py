@@ -83,7 +83,15 @@ LOCAL_TRANSLATION_MODELS = (
         runtime="hy_mt2_transformers",
     ),
 )
-_REGISTRY = {spec.id: spec for spec in LOCAL_TRANSLATION_MODELS}
+VOXCPM2_MODEL = ModelSpec(
+    id="voxcpm2", name="VoxCPM2 · Voice cloning", kind="tts",
+    repository="openbmb/VoxCPM2", license="Apache-2.0",
+    description="Local Khmer speech, voice design and reference-audio cloning. Uses PyTorch on CUDA, Apple MPS or CPU.",
+    approximate_size_mb=5500,
+    allow_patterns=("config.json", "model.safetensors", "audiovae.pth", "tokenizer*.json", "special_tokens_map.json", "tokenization_voxcpm2.py"),
+    runtime="voxcpm2",
+)
+_REGISTRY = {spec.id: spec for spec in (*LOCAL_TRANSLATION_MODELS, VOXCPM2_MODEL)}
 
 
 def preferred_local_translation_model() -> ModelSpec:

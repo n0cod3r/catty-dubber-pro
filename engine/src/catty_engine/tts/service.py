@@ -14,8 +14,11 @@ from catty_engine.project.models import (
     ProcessingStatus,
     VoiceEngine,
     VoiceProfile,
+    utc_now,
 )
 from catty_engine.tts.edge import EdgeTTSProvider
+from catty_engine.tts.voxcpm import VoxCPM2Provider
+from catty_engine.media.probe import MediaProbeService
 
 GenerationMode = Literal["missing", "all", "selected"]
 ProgressCallback = Callable[[str, int, int, UUID | None, DubSegment | None], None]
@@ -85,9 +88,42 @@ class TTSService:
         if speaker.voice_profile_id == voice_profile_id:
             return episode
         speaker.voice_profile_id = voice_profile_id
-        affected = set(speaker.segment_ids)
+        overridden = {
+            segment.id for segment in episode.dialogue_segments if segment.voice_profile_id
+        }
+        affected = set(speaker.segment_ids) - overridden
         for dub in episode.dub_segments:
             if dub.dialogue_segment_id in affected and dub.status is DubStatus.READY:
+                dub.status = DubStatus.OUTDATED
+        episode.processing.dubbing = ProcessingStatus.IDLE
+        projects.save_project(project_directory, project)
+        return episode
+
+    def assign_segment_voice(
+        self,
+        project_directory: Path,
+        episode_id: UUID,
+        segment_id: UUID,
+        voice_profile_id: UUID | None,
+    ) -> Episode:
+        projects = ProjectService()
+        project = projects.open_project(project_directory)
+        episode = project.episode(episode_id)
+        if episode is None:
+            raise ValueError("Episode not found")
+        dialogue = next(
+            (item for item in episode.dialogue_segments if item.id == segment_id), None
+        )
+        if dialogue is None:
+            raise ValueError("Dialogue segment not found")
+        if voice_profile_id is not None and project.voice_profile(voice_profile_id) is None:
+            raise ValueError("Voice profile not found")
+        if dialogue.voice_profile_id == voice_profile_id:
+            return episode
+        dialogue.voice_profile_id = voice_profile_id
+        dialogue.updated_at = utc_now()
+        for dub in episode.dub_segments:
+            if dub.dialogue_segment_id == dialogue.id and dub.status is DubStatus.READY:
                 dub.status = DubStatus.OUTDATED
         episode.processing.dubbing = ProcessingStatus.IDLE
         projects.save_project(project_directory, project)
@@ -120,10 +156,14 @@ class TTSService:
         voice = project.voice_profile(voice_profile_id)
         if voice is None:
             raise ValueError("Voice profile not found")
-        if voice.engine is not VoiceEngine.EDGE:
-            raise ValueError("This TTS provider only supports Edge voice profiles")
-        if not voice.engine_voice_id:
+        if voice.engine is VoiceEngine.EDGE and not voice.engine_voice_id:
             raise ValueError("Edge voice profile has no engine voice id")
+        if voice.engine is VoiceEngine.EDGE:
+            speed = voice.speed if voice.speed is not None else speed
+            pitch = voice.pitch if voice.pitch is not None else pitch
+            volume = voice.volume if voice.volume is not None else volume
+        else:
+            speed, pitch, volume = 1.0, 0, 0
 
         existing = next(
             (
@@ -158,18 +198,21 @@ class TTSService:
             / "assets"
             / "dubbing"
             / str(episode.id)
-            / f"{dialogue.id}.mp3"
+            / f"{dialogue.id}.{'mp3' if voice.engine is VoiceEngine.EDGE else 'wav'}"
         )
-        temp_output = output.with_name(f".{output.stem}.{uuid4().hex}.tmp.mp3")
+        temp_output = output.with_name(f".{output.stem}.{uuid4().hex}.tmp{output.suffix}")
+        generated_duration = None
         try:
-            self.edge.synthesize(
-                dialogue.translation.text,
-                temp_output,
-                voice=voice.engine_voice_id,
-                speed=speed,
-                pitch=pitch,
-                volume=volume,
-            )
+            if voice.engine is VoiceEngine.EDGE:
+                self.edge.synthesize(dialogue.translation.text, temp_output,
+                    voice=voice.engine_voice_id or "", speed=speed, pitch=pitch, volume=volume)
+            else:
+                reference = project_directory / voice.reference_audio_path if voice.reference_audio_path else None
+                VoxCPM2Provider().synthesize(dialogue.translation.text, temp_output,
+                    reference=reference, reference_text=voice.reference_text, style=voice.style_prompt)
+                generated_duration = MediaProbeService().probe(temp_output).duration
+                if not generated_duration or generated_duration <= 0:
+                    raise RuntimeError("VoxCPM2 returned audio with no measurable duration")
             if not temp_output.exists() or temp_output.stat().st_size == 0:
                 raise RuntimeError("TTS provider produced no audio")
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -202,7 +245,7 @@ class TTSService:
         current.audio_path = str(output.relative_to(project_directory))
         current.status = DubStatus.READY
         current.generated_at = datetime.now(UTC)
-        current.generated_duration = None
+        current.generated_duration = generated_duration
         self._finalize_dubbing_status(episode)
         projects.save_project(project_directory, project)
         return current
@@ -283,7 +326,9 @@ class TTSService:
                 else None
             )
             assigned_voice = voice_profile_id
-            if (
+            if latest_dialogue is not None and latest_dialogue.voice_profile_id is not None:
+                assigned_voice = latest_dialogue.voice_profile_id
+            elif (
                 latest_dialogue is not None
                 and latest_dialogue.speaker_id is not None
                 and latest_episode is not None

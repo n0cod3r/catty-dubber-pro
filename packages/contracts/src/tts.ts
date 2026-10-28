@@ -10,6 +10,12 @@ export type VoiceProfile = {
   language: string;
   engine_voice_id: string | null;
   reference_audio_path: string | null;
+  reference_text?: string | null;
+  style_prompt?: string;
+  library_voice_id?: string | null;
+  speed?: number | null;
+  pitch?: number | null;
+  volume?: number | null;
   created_at: string;
 };
 
@@ -18,6 +24,26 @@ export type EdgeVoice = {
   name: string;
   locale: string;
   gender: string;
+  engine?: VoiceEngine;
+  tuning?: { speed: number; pitch: number; volume: number };
+};
+
+export type VoiceDraft = {
+  name: string;
+  engine: VoiceEngine;
+  gender?: string;
+  engine_voice_id?: string | null;
+  speed?: number;
+  pitch?: number;
+  volume?: number;
+  reference_audio_path?: string | null;
+  reference_text?: string | null;
+  style_prompt?: string;
+  base_voice_id?: string | null;
+};
+export type LibraryVoice = VoiceDraft & {
+  id: string;
+  origin: "builtin" | "user";
 };
 
 export type DubSegment = {

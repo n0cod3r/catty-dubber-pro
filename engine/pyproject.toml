@@ -16,6 +16,8 @@ dependencies = [
   "keyring>=25.7.0",
   "mlx-lm>=0.29.1",
   "edge-tts>=7.2,<8",
+  "voxcpm>=2.0.3,<3",
+  "soundfile>=0.13,<1",
 ]
 
 [project.scripts]
@@ -33,5 +35,5 @@ dev = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["sherpa_onnx", "funasr", "transformers", "edge_tts"]
+module = ["sherpa_onnx", "funasr", "transformers", "edge_tts", "voxcpm", "soundfile"]
 ignore_missing_imports = true

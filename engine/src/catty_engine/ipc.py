@@ -33,6 +33,7 @@ EngineMethod = Literal[
     "translation.providers", "translation.models", "translation.test_connection",
     "translation.translate_episode", "models.list", "models.install", "models.install_status", "models.remove",
     "tts.voices", "tts.ensure_voice", "tts.preview", "tts.generate",
+    "tts.library_list", "tts.library_create", "tts.library_preview", "tts.library_remove", "tts.library_use", "tts.assign_segment_voice",
 ]
 
 class Request(BaseModel):
@@ -138,6 +139,8 @@ def _hello() -> dict[str, Any]:
             "translation.providers", "translation.models", "translation.test_connection",
             "translation.translate_episode", "models.list", "models.install", "models.install_status", "models.remove",
             "tts.voices", "tts.ensure_voice", "tts.preview", "tts.generate",
+    "tts.library_list", "tts.library_create", "tts.library_preview", "tts.library_remove", "tts.library_use",
+            "tts.assign_segment_voice",
             "speakers.funasr-campplus", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown",
         ],
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
@@ -205,6 +208,9 @@ def handle_request(payload: Any) -> dict[str, Any]:
         elif request.method == "models.remove":
             from catty_engine.settings.rpc import model_remove
             result = model_remove(request.params)
+        elif request.method.startswith("tts.library_"):
+            from catty_engine.tts.library_rpc import dispatch as dispatch_library
+            result = dispatch_library(request.method, request.params)
         elif request.method.startswith("tts."):
             from catty_engine.tts import rpc as tts_rpc
             handlers = {
@@ -212,6 +218,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
                 "tts.ensure_voice": tts_rpc.ensure_voice,
                 "tts.preview": tts_rpc.preview,
                 "tts.generate": tts_rpc.generate,
+                "tts.assign_segment_voice": tts_rpc.assign_segment_voice,
             }
             result = handlers[request.method](request.params)
         elif request.method == "translation.translate_episode":

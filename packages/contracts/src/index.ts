@@ -1,12 +1,16 @@
 import type {
   DubSegment,
   EdgeVoice,
+  LibraryVoice,
   TtsGenerateParams,
   TtsPreviewParams,
+  VoiceDraft,
   VoiceProfile,
 } from "./tts";
 
 export type {
+  LibraryVoice,
+  VoiceDraft,
   DubSegment,
   DubStatus,
   EdgeVoice,
@@ -59,6 +63,7 @@ export type PersistedDialogueSegment = {
   start: number;
   end: number;
   speaker_id: string | null;
+  voice_profile_id?: string | null;
   source_language: string;
   source_text: string;
   confidence: number | null;
@@ -70,6 +75,7 @@ export type EpisodeSpeaker = {
   id: string;
   name: string;
   character_id: string | null;
+  voice_profile_id?: string | null;
   segment_ids: string[];
 };
 export type EpisodeProcessingState = {
@@ -388,5 +394,28 @@ export type EngineMethods = {
     result: VoiceProfile;
   };
   "tts.preview": { params: TtsPreviewParams; result: { path: string } };
+  "tts.library_list": { params: Record<string, never>; result: LibraryVoice[] };
+  "tts.library_create": { params: VoiceDraft; result: LibraryVoice };
+  "tts.library_preview": {
+    params: { voice_id?: string; draft?: VoiceDraft };
+    result: { path: string };
+  };
+  "tts.library_remove": {
+    params: { voice_id: string };
+    result: { removed: boolean };
+  };
+  "tts.library_use": {
+    params: { voice_id: string; project_directory: string };
+    result: VoiceProfile;
+  };
   "tts.generate": { params: TtsGenerateParams; result: PersistedEpisode };
+  "tts.assign_segment_voice": {
+    params: {
+      project_directory: string;
+      episode_id: string;
+      segment_id: string;
+      voice_profile_id: string | null;
+    };
+    result: PersistedEpisode;
+  };
 };

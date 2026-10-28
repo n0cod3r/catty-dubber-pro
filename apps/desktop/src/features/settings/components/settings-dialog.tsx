@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 
 import { requestEngine } from "../deps/engine";
+import { VoiceLibrary } from "./voice-library";
 
 const pages = [
   ["general", "ទូទៅ", "General", Settings2],
@@ -455,6 +456,8 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
                     })
                   }
                 />
+              ) : page === "tts" || page === "clone" ? (
+                <VoiceLibrary key={page} clone={page === "clone"} />
               ) : page === "performance" ? (
                 <PerformancePage draft={draft} setDraft={setDraft} />
               ) : page === "general" ? (
@@ -544,8 +547,8 @@ function ModelsPage({
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Section
-        title="Local Translation Models"
-        description="Download one or more offline Chinese → Khmer models. Downloads continue when Settings is closed."
+        title="Local AI Models"
+        description="Download translation and voice models. Downloads continue when Settings is closed."
       >
         <div className="space-y-2">
           {models.map((model) => {
@@ -649,11 +652,17 @@ function ModelsPage({
                           size="sm"
                           variant={active ? "secondary" : "outline"}
                           className="h-7 text-[9px]"
-                          disabled={busy !== null || active}
+                          disabled={
+                            busy !== null || active || model.kind === "tts"
+                          }
                           onClick={() => onSelect(model.id)}
                         >
                           {active ? <CheckIcon /> : null}
-                          {active ? "Using" : "Use"}
+                          {model.kind === "tts"
+                            ? "Installed"
+                            : active
+                              ? "Using"
+                              : "Use"}
                         </Button>
                         <Button
                           size="sm"
@@ -802,7 +811,9 @@ function TranslationPage({
         },
       },
     });
-  const installedLocal = localModels.filter((model) => model.installed);
+  const installedLocal = localModels.filter(
+    (model) => model.installed && model.kind !== "tts",
+  );
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Section
@@ -1175,11 +1186,6 @@ function PerformancePage({
 }
 function StaticPage({ page }: { page: PageId }) {
   const copy: Record<string, [string, string]> = {
-    tts: ["សំឡេង & TTS", "Edge TTS and VoxCPM2 voice controls will live here."],
-    clone: [
-      "Voice Clone",
-      "VoxCPM2 preset creation and reference audio will live here.",
-    ],
     storage: ["ទីតាំងផ្ទុក", "Projects, models, cache and export locations."],
     shortcuts: [
       "Keyboard Shortcuts",

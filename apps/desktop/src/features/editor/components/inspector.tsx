@@ -25,9 +25,9 @@ import { cn } from "@/lib/utils";
 import { formatTime } from "@/shared/utils/time";
 
 import type { DialogueEditing } from "../hooks/use-dialogue-editing";
-import { useSpeakerVoices } from "../hooks/use-speaker-voices";
 import type { TranslationEditing } from "../hooks/use-translation";
 import type { TtsEditing } from "../hooks/use-tts";
+import { useVoiceAssignments } from "../hooks/use-voice-assignments";
 import {
   activeDialogueId,
   dialogueScrollDelta,
@@ -49,6 +49,7 @@ const transcriptionEngines = [
 type TranscriptionEngine = (typeof transcriptionEngines)[number]["id"];
 type DialogueRow = TranscriptSegment & { id: string; speakerId: string | null };
 const TRANSCRIPTION_ENGINE_KEY = "catty.transcription-engine.v1";
+const INHERIT_VOICE = "__inherit__";
 
 function readTranscriptionEngine(): TranscriptionEngine {
   if (typeof window === "undefined") return "paraformer";
@@ -103,7 +104,7 @@ export function Inspector({
   );
   const listRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
-  const speakerVoices = useSpeakerVoices(episode, projectDirectory, tts);
+  const voiceAssignments = useVoiceAssignments(episode, projectDirectory, tts);
   const activeId = activeDialogueId(segments, currentTime);
   const [textEditorId, setTextEditorId] = useState<string | null>(null);
   const textEditorSegment = segments.find(
@@ -293,6 +294,7 @@ export function Inspector({
             episode={episode}
             translation={translation}
             tts={tts}
+            speakerVoices={voiceAssignments}
           />
         ) : tab === "properties" && episode ? (
           <dl className="space-y-4 p-4 text-[11px]">
@@ -356,12 +358,16 @@ export function Inspector({
             speakerWarning={speakerWarning}
             error={error}
             voices={tts.voices}
-            speakerVoiceIds={speakerVoices.voiceBySpeaker}
-            assigningSpeakerId={tts.assigningSpeakerId}
+            speakerVoiceIds={voiceAssignments.voiceBySpeaker}
+            segmentVoiceIds={voiceAssignments.voiceBySegment}
+            assigningSegmentId={tts.assigningSegmentId}
             assigningDisabled={
-              busy || tts.generating || !!tts.assigningSpeakerId
+              busy ||
+              tts.generating ||
+              !!tts.assigningSpeakerId ||
+              !!tts.assigningSegmentId
             }
-            onAssignVoice={speakerVoices.assign}
+            onAssignSegmentVoice={voiceAssignments.assignSegment}
             voiceError={tts.error}
           />
         ) : (
@@ -718,9 +724,10 @@ function SourcePanel(props: {
   error: string | null;
   voices: EdgeVoice[];
   speakerVoiceIds: Record<string, string>;
-  assigningSpeakerId: string | null;
+  segmentVoiceIds: Record<string, string>;
+  assigningSegmentId: string | null;
   assigningDisabled: boolean;
-  onAssignVoice: (speakerId: string, voiceId: string) => unknown;
+  onAssignSegmentVoice: (segmentId: string, voiceId: string | null) => unknown;
   voiceError: string | null;
 }) {
   const {
@@ -751,9 +758,10 @@ function SourcePanel(props: {
     error,
     voices,
     speakerVoiceIds,
-    assigningSpeakerId,
+    segmentVoiceIds,
+    assigningSegmentId,
     assigningDisabled,
-    onAssignVoice,
+    onAssignSegmentVoice,
     voiceError,
   } = props;
   if (!segments.length)
@@ -851,10 +859,22 @@ function SourcePanel(props: {
             (item) => item.id === segment.speakerId,
           );
           const speakerId = segment.speakerId;
-          const assigning = assigningSpeakerId === speakerId;
-          const assignedVoice = speakerId
-            ? voices.find((voice) => voice.id === speakerVoiceIds[speakerId])
+          const assigning = assigningSegmentId === segment.id;
+          const overrideVoiceId = segmentVoiceIds[segment.id];
+          const overrideVoice = overrideVoiceId
+            ? voices.find((voice) => voice.id === overrideVoiceId)
             : undefined;
+          const inheritedVoiceId = speakerId
+            ? speakerVoiceIds[speakerId]
+            : undefined;
+          const inheritedVoice = inheritedVoiceId
+            ? voices.find((voice) => voice.id === inheritedVoiceId)
+            : undefined;
+          const inheritLabel = speaker
+            ? inheritedVoice
+              ? `${speaker.name} default · ${inheritedVoice.name}`
+              : `${speaker.name} default (unset)`
+            : "Global default";
           return (
             <div
               key={segment.id}
@@ -892,48 +912,57 @@ function SourcePanel(props: {
                   {segment.text}
                 </span>
               </button>
-              {speakerId && (
-                <div className="flex shrink-0 items-center gap-1">
-                  <Volume2 className="size-2.5 shrink-0 text-muted-foreground" />
-                  <Select
-                    value={speakerVoiceIds[speakerId] ?? ""}
-                    disabled={assigningDisabled}
-                    onValueChange={(voiceId) => {
-                      if (speakerId && voiceId)
-                        void onAssignVoice(speakerId, voiceId);
-                    }}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      aria-label={`Voice for ${speaker?.name ?? "speaker"} on line ${index + 1}`}
-                      title={
-                        assignedVoice
-                          ? `${assignedVoice.name} · ${assignedVoice.gender}. Changing the voice keeps existing audio and marks it outdated.`
-                          : "Assign this speaker's voice. Existing audio is kept and marked outdated."
-                      }
-                      className="w-36 pr-1 pl-1.5 text-[8px]"
-                    >
-                      <SelectValue placeholder="Assign voice" />
-                    </SelectTrigger>
-                    <SelectContent align="start" className="min-w-64">
-                      <SelectGroup>
-                        {voices.map((voice) => (
-                          <SelectItem
-                            key={voice.id}
-                            value={voice.id}
-                            className="text-[10px]"
-                          >
-                            {voice.name} · {voice.gender}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  {assigning && (
-                    <LoaderCircle className="size-3 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+              <div className="flex shrink-0 items-center gap-1">
+                <Volume2
+                  className={cn(
+                    "size-2.5 shrink-0",
+                    overrideVoiceId ? "text-primary" : "text-muted-foreground",
                   )}
-                </div>
-              )}
+                />
+                <Select
+                  value={overrideVoiceId ?? INHERIT_VOICE}
+                  disabled={assigningDisabled}
+                  onValueChange={(voiceId) => {
+                    if (!voiceId) return;
+                    void onAssignSegmentVoice(
+                      segment.id,
+                      voiceId === INHERIT_VOICE ? null : voiceId,
+                    );
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    aria-label={`Voice override for line ${index + 1}`}
+                    title={
+                      overrideVoice
+                        ? `Line override: ${overrideVoice.name} · ${overrideVoice.gender}. Existing audio is kept and marked outdated until regenerated.`
+                        : `Uses ${speaker ? `${speaker.name}'s default` : "the global default"} voice. Pick a voice to override this line only.`
+                    }
+                    className="w-36 pr-1 pl-1.5 text-[8px]"
+                  >
+                    <SelectValue placeholder="Default" />
+                  </SelectTrigger>
+                  <SelectContent align="start" className="min-w-64">
+                    <SelectGroup>
+                      <SelectItem value={INHERIT_VOICE} className="text-[10px]">
+                        {inheritLabel}
+                      </SelectItem>
+                      {voices.map((voice) => (
+                        <SelectItem
+                          key={voice.id}
+                          value={voice.id}
+                          className="text-[10px]"
+                        >
+                          {voice.name} · {voice.gender}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {assigning && (
+                  <LoaderCircle className="size-3 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+                )}
+              </div>
             </div>
           );
         })}
