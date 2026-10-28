@@ -1,20 +1,22 @@
 """Downloadable local AI model registry and background installer."""
 from __future__ import annotations
 
+import json
+import logging
 import shutil
+import subprocess
+import sys
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from huggingface_hub import snapshot_download
-from huggingface_hub.utils import tqdm as hf_tqdm
 
 from catty_engine.settings.paths import app_data_dir
 
-
-class ModelDownloadCancelled(Exception):
-    """Raised inside Hugging Face progress callbacks when a user cancels."""
+logger = logging.getLogger("catty_engine.models")
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,7 @@ class InstallJob:
     status: str = "downloading"
     error: str | None = None
     cancel_event: threading.Event = field(default_factory=threading.Event, repr=False)
+    process: subprocess.Popen[str] | None = field(default=None, repr=False)
 
 
 _HY_MT2_FILES = (
@@ -100,19 +103,14 @@ def _directory_size(path: Path) -> int:
     return total
 
 
-def _cancelable_tqdm(cancel_event: threading.Event) -> type[Any]:
-    class CancelableTqdm(hf_tqdm):  # type: ignore[misc,valid-type]
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            if cancel_event.is_set():
-                raise ModelDownloadCancelled("Model download cancelled")
-            super().__init__(*args, **kwargs)
-
-        def update(self, n: int = 1) -> bool | None:
-            if cancel_event.is_set():
-                raise ModelDownloadCancelled("Model download cancelled")
-            return super().update(n)
-
-    return CancelableTqdm
+def _download_command(spec: ModelSpec, staging: Path) -> list[str]:
+    """Run snapshot_download out-of-process so Cancel can stop an active HTTP transfer."""
+    script = (
+        "import json,sys; from huggingface_hub import snapshot_download; "
+        "snapshot_download(repo_id=sys.argv[1], local_dir=sys.argv[2], "
+        "allow_patterns=json.loads(sys.argv[3]))"
+    )
+    return [sys.executable, "-c", script, spec.repository, str(staging), json.dumps(spec.allow_patterns)]
 
 
 class ModelManager:
@@ -204,6 +202,7 @@ class ModelManager:
             if not already_running:
                 _JOBS[model_id] = InstallJob()
         if not already_running:
+            logger.info("Model download started: %s (%s)", model_id, spec.repository)
             threading.Thread(target=self._install_worker, args=(model_id,), name=f"catty-model-{model_id}", daemon=True).start()
         return self._snapshot(spec)
 
@@ -215,29 +214,51 @@ class ModelManager:
         with _JOBS_LOCK:
             job = _JOBS[model_id]
         try:
-            snapshot_download(
-                repo_id=spec.repository,
-                local_dir=staging,
-                allow_patterns=list(spec.allow_patterns),
-                tqdm_class=_cancelable_tqdm(job.cancel_event),
+            process = subprocess.Popen(
+                _download_command(spec, staging),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
             )
+            with _JOBS_LOCK:
+                job.process = process
+            while process.poll() is None:
+                if job.cancel_event.wait(0.2):
+                    logger.info("Stopping model download process: %s", model_id)
+                    process.terminate()
+                    try:
+                        process.wait(timeout=2.0)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=2.0)
+                    with _JOBS_LOCK:
+                        _JOBS[model_id] = InstallJob(status="cancelled")
+                    logger.info("Model download cancelled: %s; partial files kept for resume", model_id)
+                    return
+            stderr = process.stderr.read() if process.stderr is not None else ""
+            if process.returncode != 0:
+                message = stderr.strip().splitlines()[-1] if stderr.strip() else f"download process exited {process.returncode}"
+                raise RuntimeError(message)
             if job.cancel_event.is_set():
-                raise ModelDownloadCancelled("Model download cancelled")
+                with _JOBS_LOCK:
+                    _JOBS[model_id] = InstallJob(status="cancelled")
+                logger.info("Model download cancelled: %s; partial files kept for resume", model_id)
+                return
             (staging / ".catty-installed").write_text(spec.repository, encoding="utf-8")
             shutil.rmtree(target, ignore_errors=True)
             staging.replace(target)
             with _JOBS_LOCK:
                 _JOBS[model_id] = InstallJob(status="installed")
-        except ModelDownloadCancelled:
-            with _JOBS_LOCK:
-                _JOBS[model_id] = InstallJob(status="cancelled")
+            logger.info("Model download installed: %s", model_id)
         except Exception as exc:
             if job.cancel_event.is_set():
                 with _JOBS_LOCK:
                     _JOBS[model_id] = InstallJob(status="cancelled")
+                logger.info("Model download cancelled: %s; partial files kept for resume", model_id)
             else:
                 with _JOBS_LOCK:
                     _JOBS[model_id] = InstallJob(status="failed", error=str(exc))
+                logger.exception("Model download failed: %s", model_id)
 
     def install(self, model_id: str) -> dict[str, object]:
         """Synchronous install retained for callers/tests that need completion."""
@@ -247,30 +268,36 @@ class ModelManager:
         if self.installed(model_id):
             return self._snapshot(spec)
         staging.mkdir(parents=True, exist_ok=True)
+        logger.info("Synchronous model download started: %s", model_id)
         snapshot_download(repo_id=spec.repository, local_dir=staging, allow_patterns=list(spec.allow_patterns))
         (staging / ".catty-installed").write_text(spec.repository, encoding="utf-8")
         shutil.rmtree(target, ignore_errors=True)
         staging.replace(target)
         with _JOBS_LOCK:
             _JOBS[model_id] = InstallJob(status="installed")
+        logger.info("Synchronous model download installed: %s", model_id)
         return self._snapshot(spec)
 
     def remove(self, model_id: str) -> dict[str, object]:
         """Cancel an active download, otherwise remove installed/partial model data."""
         spec = self.spec(model_id)
-        cancelling = False
         with _JOBS_LOCK:
             job = _JOBS.get(model_id)
-            if job is not None and job.status == "downloading":
+            if job is not None and job.status in {"downloading", "cancelling"}:
                 job.status = "cancelling"
                 job.cancel_event.set()
-                cancelling = True
-            elif job is not None and job.status == "cancelling":
-                cancelling = True
+                process = job.process
             else:
+                process = None
                 _JOBS.pop(model_id, None)
-        if cancelling:
+        if job is not None and job.status == "cancelling":
+            # Do not wait for a Hugging Face progress callback. Terminate the child now.
+            if process is not None and process.poll() is None:
+                logger.info("Cancel requested for model download: %s", model_id)
+                process.terminate()
             return self._snapshot(spec)
+        logger.info("Removing model data: %s", model_id)
         shutil.rmtree(self.path_for(model_id), ignore_errors=True)
         shutil.rmtree(self.staging_path_for(model_id), ignore_errors=True)
+        logger.info("Model data removed: %s", model_id)
         return self._snapshot(spec)
