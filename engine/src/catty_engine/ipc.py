@@ -30,7 +30,7 @@ EngineMethod = Literal[
     "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
     "settings.credential_add", "settings.credential_remove",
     "translation.providers", "translation.models", "translation.test_connection",
-    "translation.translate_episode",
+    "translation.translate_episode", "models.list", "models.install", "models.install_status", "models.remove",
 ]
 
 class Request(BaseModel):
@@ -132,8 +132,8 @@ def _hello() -> dict[str, Any]:
             "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
             "settings.credential_add", "settings.credential_remove",
             "translation.providers", "translation.models", "translation.test_connection",
-            "translation.translate_episode", "speakers.funasr-campplus", "asr.paraformer",
-            "asr.sense-small", "vad.silero", "system.shutdown",
+            "translation.translate_episode", "models.list", "models.install", "models.install_status", "models.remove",
+            "speakers.funasr-campplus", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown",
         ],
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
         "ffprobe_available": shutil.which("ffprobe") is not None,
@@ -186,6 +186,20 @@ def handle_request(payload: Any) -> dict[str, Any]:
         elif request.method == "translation.test_connection":
             from catty_engine.settings.rpc import test_connection
             result = test_connection(request.params)
+        elif request.method == "models.list":
+            if request.params:
+                raise ValueError("models.list does not accept parameters")
+            from catty_engine.settings.rpc import model_list
+            result = model_list()
+        elif request.method == "models.install":
+            from catty_engine.settings.rpc import model_install
+            result = model_install(request.params)
+        elif request.method == "models.install_status":
+            from catty_engine.settings.rpc import model_install_status
+            result = model_install_status(request.params)
+        elif request.method == "models.remove":
+            from catty_engine.settings.rpc import model_remove
+            result = model_remove(request.params)
         elif request.method == "translation.translate_episode":
             translation_params = TranslationEpisodeParams.model_validate(request.params)
             from catty_engine.translation.service import TranslationService
