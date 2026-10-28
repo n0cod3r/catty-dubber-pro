@@ -25,6 +25,13 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(engine::EngineJobs::default())
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                window.maximize()?;
+                window.show()?;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             app_status,
             engine::engine_request,
