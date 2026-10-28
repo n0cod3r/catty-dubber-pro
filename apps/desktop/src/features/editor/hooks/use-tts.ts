@@ -3,8 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EdgeVoice, PersistedEpisode, TtsGenerationMode, TtsProgress } from "@catty/contracts";
 
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
-import { listenTtsProgress, requestEngine } from "../deps/engine";
+import { cancelTts, listenTtsProgress, prepareTtsCancel, requestEngine } from "../deps/engine";
 
+export type TtsTuning = { speed: number; pitch: number; volume: number };
 export type TtsEditing = ReturnType<typeof useTts>;
 
 export function useTts(
@@ -22,17 +23,15 @@ export function useTts(
 
   useEffect(() => {
     let active = true;
-    void requestEngine("tts.voices", {})
-      .then((items) => {
-        if (!active) return;
-        const khmer = items.filter((voice) => voice.locale.toLowerCase().startsWith("km"));
-        const available = khmer.length ? khmer : items;
-        setVoices(available);
-        setVoiceId((current) => current ?? available[0]?.id ?? null);
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(cause instanceof Error ? cause.message : "មិនអាចទាញយកសំឡេង Edge TTS បានទេ។");
-      });
+    void requestEngine("tts.voices", {}).then((items) => {
+      if (!active) return;
+      const khmer = items.filter((voice) => voice.locale.toLowerCase().startsWith("km"));
+      const available = khmer.length ? khmer : items;
+      setVoices(available);
+      setVoiceId((current) => current ?? available[0]?.id ?? null);
+    }).catch((cause: unknown) => {
+      if (active) setError(cause instanceof Error ? cause.message : "មិនអាចទាញយកសំឡេង Edge TTS បានទេ។");
+    });
     return () => { active = false; };
   }, []);
 
@@ -52,13 +51,19 @@ export function useTts(
     [episode?.dubSegments],
   );
 
-  const generate = useCallback(async (mode: TtsGenerationMode, segmentIds: string[] = []) => {
+  const generate = useCallback(async (
+    mode: TtsGenerationMode,
+    segmentIds: string[] = [],
+    tuning: TtsTuning = { speed: 1, pitch: 0, volume: 0 },
+  ) => {
     if (!episode || !voiceId || generating) return;
     setError(null);
     setGenerating(true);
+    setProgress(null);
     const operationId = crypto.randomUUID();
     operationRef.current = operationId;
     try {
+      const cancelFile = await prepareTtsCancel(operationId);
       const profile = await requestEngine("tts.ensure_voice", {
         project_directory: projectDirectory,
         voice_id: voiceId,
@@ -70,6 +75,10 @@ export function useTts(
         voice_profile_id: profile.id,
         mode,
         segment_ids: segmentIds,
+        speed: tuning.speed,
+        pitch: tuning.pitch,
+        volume: tuning.volume,
+        cancel_file: cancelFile,
       });
       onEpisodePersisted(persisted);
     } catch (cause) {
@@ -79,7 +88,17 @@ export function useTts(
     }
   }, [episode, generating, onEpisodePersisted, projectDirectory, voiceId]);
 
-  const preview = useCallback(async (segmentId: string) => {
+  const cancel = useCallback(async () => {
+    const operationId = operationRef.current;
+    if (!operationId || !generating) return;
+    try { await cancelTts(operationId); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "មិនអាច cancel បានទេ។"); }
+  }, [generating]);
+
+  const preview = useCallback(async (
+    segmentId: string,
+    tuning: TtsTuning = { speed: 1, pitch: 0, volume: 0 },
+  ) => {
     if (!episode || !voiceId || previewing) return null;
     const segment = episode.dialogueSegments?.find((item) => item.id === segmentId);
     const text = segment?.translation?.text?.trim();
@@ -91,6 +110,9 @@ export function useTts(
         project_directory: projectDirectory,
         text,
         voice_id: voiceId,
+        speed: tuning.speed,
+        pitch: tuning.pitch,
+        volume: tuning.volume,
       });
       return result.path;
     } catch (cause) {
@@ -101,6 +123,6 @@ export function useTts(
 
   return {
     voices, voiceId, setVoiceId, generating, previewing, progress, error,
-    clearError: () => setError(null), dubByDialogue, generate, preview,
+    clearError: () => setError(null), dubByDialogue, generate, preview, cancel,
   };
 }
