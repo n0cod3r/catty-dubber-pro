@@ -30,7 +30,9 @@ export function useTts(
   const [voiceId, setVoiceId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [assigningSpeakerId, setAssigningSpeakerId] = useState<string | null>(null);
+  const [assigningSpeakerId, setAssigningSpeakerId] = useState<string | null>(
+    null,
+  );
   const [progress, setProgress] = useState<TtsProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const operationRef = useRef<string | null>(null);
@@ -102,7 +104,8 @@ export function useTts(
         const profile = await requestEngine("tts.ensure_voice", {
           project_directory: projectDirectory,
           voice_id: edgeVoiceId,
-          name: voices.find((item) => item.id === edgeVoiceId)?.name ?? edgeVoiceId,
+          name:
+            voices.find((item) => item.id === edgeVoiceId)?.name ?? edgeVoiceId,
         });
         if (ticket !== revision.current) return false;
         const persisted = await requestEngine("tts.generate", {

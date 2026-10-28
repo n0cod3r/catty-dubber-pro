@@ -35,16 +35,23 @@ export function SpeakerVoiceAssignment({
     void requestEngine("project.open", { project_directory: projectDirectory })
       .then((project) => {
         if (!active) return;
-        const persistedEpisode = project.episodes.find((item) => item.id === episode.id);
+        const persistedEpisode = project.episodes.find(
+          (item) => item.id === episode.id,
+        );
         const profileToEngineVoice = new Map(
           project.voice_profiles
-            .filter((profile) => profile.engine === "edge" && profile.engine_voice_id)
+            .filter(
+              (profile) => profile.engine === "edge" && profile.engine_voice_id,
+            )
             .map((profile) => [profile.id, profile.engine_voice_id as string]),
         );
         const next: Record<string, string> = {};
-        for (const speaker of (persistedEpisode?.speakers ?? []) as SpeakerWithVoice[]) {
+        for (const speaker of (persistedEpisode?.speakers ??
+          []) as SpeakerWithVoice[]) {
           if (!speaker.voice_profile_id) continue;
-          const engineVoiceId = profileToEngineVoice.get(speaker.voice_profile_id);
+          const engineVoiceId = profileToEngineVoice.get(
+            speaker.voice_profile_id,
+          );
           if (engineVoiceId) next[speaker.id] = engineVoiceId;
         }
         setAssigned(next);
@@ -87,13 +94,15 @@ export function SpeakerVoiceAssignment({
                 value={currentVoice}
                 disabled={tts.generating || !!tts.assigningSpeakerId}
                 onValueChange={(voiceId) => {
-                  void tts.assignSpeakerVoice(speaker.id, voiceId).then((saved) => {
-                    if (saved)
-                      setAssigned((current) => ({
-                        ...current,
-                        [speaker.id]: voiceId,
-                      }));
-                  });
+                  void tts
+                    .assignSpeakerVoice(speaker.id, voiceId)
+                    .then((saved) => {
+                      if (saved)
+                        setAssigned((current) => ({
+                          ...current,
+                          [speaker.id]: voiceId,
+                        }));
+                    });
                 }}
               >
                 <SelectTrigger
