@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from catty_engine.translation.base import ProviderError
@@ -62,8 +64,12 @@ def test_translate_batch_uses_structured_output_and_preserves_ids():
     assert [item.id for item in result.segments] == ["a", "b"]
     assert result.segments[0].text == "សួស្តី"
     assert "generateContent" in str(captured["url"])
-    assert "response_schema" in str(captured["payload"])
-    assert "timestamps" not in str(captured["payload"])
+    payload = captured["payload"]
+    assert isinstance(payload, dict)
+    assert "response_schema" in str(payload)
+    user_prompt = payload["contents"][0]["parts"][0]["text"]
+    request_body = json.loads(user_prompt)
+    assert all("duration" not in segment and "start" not in segment and "end" not in segment for segment in request_body["segments"])
 
 
 def test_translate_batch_rejects_missing_ids():
