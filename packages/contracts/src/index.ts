@@ -1,3 +1,23 @@
+import type {
+  DubSegment,
+  EdgeVoice,
+  TtsGenerateParams,
+  TtsPreviewParams,
+  VoiceProfile,
+} from "./tts";
+
+export type {
+  DubSegment,
+  DubStatus,
+  EdgeVoice,
+  TtsGenerateParams,
+  TtsGenerationMode,
+  TtsPreviewParams,
+  TtsProgress,
+  VoiceEngine,
+  VoiceProfile,
+} from "./tts";
+
 export type EngineError = { code: string; message: string };
 export type EngineStatus = {
   name: string;
@@ -68,7 +88,7 @@ export type PersistedEpisode = {
   audio_assets: AudioAsset[];
   speakers: EpisodeSpeaker[];
   dialogue_segments: PersistedDialogueSegment[];
-  dub_segments: unknown[];
+  dub_segments: DubSegment[];
   processing: EpisodeProcessingState;
   created_at: string;
   updated_at: string;
@@ -91,7 +111,7 @@ export type PersistedProject = {
   name: string;
   episodes: PersistedEpisode[];
   characters: unknown[];
-  voice_profiles: unknown[];
+  voice_profiles: VoiceProfile[];
   settings: {
     translation?: ProjectTranslationSettings;
     [key: string]: unknown;
@@ -279,7 +299,7 @@ export type EngineMethods = {
       expected_segments: PersistedDialogueSegment[];
       dialogue_segments: PersistedDialogueSegment[];
       speakers: EpisodeSpeaker[];
-      dub_segments: unknown[];
+      dub_segments: DubSegment[];
     };
     result: PersistedEpisode;
   };
@@ -358,4 +378,15 @@ export type EngineMethods = {
     result: ModelStatus[];
   };
   "models.remove": { params: { model_id: string }; result: TranslationModel };
+  "tts.voices": { params: Record<string, never>; result: EdgeVoice[] };
+  "tts.ensure_voice": {
+    params: {
+      project_directory: string;
+      voice_id: string;
+      name?: string | null;
+    };
+    result: VoiceProfile;
+  };
+  "tts.preview": { params: TtsPreviewParams; result: { path: string } };
+  "tts.generate": { params: TtsGenerateParams; result: PersistedEpisode };
 };

@@ -43,6 +43,8 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
         ? "Speaker detection failed."
         : null),
     translationStatus: episode.processing?.translation ?? "idle",
+    dubbingStatus: episode.processing?.dubbing ?? "idle",
+    dubSegments: episode.dub_segments,
     dialogueSegments: episode.dialogue_segments.map((segment) => ({
       id: segment.id,
       start: segment.start,
@@ -102,8 +104,6 @@ export function useEpisode(
       setStatus(null);
       return;
     }
-    // Always validate cached preparation on open: a persisted proxy or audio
-    // path may point at a file that was moved or deleted since last session.
     const key = `${projectDirectory}:${active.id}`;
     if (preparationKey.current === key) return;
     preparationKey.current = key;

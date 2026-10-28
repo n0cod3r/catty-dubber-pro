@@ -1,9 +1,15 @@
-import type { EpisodeSpeaker, PersistedTranslation } from "@catty/contracts";
+import type {
+  DubSegment,
+  EpisodeSpeaker,
+  PersistedTranslation,
+} from "@catty/contracts";
 
 export type EpisodeMedia = {
   speakers?: EpisodeSpeaker[];
   speakerError?: string | null;
   translationStatus?: string;
+  dubbingStatus?: string;
+  dubSegments?: DubSegment[];
   id: string;
   path: string;
   playbackPath?: string | null;

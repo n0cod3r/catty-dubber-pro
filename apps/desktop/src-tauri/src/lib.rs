@@ -3,6 +3,7 @@ mod logs;
 mod persistent_engine;
 mod processes;
 mod progress;
+mod tts_control;
 
 use tauri::{Emitter, Manager};
 
@@ -11,8 +12,6 @@ fn app_status() -> &'static str {
     "Catty Dubber Pro desktop shell is ready"
 }
 
-/// Projects can live on external drives or outside the static asset scope.
-/// Allow the chosen media/project paths for the asset protocol at runtime.
 #[tauri::command]
 fn allow_asset_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     let path = std::path::PathBuf::from(&path);
@@ -59,7 +58,9 @@ pub fn run() {
             logs::app_logs,
             engine::engine_request,
             engine::prepare_audio,
-            engine::cancel_audio
+            engine::cancel_audio,
+            tts_control::prepare_tts_cancel,
+            tts_control::cancel_tts
         ])
         .on_window_event(|window, event| {
             if window.label() != "main" {

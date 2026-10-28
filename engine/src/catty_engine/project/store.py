@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from .models import Project, utc_now
+from .models import DubStatus, ProcessingStatus, Project, utc_now
 
 PROJECT_FILE_NAME = "project.json"
 
@@ -23,7 +23,21 @@ class ProjectStore:
         if not project_file.exists():
             raise FileNotFoundError(f"Project file does not exist: {project_file}")
         data = json.loads(project_file.read_text(encoding="utf-8"))
-        return Project.model_validate(data)
+        project = Project.model_validate(data)
+        recovered = False
+        for episode in project.episodes:
+            interrupted = False
+            for dub in episode.dub_segments:
+                if dub.status is not DubStatus.GENERATING:
+                    continue
+                dub.status = DubStatus.OUTDATED if dub.audio_path else DubStatus.FAILED
+                interrupted = True
+                recovered = True
+            if interrupted and episode.processing.dubbing is ProcessingStatus.PROCESSING:
+                episode.processing.dubbing = ProcessingStatus.FAILED
+        if recovered:
+            self.save(directory, project)
+        return project
 
     def save(self, directory: Path, project: Project) -> None:
         directory.mkdir(parents=True, exist_ok=True)

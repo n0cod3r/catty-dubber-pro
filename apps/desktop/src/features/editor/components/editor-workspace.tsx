@@ -14,8 +14,10 @@ import {
 
 import { useDialogueEditing } from "../hooks/use-dialogue-editing";
 import { useTranslation } from "../hooks/use-translation";
+import { useTts } from "../hooks/use-tts";
 import { EditorPanels } from "./editor-panels";
 import { Inspector } from "./inspector";
+import { VoiceGenerationPanel } from "./voice-generation-panel";
 
 type EditorWorkspaceProps = {
   episode: EpisodeMedia | null;
@@ -29,6 +31,7 @@ type EditorWorkspaceProps = {
     metadata: Pick<EpisodeMedia, "durationSeconds" | "width" | "height">,
   ) => void;
 };
+
 export function EditorWorkspace(props: EditorWorkspaceProps) {
   return (
     <TimelineProvider>
@@ -56,6 +59,7 @@ function WorkspaceContent({
     projectDirectory,
     onEpisodePersisted,
   );
+  const tts = useTts(episode, projectDirectory, onEpisodePersisted);
   const [muted, setMuted] = useState(false);
   const history = useTimelineStore((state) => state.history);
   const initialize = useTimelineStore((state) => state.initialize);
@@ -65,10 +69,12 @@ function WorkspaceContent({
   const sourceId = episode?.id;
   const sourceName = episode?.name;
   const sourceDuration = episode?.durationSeconds;
+
   useEffect(() => {
     if (sourceId && sourceName && sourceDuration)
       initialize({ sourceId, name: sourceName, duration: sourceDuration });
   }, [sourceId, sourceName, sourceDuration, initialize]);
+
   useEffect(() => {
     if (!sourceId) return;
     syncDialogue({
@@ -81,6 +87,7 @@ function WorkspaceContent({
       })),
     });
   }, [sourceId, episode?.dialogueSegments, syncDialogue]);
+
   return (
     <EditorPanels
       timeline={
@@ -116,14 +123,19 @@ function WorkspaceContent({
         />
       }
       inspector={
-        <Inspector
-          episode={episode}
-          currentTime={playback.currentTime}
-          followTimeline={followPlayhead}
-          onSeek={playback.seek}
-          dialogue={dialogue}
-          translation={translation}
-        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <VoiceGenerationPanel episode={episode} tts={tts} />
+          <div className="flex min-h-0 flex-1">
+            <Inspector
+              episode={episode}
+              currentTime={playback.currentTime}
+              followTimeline={followPlayhead}
+              onSeek={playback.seek}
+              dialogue={dialogue}
+              translation={translation}
+            />
+          </div>
+        </div>
       }
     />
   );

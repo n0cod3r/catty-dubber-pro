@@ -32,6 +32,7 @@ EngineMethod = Literal[
     "settings.credential_add", "settings.credential_remove",
     "translation.providers", "translation.models", "translation.test_connection",
     "translation.translate_episode", "models.list", "models.install", "models.install_status", "models.remove",
+    "tts.voices", "tts.ensure_voice", "tts.preview", "tts.generate",
 ]
 
 class Request(BaseModel):
@@ -136,6 +137,7 @@ def _hello() -> dict[str, Any]:
             "settings.credential_add", "settings.credential_remove",
             "translation.providers", "translation.models", "translation.test_connection",
             "translation.translate_episode", "models.list", "models.install", "models.install_status", "models.remove",
+            "tts.voices", "tts.ensure_voice", "tts.preview", "tts.generate",
             "speakers.funasr-campplus", "asr.paraformer", "asr.sense-small", "vad.silero", "system.shutdown",
         ],
         "ffmpeg_available": shutil.which("ffmpeg") is not None,
@@ -203,6 +205,15 @@ def handle_request(payload: Any) -> dict[str, Any]:
         elif request.method == "models.remove":
             from catty_engine.settings.rpc import model_remove
             result = model_remove(request.params)
+        elif request.method.startswith("tts."):
+            from catty_engine.tts import rpc as tts_rpc
+            handlers = {
+                "tts.voices": tts_rpc.list_voices,
+                "tts.ensure_voice": tts_rpc.ensure_voice,
+                "tts.preview": tts_rpc.preview,
+                "tts.generate": tts_rpc.generate,
+            }
+            result = handlers[request.method](request.params)
         elif request.method == "translation.translate_episode":
             translation_params = TranslationEpisodeParams.model_validate(request.params)
             from catty_engine.translation.service import TranslationService
@@ -340,8 +351,5 @@ def run_server() -> None:
         except (json.JSONDecodeError, UnicodeDecodeError):
             response = _invalid_json_response()
         _write_response(response)
-        # The host keeps stdin open while it drains, so EOF alone is not a
-        # shutdown signal. Exit only after acknowledging system.shutdown;
-        # otherwise every close waits for the host's kill timeout.
         if response.get("result") == {"shutting_down": True}:
             break

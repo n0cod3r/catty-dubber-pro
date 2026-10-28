@@ -43,3 +43,11 @@ export async function prepareAudio(
 export async function cancelAudio(jobId: string) {
   return invoke<void>("cancel_audio", { jobId });
 }
+
+export async function prepareTtsCancel(operationId: string) {
+  return invoke<string>("prepare_tts_cancel", { operationId });
+}
+
+export async function cancelTts(operationId: string) {
+  return invoke<void>("cancel_tts", { operationId });
+}
