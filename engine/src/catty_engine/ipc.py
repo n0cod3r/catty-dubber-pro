@@ -101,6 +101,7 @@ class AudioPrepareParams(BaseModel):
     cancel_file: Path | None = None
 
 class SpeechTranscribeParams(BaseModel):
+    operation_id: str | None = Field(default=None, min_length=1, max_length=128)
     model_config = ConfigDict(extra="forbid")
     project_directory: Path
     episode_id: UUID
@@ -275,14 +276,20 @@ def handle_request(payload: Any) -> dict[str, Any]:
         elif request.method == "speech.transcribe":
             speech_params = SpeechTranscribeParams.model_validate(request.params)
             from catty_engine.speech.runtime import create_transcription_service
-            transcription_service = create_transcription_service(backend_id=speech_params.asr_backend, asr_config=speech_params.asr_config, vad_backend=speech_params.vad_backend, vad_config=speech_params.vad_config)
-            transcription = transcription_service.transcribe(project_directory=speech_params.project_directory, episode_id=speech_params.episode_id, source=speech_params.source, backend_id=speech_params.asr_backend, language=speech_params.language, source_start=speech_params.source_start, duration=speech_params.duration, existing_asset=speech_params.existing_asset)
-            service = ProjectService()
-            project = service.open_project(speech_params.project_directory)
-            persisted = service.replace_dialogue_segments(speech_params.project_directory, project, speech_params.episode_id, transcription.segments, source_language=speech_params.language, speaker_error=transcription.speaker_error)
-            from catty_engine.speech.diagnostics import record_persisted_dialogue
-            record_persisted_dialogue(speech_params.project_directory, persisted, getattr(transcription_service, "_diagnostic_run_id", None))
-            result = transcription.model_dump(mode="json")
+            from catty_engine.progress import transcription_progress_scope
+            with transcription_progress_scope(speech_params.operation_id, speech_params.project_directory, speech_params.episode_id) as reporter:
+                transcription_service = create_transcription_service(backend_id=speech_params.asr_backend, asr_config=speech_params.asr_config, vad_backend=speech_params.vad_backend, vad_config=speech_params.vad_config)
+                transcription = transcription_service.transcribe(project_directory=speech_params.project_directory, episode_id=speech_params.episode_id, source=speech_params.source, backend_id=speech_params.asr_backend, language=speech_params.language, source_start=speech_params.source_start, duration=speech_params.duration, existing_asset=speech_params.existing_asset)
+                from catty_engine.progress import report_transcription_phase
+                report_transcription_phase("saving")
+                service = ProjectService()
+                project = service.open_project(speech_params.project_directory)
+                persisted = service.replace_dialogue_segments(speech_params.project_directory, project, speech_params.episode_id, transcription.segments, source_language=speech_params.language, speaker_error=transcription.speaker_error)
+                from catty_engine.speech.diagnostics import record_persisted_dialogue
+                record_persisted_dialogue(speech_params.project_directory, persisted, getattr(transcription_service, "_diagnostic_run_id", None))
+                if reporter is not None:
+                    reporter.publish("completed", persisted.model_dump(mode="json"))
+                result = transcription.model_dump(mode="json")
         else:
             probe_params = ProbeParams.model_validate(request.params)
             result = MediaProbeService().probe(probe_params.path).model_dump(mode="json")

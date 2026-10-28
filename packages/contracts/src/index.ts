@@ -12,13 +12,23 @@ export type ProjectTranslationSettings = { source_language: string; target_langu
 export type PersistedProject = { schema_version: number; id: string; name: string; episodes: PersistedEpisode[]; characters: unknown[]; voice_profiles: unknown[]; settings: { translation?: ProjectTranslationSettings; [key: string]: unknown }; created_at: string; updated_at: string };
 export type TranscriptSegment = { start: number; end: number; text: string; confidence: number | null };
 export type TranscriptionResult = { backend: string; model: string; language: string; segments: TranscriptSegment[]; speaker_error?: string | null };
-export type SpeechTranscribeParams = { project_directory: string; episode_id: string; source: string; source_start: number; duration: number; language?: string; asr_backend: string; asr_config: Record<string, unknown>; vad_backend: string; vad_config: Record<string, unknown>; existing_asset?: AudioAsset | null };
+export type SpeechTranscribeParams = { operation_id?: string; project_directory: string; episode_id: string; source: string; source_start: number; duration: number; language?: string; asr_backend: string; asr_config: Record<string, unknown>; vad_backend: string; vad_config: Record<string, unknown>; existing_asset?: AudioAsset | null };
 export type DialogueEditParams = { project_directory: string; episode_id: string; segment_id: string };
 export type DialogueSplitParams = DialogueEditParams & { split_at: number };
 export type AudioPrepareParams = { source: string; episode_id: string; project_directory: string; existing_asset?: AudioAsset | null };
 
 export type TranslationProviderId = "local" | "gemini" | "deepseek" | "google" | "baidu" | "openai_compatible";
 export type TranslationStyle = "natural_dubbing" | "literal" | "short_conversational";
+export type TranscriptionProgress = {
+  operation_id: string;
+  project_directory: string;
+  episode_id: string;
+  phase: "preparing" | "loading" | "vad" | "asr" | "punctuation" | "alignment" | "saving" | "completed" | "failed";
+  completed: number;
+  total: number;
+  preview_segments: Array<TranscriptSegment & { id: string }>;
+  episode: PersistedEpisode | null;
+};
 export type TranslationProgress = {
   operation_id: string;
   project_directory: string;

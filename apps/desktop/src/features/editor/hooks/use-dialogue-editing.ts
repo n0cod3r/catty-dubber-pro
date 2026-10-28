@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { PersistedEpisode } from "@catty/contracts";
+import type { PersistedEpisode, TranscriptionProgress } from "@catty/contracts";
 
-import { requestEngine } from "@/features/editor/deps/engine";
+import { requestEngine, listenTranscriptionProgress } from "@/features/editor/deps/engine";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 
 import { createDialogueSessionGuard } from "../utils/dialogue-session";
@@ -13,6 +13,9 @@ export function useDialogueEditing(
   onEpisodePersisted: (episode: PersistedEpisode) => void,
 ) {
   const [transcribing, setTranscribing] = useState(false);
+  const [progress, setProgress] = useState<TranscriptionProgress | null>(null);
+  const [transcriptionStartedAt, setTranscriptionStartedAt] = useState<number | null>(null);
+  const unsubscribeTranscription = useRef<(() => void) | null>(null);
   const [editing, setEditing] = useState(false);
   const sessionGuard = useRef(createDialogueSessionGuard());
   const sessionScope = JSON.stringify([projectDirectory, episode?.id ?? null]);
@@ -37,18 +40,35 @@ export function useDialogueEditing(
     setError(null);
     setSpeakerWarning(null);
     setTranscribing(false);
+    setProgress(null);
+    setTranscriptionStartedAt(null);
     setEditing(false);
-    return () => guard.reset(null);
+    return () => {
+      guard.reset(null);
+      unsubscribeTranscription.current?.();
+      unsubscribeTranscription.current = null;
+    };
   }, [episode?.id, projectDirectory]);
 
   const transcribe = async (engine: "paraformer" | "sense-small") => {
     if (!episode?.durationSeconds) return;
     const ticket = sessionGuard.current.begin(sessionScope);
     if (!ticket) return;
+    const operationId = crypto.randomUUID();
+    setProgress(null);
+    setTranscriptionStartedAt(Date.now());
     setTranscribing(true);
     setError(null);
     setSpeakerWarning(null);
+    let unlisten: (() => void) | undefined;
     try {
+      unlisten = await listenTranscriptionProgress((update) => {
+        if (!sessionGuard.current.isCurrent(ticket) || update.operation_id !== operationId || update.project_directory !== projectDirectory || update.episode_id !== episode.id || (update.episode && update.episode.id !== episode.id)) return;
+        setProgress(update);
+        if (update.phase === "completed" && update.episode) onEpisodePersisted(update.episode);
+      });
+      if (!sessionGuard.current.isCurrent(ticket)) return;
+      unsubscribeTranscription.current = unlisten;
       const transcription = await requestEngine("speech.transcribe", {
         project_directory: projectDirectory,
         episode_id: episode.id,
@@ -57,6 +77,7 @@ export function useDialogueEditing(
         duration: episode.durationSeconds,
         language: "zh",
         asr_backend: engine,
+        operation_id: operationId,
         asr_config: {},
         vad_backend: "silero",
         vad_config: {},
@@ -76,7 +97,8 @@ export function useDialogueEditing(
       if (!sessionGuard.current.isCurrent(ticket)) return;
       setError(cause instanceof Error ? cause.message : "មិនអាច Transcribe បានទេ។");
     } finally {
-      if (sessionGuard.current.finish(ticket)) setTranscribing(false);
+      unlisten?.();
+      if (sessionGuard.current.finish(ticket)) { unsubscribeTranscription.current = null; setTranscribing(false); }
     }
   };
 
@@ -260,6 +282,8 @@ export function useDialogueEditing(
   return {
     busy,
     transcribing,
+    progress,
+    transcriptionStartedAt,
     error,
     speakerWarning,
     historyCounts,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from catty_engine.logging import logged_process
+from catty_engine.progress import report_transcription_phase, transcription_progress
 
 from pathlib import Path
 from typing import Protocol
@@ -72,6 +73,8 @@ class TranscriptionService:
         backend = self._asr_backends.get(backend_id)
         segments = backend.transcribe(audio, regions, language=language)
 
+        report_transcription_phase("alignment")
+
         # FunASR concatenates VAD chunks before punctuation/speaker processing.
         # Its sentence_info timestamps can therefore lose the silent gaps between
         # chunks even though the raw Paraformer word timestamps are still correct.
@@ -123,6 +126,9 @@ class TranscriptionService:
                 parsed_segments=[segment.model_dump(mode="json") for segment in segments],
             )
         segments = split_long_dialogue(segments)
+        reporter = transcription_progress()
+        if reporter is not None:
+            reporter.aligned(segments)
         return TranscriptionResult(
             backend=backend.id,
             model=model,

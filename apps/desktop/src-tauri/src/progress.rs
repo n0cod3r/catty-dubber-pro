@@ -7,11 +7,13 @@ pub fn initialize(app: AppHandle) {
     let _ = APP.set(app);
 }
 
-fn translation_payload(line: &str) -> Option<Value> {
+fn progress_event(line: &str) -> Option<(&'static str, Value)> {
     let value: Value = serde_json::from_str(line).ok()?;
-    if value["catty_progress"] != "translation" {
-        return None;
-    }
+    let event = match value["catty_progress"].as_str()? {
+        "translation" => "catty:translation-progress",
+        "transcription" => "catty:transcription-progress",
+        _ => return None,
+    };
     let payload = &value["payload"];
     if !payload["operation_id"].is_string()
         || !payload["episode_id"].is_string()
@@ -19,13 +21,13 @@ fn translation_payload(line: &str) -> Option<Value> {
     {
         return None;
     }
-    Some(payload.clone())
+    Some((event, payload.clone()))
 }
 
 pub fn forward(line: &str) -> bool {
-    if let Some(payload) = translation_payload(line) {
+    if let Some((event, payload)) = progress_event(line) {
         if let Some(app) = APP.get() {
-            let _ = app.emit("catty:translation-progress", payload);
+            let _ = app.emit(event, payload);
         }
         return true;
     }
@@ -37,9 +39,10 @@ mod tests {
     use super::*;
     #[test]
     fn forwards_only_correlated_progress_without_touching_rpc_or_logs() {
-        assert!(translation_payload(r#"{"catty_progress":"translation","payload":{"operation_id":"job1","episode_id":"ep1","phase":"saved","completed":1}}"#).is_some());
-        assert!(translation_payload(r#"{"catty_log":true,"message":"test"}"#).is_none());
-        assert!(translation_payload(r#"{"version":1,"result":{}}"#).is_none());
-        assert!(translation_payload(r#"{"catty_progress":"translation","payload":{}}"#).is_none());
+        assert!(progress_event(r#"{"catty_progress":"translation","payload":{"operation_id":"job1","episode_id":"ep1","phase":"saved","completed":1}}"#).is_some());
+        assert!(progress_event(r#"{"catty_progress":"transcription","payload":{"operation_id":"job1","episode_id":"ep1","phase":"asr"}}"#).is_some());
+        assert!(progress_event(r#"{"catty_log":true,"message":"test"}"#).is_none());
+        assert!(progress_event(r#"{"version":1,"result":{}}"#).is_none());
+        assert!(progress_event(r#"{"catty_progress":"translation","payload":{}}"#).is_none());
     }
 }

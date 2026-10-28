@@ -52,7 +52,7 @@ def _speaker_for_span(
         amount = max(0, min(right, end) - max(left, start))
         if amount:
             overlap[speaker] = overlap.get(speaker, 0) + amount
-    return max(overlap, key=overlap.get) if overlap else None
+    return max(overlap, key=lambda speaker: overlap[speaker]) if overlap else None
 
 
 def align_observed_paraformer(

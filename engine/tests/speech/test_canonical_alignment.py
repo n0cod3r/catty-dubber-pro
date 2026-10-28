@@ -16,7 +16,12 @@ def test_alignment_preserves_real_vad_gaps_instead_of_compressing_time():
             # Reproduces the failure mode: sentence_info has compressed/wrong
             # timing after FunASR merges separated VAD chunks.
             "sentence_info": [
-                {"start": 88000, "end": 90000, "text": "是裴国公的未婚妻哦。", "spk": 0},
+                {
+                    "start": 88000,
+                    "end": 90000,
+                    "text": "是裴国公的未婚妻哦。",
+                    "spk": 0,
+                },
                 {"start": 93000, "end": 97000, "text": "未婚妻哪来的？", "spk": 1},
             ],
         }
@@ -74,3 +79,43 @@ def test_alignment_refuses_to_invent_timing_when_character_counts_do_not_match()
     ]
 
     assert align_observed_paraformer(result, raw, start=0.0, duration=3.0) is None
+
+
+def test_alignment_recovers_text_when_fun_asr_sentence_info_is_punctuation_only():
+    # Actual failure shape: raw ASR and punctuated text retain dialogue, but
+    # sentence_info relocates the last text and leaves punctuation-only tails.
+    result = [
+        {
+            "text": "我叫宋之，是裴国公的未婚妻哦，",
+            "sentence_info": [
+                {"start": 106110, "end": 107175, "text": "未婚妻啊啊，", "spk": 1},
+                {"start": 107440, "end": 110185, "text": "，", "spk": 1},
+            ],
+        }
+    ]
+    raw = [
+        _raw(
+            106.2,
+            "我叫宋之",
+            [[106.11, 106.41], [106.41, 106.47], [106.47, 106.77], [106.77, 107.175]],
+        ),
+        _raw(
+            107.53,
+            "是裴国公的未婚妻哦",
+            [
+                [107.44, 107.859],
+                [107.859, 108.1],
+                [108.1, 108.16],
+                [108.16, 108.4],
+                [108.4, 108.58],
+                [108.58, 109.24],
+                [109.24, 109.3],
+                [109.3, 109.6],
+                [109.6, 110.185],
+            ],
+        ),
+    ]
+    aligned = align_observed_paraformer(result, raw, start=0, duration=123.53)
+    assert aligned is not None
+    assert [s.text for s in aligned] == ["我叫宋之，", "是裴国公的未婚妻哦，"]
+    assert [(s.start, s.end) for s in aligned] == [(106.11, 107.175), (107.44, 110.185)]

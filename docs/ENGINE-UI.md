@@ -166,3 +166,23 @@ Manual edits remain protected. If later work fails, earlier saved results remain
 visible and persistent; the frontend refreshes saved state after an RPC error.
 
 Restart the desktop process after updating Rust/Python to enable the event bridge.
+
+### Live Smart Transcribe previews
+
+`speech.transcribe` accepts an optional `operation_id`. The existing stderr/Tauri
+progress bridge relays `catty:transcription-progress` events for audio preparation,
+model loading, VAD, completed ASR chunks, punctuation/speakers, canonical alignment and saving.
+The Inspector shows elapsed time, real ASR chunk counts and chronological draft
+text as each recognition batch returns. Draft rows are explicitly labelled a
+preview. FunASR processes chunks in duration order internally; displayed drafts
+are sorted by source time, not completion order. A 100% ASR count does not imply
+punctuation, speaker processing or persistence has completed.
+
+Recognition remains one integrated pipeline pass. No repeated ASR, altered VAD
+settings or new fallback is introduced. Drafts are not persisted or inserted into
+the canonical subtitle timeline. After successful canonical word alignment and
+normal project persistence, the completed event supplies the saved Episode and
+replaces preview rows with real segment IDs; the timeline refreshes from that
+saved state. Failure keeps the old persistent dialogue. Operation/session guards
+reject late or cross-project events and listeners are removed on completion,
+unmount or episode change. The progress overlay is session state only.

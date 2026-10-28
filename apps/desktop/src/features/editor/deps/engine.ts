@@ -1,1 +1,6 @@
-export { EngineConnection, requestEngine, listenTranslationProgress } from "@/features/engine";
+export {
+  EngineConnection,
+  requestEngine,
+  listenTranslationProgress,
+  listenTranscriptionProgress,
+} from "@/features/engine";

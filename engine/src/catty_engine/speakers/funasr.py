@@ -8,6 +8,7 @@ optional metadata and are never allowed to delete recognized dialogue.
 from __future__ import annotations
 
 from catty_engine.logging import logged_process
+from catty_engine.progress import report_transcription_phase
 
 import contextlib
 import math
@@ -309,6 +310,7 @@ class FunASRParaformerBackend:
             return []
 
         with contextlib.redirect_stdout(sys.stderr):
+            report_transcription_phase("loading")
             models = resolve_models()
             import torch
 

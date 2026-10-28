@@ -68,8 +68,10 @@ export function Inspector({ episode, currentTime, followTimeline, onSeek, dialog
   }, [activeId, followTimeline, tab]);
   useEffect(() => window.localStorage.setItem(TRANSCRIPTION_ENGINE_KEY, engine), [engine]);
   useEffect(() => {
-    setSegments(persistedSegments(episode?.dialogueSegments)); setSelectedId(null); setTextEditorId(null);
-  }, [episode?.id, episode?.dialogueSegments]);
+    const preview = transcribing ? dialogue.progress?.preview_segments : undefined;
+    setSegments(preview?.length ? preview.map(segment => ({...segment, speakerId: null})) : persistedSegments(episode?.dialogueSegments));
+    setSelectedId(null); setTextEditorId(null);
+  }, [episode?.id, episode?.dialogueSegments, transcribing, dialogue.progress?.preview_segments]);
 
   const splitSelected = () => selected && canSplit ? dialogue.split(selected.id, currentTime) : undefined;
   const mergeNext = useCallback(() => selected && canMergeNext ? dialogue.merge(selected.id) : undefined, [selected, canMergeNext, dialogue]);
@@ -97,11 +99,28 @@ export function Inspector({ episode, currentTime, followTimeline, onSeek, dialog
       const nextTab = next === null ? undefined : tabs[next]; if (nextTab) { event.preventDefault(); setTab(nextTab.id); document.getElementById(`inspector-tab-${nextTab.id}`)?.focus(); }
     }}><Icon className="size-3" />{label}</button>)}</div>
     <div role="tabpanel" id={`inspector-panel-${tab}`} aria-labelledby={`inspector-tab-${tab}`} tabIndex={0} className="flex min-h-0 flex-1 flex-col overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring">
+      {tab === "source" && transcribing && <TranscriptionStatus dialogue={dialogue}/> }
       {tab === "properties" && episode ? <dl className="space-y-4 p-4 text-[11px]">{[["File",episode.name],["Container",episode.extension.toUpperCase()],["Duration",formatTime(episode.durationSeconds ?? 0,true)],["Resolution",episode.width&&episode.height?`${episode.width} × ${episode.height}`:"Reading…"],["Target language","Khmer"],...(episode.fps?[["Frame rate",`${episode.fps.toFixed(3)} fps`]]:[]),...(episode.videoCodec?[["Video codec",episode.videoCodec]]:[]),...(episode.audioCodec?[["Audio codec",episode.audioCodec]]:[])].map(([label,value])=><div key={label}><dt className="mb-1 text-[10px] text-muted-foreground">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl>
       : tab === "source" ? <SourcePanel episode={episode} segments={segments} listRef={listRef} rowRefs={rowRefs} activeId={activeId} selectedId={selectedId} setSelectedId={setSelectedId} selected={selected} selectedIndex={selectedIndex} canSplit={canSplit} canMergeNext={canMergeNext} busy={busy} transcribing={transcribing} engine={engine} setEngine={setEngine} currentTime={currentTime} onSeek={onSeek} splitSelected={splitSelected} mergeNext={mergeNext} transcribe={transcribe} restoreDialogue={restoreDialogue} historyCounts={historyCounts} textEditorId={textEditorId} setTextEditorId={setTextEditorId} textEditorSegment={textEditorSegment} dialogue={dialogue} speakerWarning={speakerWarning} error={error}/>
       : <TranslationPanel episode={episode} currentTime={currentTime} onSeek={onSeek} translation={translation}/>}</div>
     <div className="flex h-7 shrink-0 items-center justify-between border-t px-3 text-[9px] text-muted-foreground"><span>Source → Khmer</span><span>{episode ? "AI dubbing" : "Inspector"}</span></div>
   </section>;
+}
+
+function TranscriptionStatus({dialogue}:{dialogue:DialogueEditing}) {
+  const [elapsed,setElapsed]=useState(0);
+  useEffect(()=>{
+    const started=dialogue.transcriptionStartedAt??Date.now();
+    const tick=()=>setElapsed(Math.floor((Date.now()-started)/1000));tick();
+    const timer=window.setInterval(tick,1000);return()=>window.clearInterval(timer);
+  },[dialogue.transcriptionStartedAt]);
+  const progress=dialogue.progress;
+  const labels={preparing:"Preparing audio…",loading:"Loading speech models…",vad:"Detecting speech…",asr:"Recognizing dialogue…",punctuation:"Punctuation and speakers…",alignment:"Aligning dialogue…",saving:"Saving dialogue…",completed:"Dialogue saved",failed:"Transcription failed"};
+  return <div role="status" className="shrink-0 border-b bg-primary/5 px-3 py-2 text-[10px]">
+    <div className="flex items-center gap-2"><LoaderCircle className="size-3 animate-spin text-primary"/><span>{progress?labels[progress.phase]:"Waiting for transcription engine…"}</span><span className="ml-auto tabular-nums text-muted-foreground">{elapsed}s</span></div>
+    {progress&&progress.total>0&&<div className="mt-1 flex items-center gap-2 text-muted-foreground"><span>ASR {progress.completed}/{progress.total} chunks</span><progress aria-label="ASR chunk progress" max={progress.total} value={progress.completed} className="h-1.5 flex-1 accent-primary"/></div>}
+    {!!progress?.preview_segments.length&&progress.phase!=="completed"&&<p className="mt-1 text-[9px] text-muted-foreground">Live preview · final dialogue is saved when processing completes</p>}
+  </div>;
 }
 
 function TranslationPanel({episode,currentTime,onSeek,translation}:{episode:EpisodeMedia|null;currentTime:number;onSeek:(time:number)=>void;translation:TranslationEditing}) {

@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from catty_engine.progress import report_transcription_phase, transcription_progress
+
 logger = logging.getLogger(__name__)
 _CURRENT: contextvars.ContextVar[Any] = contextvars.ContextVar(
     "transcription_trace", default=None
@@ -388,6 +390,10 @@ def capture_pipeline(pipeline, *, return_spk_res):
             ),
             None,
         )
+        if stage == "vad":
+            report_transcription_phase("vad")
+        elif stage == "punctuation":
+            report_transcription_phase("punctuation")
         output = original(*args, **kwargs)
         if stage:
             input_data = kwargs.get("input", args[0] if args else None)
@@ -397,6 +403,9 @@ def capture_pipeline(pipeline, *, return_spk_res):
                 else None
             )
             trace.safe(trace.observe, stage, output, count)
+            reporter = transcription_progress()
+            if reporter is not None:
+                trace.safe(reporter.observe, stage, attempt)
             if stage == "punctuation" and isinstance(input_data, str):
                 attempt["punctuation_input_text"] = input_data
         return output
