@@ -18,6 +18,7 @@ from catty_engine.media.ffmpeg import FFmpegRunner
 from catty_engine.media.probe import MediaProbeService
 from catty_engine.project import ProjectService
 from catty_engine.project.models import DialogueSegment, DubSegment, EpisodeSpeaker
+from catty_engine.settings.credentials import CredentialError
 from catty_engine.settings.service import SettingsError
 from catty_engine.translation.base import ProviderError
 
@@ -306,7 +307,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
         response["error"] = {"code": "MEDIA_PROBE_FAILED", "message": str(exc)}
     except MediaError as exc:
         response["error"] = {"code": "MEDIA_ERROR", "message": str(exc)}
-    except (SettingsError, ProviderError) as exc:
+    except (SettingsError, ProviderError, CredentialError) as exc:
         response["error"] = {"code": "CONFIGURATION_ERROR", "message": str(exc)}
     except (ValidationError, ValueError, FileNotFoundError) as exc:
         response["error"] = {"code": "INVALID_REQUEST", "message": str(exc)}

@@ -89,6 +89,25 @@ def test_missing_ffprobe_has_actionable_error(monkeypatch) -> None:
     assert response["error"]["code"] == "FFPROBE_NOT_FOUND"
 
 
+def test_unavailable_keychain_returns_configuration_error(monkeypatch) -> None:
+    from catty_engine.settings.credentials import CredentialError, CredentialStore
+
+    def unavailable(*args, **kwargs):
+        raise CredentialError("Secure credential storage is unavailable.")
+
+    monkeypatch.setattr(CredentialStore, "set", unavailable)
+    response = handle_request(
+        {
+            "version": 1,
+            "id": "credential",
+            "method": "settings.credential_add",
+            "params": {"provider": "gemini", "secret": "test-key"},
+        }
+    )
+    assert response["error"]["code"] == "CONFIGURATION_ERROR"
+    assert "unavailable" in response["error"]["message"]
+
+
 def test_cli_stdout_is_one_json_response() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "catty_engine", "--rpc"],
