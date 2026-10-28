@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { PersistedEpisode } from "@catty/contracts";
+import type { PersistedEpisode, TranslationMode } from "@catty/contracts";
 
 import { requestEngine } from "@/features/editor/deps/engine";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
@@ -22,8 +22,9 @@ export function useTranslation(
     setError(null);
   }, [episode?.id, projectDirectory]);
 
-  const translate = useCallback(async () => {
+  const translate = useCallback(async (mode: TranslationMode = "missing", segmentIds: string[] = []) => {
     if (!episode?.dialogueSegments?.length || translating || editing) return;
+    if (mode === "selected" && segmentIds.length === 0) return;
     const ticket = ++revision.current;
     setTranslating(true);
     setError(null);
@@ -31,6 +32,8 @@ export function useTranslation(
       const persisted = await requestEngine("translation.translate_episode", {
         project_directory: projectDirectory,
         episode_id: episode.id,
+        mode,
+        segment_ids: segmentIds,
         overwrite_manual: false,
         batch_size: 12,
       });
