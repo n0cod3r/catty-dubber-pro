@@ -115,6 +115,8 @@ class SpeechTranscribeParams(BaseModel):
     existing_asset: AudioAsset | None = None
 
 class TranslationEpisodeParams(ProjectPrepareEpisodeParams):
+    mode: Literal["missing", "all", "selected"] = "missing"
+    segment_ids: list[UUID] = Field(default_factory=list)
     overwrite_manual: bool = False
     batch_size: int = Field(default=12, ge=1, le=20)
 
@@ -190,6 +192,8 @@ def handle_request(payload: Any) -> dict[str, Any]:
             result = TranslationService().translate_episode(
                 translation_params.project_directory,
                 translation_params.episode_id,
+                mode=translation_params.mode,
+                segment_ids=set(translation_params.segment_ids),
                 overwrite_manual=translation_params.overwrite_manual,
                 batch_size=translation_params.batch_size,
             ).model_dump(mode="json")
