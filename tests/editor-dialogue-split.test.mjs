@@ -4,8 +4,8 @@ import test from "node:test";
 import { dialogueSplitTarget } from "../apps/desktop/src/features/timeline/utils/dialogue-split.ts";
 
 const segments = [
-  { id: "first", start: 1, end: 4 },
-  { id: "second", start: 4, end: 8 },
+  { id: "first", start: 1, end: 4, sourceText: "你好世界" },
+  { id: "second", start: 4, end: 8, sourceText: "再见世界" },
 ];
 test("timeline dialogue split resolves the persisted UUID rather than locally splitting a subtitle", () => {
   assert.equal(
@@ -32,4 +32,16 @@ test("timeline dialogue split rejects boundaries, stale selection and wrong time
     dialogueSplitTarget("source", segments, "dialogue:source:old", 2),
     null,
   );
+});
+test("timeline dialogue split rejects text without two spoken characters", () => {
+  for (const sourceText of ["啊", "   ", "。"])
+    assert.equal(
+      dialogueSplitTarget(
+        "source",
+        [{ id: "short", start: 1, end: 4, sourceText }],
+        null,
+        2,
+      ),
+      null,
+    );
 });

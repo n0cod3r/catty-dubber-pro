@@ -55,6 +55,9 @@ function persistedSegments(
     confidence: segment.confidence,
   }));
 }
+function hasSplittableText(text: string): boolean {
+  return (text.match(/[\p{L}\p{N}]/gu) ?? []).length >= 2;
+}
 
 export function Inspector({
   episode,
@@ -97,6 +100,7 @@ export function Inspector({
     selectedIndex >= 0 ? (segments[selectedIndex] ?? null) : null;
   const canSplit =
     !!selected &&
+    hasSplittableText(selected.text) &&
     currentTime > selected.start + 0.05 &&
     currentTime < selected.end - 0.05;
   const canMergeNext =

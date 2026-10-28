@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from catty_engine.media.models import MediaInfo
 from catty_engine.project import DialogueSegment, ProjectService
 
@@ -114,6 +116,43 @@ def test_split_dialogue_segment_persists_timing_and_text(tmp_path: Path) -> None
         (item.start, item.end, item.source_text) for item in updated.dialogue_segments
     ] == [(2.0, 6.0, "你好"), (6.0, 10.0, "世界")]
     assert len(service.open_project(project_dir).episodes[0].dialogue_segments) == 2
+
+
+@pytest.mark.parametrize("text", ["啊", "   ", "。"])
+def test_split_rejects_text_without_two_spoken_characters(
+    tmp_path: Path, text: str
+) -> None:
+    service = ProjectService()
+    project_dir = tmp_path / "my-drama"
+    project = service.create_project(project_dir, "My Drama")
+    episode = project.add_episode(str(tmp_path / "EP01.mp4"))
+    segment = DialogueSegment(
+        start=0.0, end=4.0, source_language="zh", source_text=text
+    )
+    episode.dialogue_segments = [segment]
+    service.save_project(project_dir, project)
+
+    with pytest.raises(ValueError, match="at least two spoken characters"):
+        service.split_dialogue_segment(project_dir, project, episode.id, segment.id, 2.0)
+
+    reloaded = service.open_project(project_dir).episodes[0]
+    assert [item.source_text for item in reloaded.dialogue_segments] == [text]
+
+
+def test_split_keeps_spoken_text_on_both_sides_of_punctuation(tmp_path: Path) -> None:
+    service = ProjectService()
+    project_dir = tmp_path / "my-drama"
+    project = service.create_project(project_dir, "My Drama")
+    episode = project.add_episode(str(tmp_path / "EP01.mp4"))
+    segment = DialogueSegment(start=2.0, end=4.0, source_language="zh", source_text="你好。")
+    episode.dialogue_segments = [segment]
+    service.save_project(project_dir, project)
+
+    updated = service.split_dialogue_segment(
+        project_dir, project, episode.id, segment.id, 3.9
+    )
+
+    assert [item.source_text for item in updated.dialogue_segments] == ["你", "好。"]
 
 
 def test_merge_dialogue_segment_with_next_persists(tmp_path: Path) -> None:
