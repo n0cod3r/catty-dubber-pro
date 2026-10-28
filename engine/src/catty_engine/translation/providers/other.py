@@ -17,19 +17,30 @@ class LocalProvider:
         self.manager = ModelManager()
 
     def list_models(self) -> list[TranslationModel]:
-        spec = LOCAL_TRANSLATION_MODEL
-        return [TranslationModel(id=spec.id, name=spec.name, description=spec.description)]
+        return [
+            TranslationModel(id=spec.id, name=spec.name, description=spec.description)
+            for spec in self.manager.list_specs(kind="translation")
+        ]
 
     def test_connection(self) -> ConnectionTestResult:
         installed = self.manager.installed(self.selected_model)
         return ConnectionTestResult(
             ok=installed,
-            message="Local translation model is ready." if installed else "Local translation model must be downloaded first.",
+            message=(
+                "Selected local translation model is ready."
+                if installed
+                else "Selected local translation model must be downloaded first."
+            ),
         )
 
     def translate_batch(self, request: TranslationBatchRequest) -> TranslationBatchResult:
         if not self.manager.installed(self.selected_model):
-            raise ProviderError("Local translation model is not installed. Open Settings → Models to download it.")
+            raise ProviderError(
+                "Selected local translation model is not installed. Open Settings → Models to download it."
+            )
+        spec = self.manager.spec(self.selected_model)
+        if spec.runtime != "m2m100":
+            raise ProviderError(f"Unsupported local translation runtime: {spec.runtime}")
         try:
             from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
 
@@ -50,7 +61,10 @@ class LocalProvider:
         return TranslationBatchResult(
             provider=self.id,
             model=self.selected_model,
-            segments=[TranslationOutput(id=segment.id, text=text.strip()) for segment, text in zip(request.segments, translated, strict=True)],
+            segments=[
+                TranslationOutput(id=segment.id, text=text.strip())
+                for segment, text in zip(request.segments, translated, strict=True)
+            ],
         )
 
 
