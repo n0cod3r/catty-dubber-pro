@@ -1,3 +1,5 @@
+import json
+
 from catty_engine.models import LOCAL_TRANSLATION_MODEL, ModelManager
 from catty_engine.translation.models import (
     GlossaryTerm,
@@ -5,7 +7,11 @@ from catty_engine.translation.models import (
     TranslationContextLine,
     TranslationInput,
 )
-from catty_engine.translation.providers.other import LocalProvider, _hy_mt2_prompt
+from catty_engine.translation.providers.other import (
+    LocalProvider,
+    _hy_mt2_prompt,
+    _normalize_mlx_tokenizer_config,
+)
 
 
 def test_preferred_local_model_is_hy_mt2_7b_q4() -> None:
@@ -23,6 +29,30 @@ def test_local_models_only_include_hy_mt2_choices() -> None:
 def test_removed_model_selection_migrates_to_recommended_model() -> None:
     provider = LocalProvider(selected_model="m2m100-1.2b")
     assert provider.selected_model == "hy-mt2-7b-q4"
+
+
+def test_normalize_mlx_tokenizer_config_repairs_tokenizers_backend(tmp_path) -> None:
+    config_path = tmp_path / "tokenizer_config.json"
+    config_path.write_text(
+        json.dumps({"tokenizer_class": "TokenizersBackend", "model_max_length": 4096}),
+        encoding="utf-8",
+    )
+
+    assert _normalize_mlx_tokenizer_config(tmp_path) is True
+    repaired = json.loads(config_path.read_text(encoding="utf-8"))
+    assert repaired["tokenizer_class"] == "PreTrainedTokenizerFast"
+    assert repaired["model_max_length"] == 4096
+    assert _normalize_mlx_tokenizer_config(tmp_path) is False
+
+
+def test_normalize_mlx_tokenizer_config_leaves_supported_class_unchanged(tmp_path) -> None:
+    config_path = tmp_path / "tokenizer_config.json"
+    config_path.write_text(
+        json.dumps({"tokenizer_class": "PreTrainedTokenizerFast"}), encoding="utf-8"
+    )
+
+    assert _normalize_mlx_tokenizer_config(tmp_path) is False
+    assert json.loads(config_path.read_text(encoding="utf-8"))["tokenizer_class"] == "PreTrainedTokenizerFast"
 
 
 def test_hy_mt2_prompt_translates_only_current_line() -> None:
