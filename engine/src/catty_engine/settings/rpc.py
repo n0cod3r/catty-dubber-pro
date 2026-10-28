@@ -27,6 +27,18 @@ class ProviderParams(BaseModel):
     credential: str | None = None
 
 
+class CredentialAddParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: TranslationProviderId
+    credential: str
+
+
+class CredentialRemoveParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: TranslationProviderId
+    credential_id: str
+
+
 def _stores() -> tuple[SettingsService, CredentialStore]:
     return SettingsService(), CredentialStore()
 
@@ -78,6 +90,47 @@ def update(params: dict[str, Any]) -> dict[str, Any]:
         if provider_id not in PROVIDER_IDS or provider_id == "local":
             raise ValueError(f"Unsupported credential provider: {provider_key}")
         _replace_credentials(provider_id, secret, settings, service, credentials)
+    return snapshot()
+
+
+def add_credential(params: dict[str, Any]) -> dict[str, Any]:
+    parsed = CredentialAddParams.model_validate(params)
+    if parsed.provider == "local":
+        raise ValueError("Local translation does not use API credentials")
+    secret = parsed.credential.strip()
+    if not secret:
+        raise ValueError("Credential must not be empty")
+
+    service, credentials = _stores()
+    settings = service.get()
+    existing = credential_ids(parsed.provider, settings, credentials)
+    credential_id = DEFAULT_CREDENTIAL_ID if not existing else uuid4().hex[:12]
+    credentials.set(parsed.provider, secret, credential_id)
+
+    if credential_id != DEFAULT_CREDENTIAL_ID:
+        provider_settings = getattr(settings.translation.providers, parsed.provider)
+        configured = list(provider_settings.credential_ids)
+        if credential_id not in configured:
+            configured.append(credential_id)
+            service.update({"translation": {"providers": {parsed.provider: {"credential_ids": configured}}}})
+    return snapshot()
+
+
+def remove_credential(params: dict[str, Any]) -> dict[str, Any]:
+    parsed = CredentialRemoveParams.model_validate(params)
+    if parsed.provider == "local":
+        raise ValueError("Local translation does not use API credentials")
+
+    service, credentials = _stores()
+    settings = service.get()
+    existing = credential_ids(parsed.provider, settings, credentials)
+    if parsed.credential_id not in existing:
+        raise ValueError("Credential does not exist")
+
+    credentials.delete(parsed.provider, parsed.credential_id)
+    provider_settings = getattr(settings.translation.providers, parsed.provider)
+    configured = [value for value in provider_settings.credential_ids if value != parsed.credential_id]
+    service.update({"translation": {"providers": {parsed.provider: {"credential_ids": configured}}}})
     return snapshot()
 
 
