@@ -7,10 +7,8 @@ optional metadata and are never allowed to delete recognized dialogue.
 
 from __future__ import annotations
 
-from catty_engine.logging import logged_process
-from catty_engine.progress import report_transcription_phase
-
 import contextlib
+import logging
 import math
 import os
 import sys
@@ -19,8 +17,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from catty_engine.logging import logged_process
+from catty_engine.progress import (
+    report_transcription_phase,
+    transcription_progress,
+)
+from catty_engine.speech.canonical_alignment import align_observed_paraformer
+from catty_engine.speech.diagnostics import current_trace, snapshot
 from catty_engine.speech.model_manager import ModelManager
-from catty_engine.speech.diagnostics import capture_pipeline, current_trace, snapshot
 from catty_engine.speech.models import SpeechRegion, TranscriptSegment, TranscriptionResult
 from catty_engine.speech.wav import read_mono_pcm16
 
@@ -185,7 +189,7 @@ def parse_sentences(
     start: float,
     duration: float,
 ) -> list[TranscriptSegment]:
-    """Convert punctuated FunASR sentence_info into canonical dialogue."""
+    """Convert punctuated FunASR sentence_info into fallback dialogue."""
     segments: list[TranscriptSegment] = []
     labels: dict[int, str] = {}
     for sentence in result[0].get("sentence_info", []) if result else []:
@@ -198,8 +202,24 @@ def parse_sentences(
         if right <= left or not text or not _has_spoken_text(text):
             trace = current_trace()
             if trace is not None and trace.attempt is not None:
-                reason = "invalid_or_clipped_timing" if right <= left else "empty_text" if not text else "punctuation_only"
-                trace.safe(trace.attempt["dropped_regions"].append, {"stage": "sentence_parser", "reason": reason, "start": start + left, "end": start + right, "text": text, "native": snapshot(sentence)})
+                reason = (
+                    "invalid_or_clipped_timing"
+                    if right <= left
+                    else "empty_text"
+                    if not text
+                    else "punctuation_only"
+                )
+                trace.safe(
+                    trace.attempt["dropped_regions"].append,
+                    {
+                        "stage": "sentence_parser",
+                        "reason": reason,
+                        "start": start + left,
+                        "end": start + right,
+                        "text": text,
+                        "native": snapshot(sentence),
+                    },
+                )
             continue
         cluster = sentence.get("spk")
         label = None
@@ -245,22 +265,194 @@ def match_speakers(
     return matched
 
 
+class _ProductionCapture:
+    """Capture the exact VAD→ASR mapping needed for canonical timestamps.
+
+    This is production data, not diagnostic data. FunASR batches VAD chunks in
+    duration order before Paraformer inference, so Catty records that same order
+    while the integrated pass runs and restores absolute source timestamps.
+    """
+
+    def __init__(self, *, source_start: float, return_spk_res: bool) -> None:
+        self.source_start = source_start
+        self.return_spk_res = return_spk_res
+        self.queue: list[dict[str, float]] = []
+        self.cursor = 0
+        self.raw_asr: list[dict[str, Any]] = []
+
+    def observe(self, stage: str, value: Any, input_count: int | None) -> None:
+        rows = snapshot(value)
+        if not isinstance(rows, list):
+            return
+        if stage == "vad":
+            regions: list[dict[str, float]] = []
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                for pair in row.get("value", []):
+                    if not isinstance(pair, list) or len(pair) < 2:
+                        continue
+                    left, right = float(pair[0]), float(pair[1])
+                    regions.append(
+                        {
+                            "start": self.source_start + left / 1000,
+                            "end": self.source_start + right / 1000,
+                            "native_start_ms": left,
+                            "native_end_ms": right,
+                        }
+                    )
+            self.queue = sorted(
+                regions,
+                key=lambda region: region["native_end_ms"] - region["native_start_ms"],
+            )
+            self.cursor = 0
+            return
+        if stage != "asr":
+            return
+
+        count = input_count or 0
+        known = count == len(rows) and self.cursor + count <= len(self.queue)
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                continue
+            region = self.queue[self.cursor + index] if known else None
+            absolute: list[list[float]] = []
+            if region is not None:
+                for pair in row.get("timestamp", []):
+                    if isinstance(pair, list) and len(pair) >= 2:
+                        absolute.append(
+                            [
+                                region["start"] + float(pair[0]) / 1000,
+                                region["start"] + float(pair[1]) / 1000,
+                            ]
+                        )
+                for pair in row.get("timestamps", []):
+                    if (
+                        isinstance(pair, dict)
+                        and "start_time" in pair
+                        and "end_time" in pair
+                    ):
+                        absolute.append(
+                            [
+                                region["start"] + float(pair["start_time"]),
+                                region["start"] + float(pair["end_time"]),
+                            ]
+                        )
+            self.raw_asr.append(
+                {
+                    "vad_region": region,
+                    "mapping": (
+                        "duration_sorted_vad_order"
+                        if known
+                        else "unavailable_result_count_mismatch"
+                    ),
+                    "native": row,
+                    "absolute_word_timestamps": absolute,
+                }
+            )
+        self.cursor += count
+
+
+def _begin_diagnostic_attempt(return_spk_res: bool) -> None:
+    """Let diagnostics observe production capture without owning correctness."""
+    trace = current_trace()
+    if trace is None:
+        return
+    attempt = {
+        "return_spk_res": return_spk_res,
+        "vad_regions": [],
+        "raw_asr": [],
+        "punctuated": [],
+        "dropped_regions": [],
+        "capture_warnings": [],
+    }
+    trace.data["attempts"].append(attempt)
+    trace.attempt = attempt
+    trace.queue = []
+    trace.cursor = 0
+
+
+@contextlib.contextmanager
+def _capture_production_pipeline(
+    pipeline: Any, *, source_start: float, return_spk_res: bool
+):
+    capture = _ProductionCapture(
+        source_start=source_start, return_spk_res=return_spk_res
+    )
+    _begin_diagnostic_attempt(return_spk_res)
+    original = getattr(pipeline, "inference", None)
+    if original is None:
+        raise RuntimeError("FunASR pipeline does not expose the inference hook")
+    own = "inference" in getattr(pipeline, "__dict__", {})
+
+    def observed(*args: Any, **kwargs: Any):
+        model = kwargs.get(
+            "model", args[2] if len(args) > 2 else getattr(pipeline, "model", None)
+        )
+        stage = next(
+            (
+                name
+                for name, attribute in [
+                    ("vad", "vad_model"),
+                    ("punctuation", "punc_model"),
+                    ("asr", "model"),
+                ]
+                if model is not None and model is getattr(pipeline, attribute, None)
+            ),
+            None,
+        )
+        if stage == "vad":
+            report_transcription_phase("vad")
+        elif stage == "punctuation":
+            report_transcription_phase("punctuation")
+        output = original(*args, **kwargs)
+        if stage:
+            input_data = kwargs.get("input", args[0] if args else None)
+            count = (
+                len(input_data)
+                if stage == "asr" and isinstance(input_data, (list, tuple))
+                else None
+            )
+            capture.observe(stage, output, count)
+            trace = current_trace()
+            if trace is not None:
+                trace.safe(trace.observe, stage, output, count)
+                reporter = transcription_progress()
+                if reporter is not None and trace.attempt is not None:
+                    trace.safe(reporter.observe, stage, trace.attempt)
+                if (
+                    stage == "punctuation"
+                    and trace.attempt is not None
+                    and isinstance(input_data, str)
+                ):
+                    trace.attempt["punctuation_input_text"] = input_data
+        return output
+
+    pipeline.inference = observed
+    try:
+        yield capture
+    finally:
+        if own:
+            pipeline.inference = original
+        else:
+            del pipeline.inference
+
+
 @logged_process
 def _run_generate(
     pipeline: Any,
     samples: Any,
     rate: int,
     *,
+    source_start: float,
     return_spk_res: bool,
-) -> list[dict[str, Any]]:
-    """Run the one production pipeline, optionally skipping CAM++ annotation.
-
-    FunASR does not expose a speaker-only entry point: speaker clustering is part
-    of the same ``generate`` call that runs ASR. Reusing the loaded pipeline with
-    ``return_spk_res=False`` is therefore the supported recovery path. It keeps
-    canonical ASR, VAD and CT-Punc output without loading a second model stack.
-    """
-    with capture_pipeline(pipeline, return_spk_res=return_spk_res):
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Run one production pass and return result plus absolute raw word timing."""
+    with _capture_production_pipeline(
+        pipeline,
+        source_start=source_start,
+        return_spk_res=return_spk_res,
+    ) as capture:
         result = pipeline.generate(
             input=samples,
             fs=rate,
@@ -272,7 +464,31 @@ def _run_generate(
         trace = current_trace()
         if trace is not None and trace.attempt is not None:
             trace.safe(lambda: trace.attempt.update(funasr_result=snapshot(result)))
-        return result
+        return result, capture.raw_asr
+
+
+def _canonical_segments(
+    result: list[dict[str, Any]],
+    raw_asr: list[dict[str, Any]],
+    *,
+    start: float,
+    duration: float,
+) -> list[TranscriptSegment]:
+    """Prefer proven raw-word alignment; use sentence_info only as safe fallback."""
+    aligned = align_observed_paraformer(
+        result,
+        raw_asr,
+        start=start,
+        duration=duration,
+    )
+    trace = current_trace()
+    if aligned is not None:
+        if trace is not None:
+            trace.data["canonical_alignment"] = "raw_word_timestamps"
+        return aligned
+    if trace is not None:
+        trace.data["canonical_alignment"] = "sentence_info_fallback"
+    return parse_sentences(result, start=start, duration=duration)
 
 
 class FunASRParaformerBackend:
@@ -294,7 +510,6 @@ class FunASRParaformerBackend:
         *,
         language: str,
     ) -> list[TranscriptSegment]:
-        # A reused backend instance must never leak a previous speaker warning.
         self.speaker_error = None
         if language not in {"zh", "zh-CN", "zh-cn"}:
             raise ValueError("The FunASR Paraformer backend supports Chinese dialogue")
@@ -319,33 +534,51 @@ class FunASRParaformerBackend:
             trace = current_trace()
             if trace is not None:
                 trace.data["model_revisions"] = dict(MODEL_REVISIONS)
-                trace.data["runtime"] = {"device": device, "cpu_threads": ncpu, "max_vad_segment_ms": MAX_VAD_SEGMENT_MS, "batch_size_s": 30, "sentence_timestamp": True}
+                trace.data["runtime"] = {
+                    "device": device,
+                    "cpu_threads": ncpu,
+                    "max_vad_segment_ms": MAX_VAD_SEGMENT_MS,
+                    "batch_size_s": 30,
+                    "sentence_timestamp": True,
+                }
             model_paths = tuple(models.items())
             pipeline = _load_pipeline(model_paths, device, ncpu)
             audio_duration = min(duration, len(samples) / rate)
             try:
-                result = _run_generate(
-                    pipeline, samples, rate, return_spk_res=True
+                result, raw_asr = _run_generate(
+                    pipeline,
+                    samples,
+                    rate,
+                    source_start=start,
+                    return_spk_res=True,
                 )
-                return parse_sentences(
-                    result, start=start, duration=audio_duration
+                return _canonical_segments(
+                    result,
+                    raw_asr,
+                    start=start,
+                    duration=audio_duration,
                 )
             except Exception as speaker_exc:
-                # No clean speaker-only exception boundary exists inside FunASR.
-                # Retry the SAME pipeline without CAM++; if the transcript comes
-                # back, the failure was speaker-related. If it also fails, the
-                # original error is chained and the real ASR failure surfaces.
                 try:
-                    result = _run_generate(
-                        pipeline, samples, rate, return_spk_res=False
+                    result, raw_asr = _run_generate(
+                        pipeline,
+                        samples,
+                        rate,
+                        source_start=start,
+                        return_spk_res=False,
                     )
-                    segments = parse_sentences(
-                        result, start=start, duration=audio_duration
+                    segments = _canonical_segments(
+                        result,
+                        raw_asr,
+                        start=start,
+                        duration=audio_duration,
                     )
                 except Exception as transcription_exc:
                     raise transcription_exc from speaker_exc
-                import logging
-                logging.getLogger(__name__).warning("Speaker detection failed; retaining transcript without speaker labels: %s", speaker_exc)
+                logging.getLogger(__name__).warning(
+                    "Speaker detection failed; retaining transcript without speaker labels: %s",
+                    speaker_exc,
+                )
                 self.speaker_error = str(speaker_exc)
                 return segments
 
