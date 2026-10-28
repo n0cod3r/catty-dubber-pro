@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { TranscriptSegment } from "@catty/contracts";
+import type { EdgeVoice, TranscriptSegment } from "@catty/contracts";
 import {
   AlertTriangle,
   Film,
@@ -12,11 +12,20 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/shared/utils/time";
 
 import type { DialogueEditing } from "../hooks/use-dialogue-editing";
+import { useSpeakerVoices } from "../hooks/use-speaker-voices";
 import type { TranslationEditing } from "../hooks/use-translation";
 import type { TtsEditing } from "../hooks/use-tts";
 import {
@@ -65,6 +74,7 @@ function hasSplittableText(text: string): boolean {
 
 export function Inspector({
   episode,
+  projectDirectory,
   currentTime,
   followTimeline,
   onSeek,
@@ -73,6 +83,7 @@ export function Inspector({
   tts,
 }: {
   episode: EpisodeMedia | null;
+  projectDirectory: string;
   currentTime: number;
   followTimeline: boolean;
   onSeek: (time: number) => void;
@@ -91,7 +102,8 @@ export function Inspector({
     persistedSegments(episode?.dialogueSegments),
   );
   const listRef = useRef<HTMLDivElement>(null);
-  const rowRefs = useRef(new Map<string, HTMLButtonElement>());
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  const speakerVoices = useSpeakerVoices(episode, projectDirectory, tts);
   const activeId = activeDialogueId(segments, currentTime);
   const [textEditorId, setTextEditorId] = useState<string | null>(null);
   const textEditorSegment = segments.find(
@@ -343,6 +355,14 @@ export function Inspector({
             dialogue={dialogue}
             speakerWarning={speakerWarning}
             error={error}
+            voices={tts.voices}
+            speakerVoiceIds={speakerVoices.voiceBySpeaker}
+            assigningSpeakerId={tts.assigningSpeakerId}
+            assigningDisabled={
+              busy || tts.generating || !!tts.assigningSpeakerId
+            }
+            onAssignVoice={speakerVoices.assign}
+            voiceError={tts.error}
           />
         ) : (
           <TranslationPanel
@@ -671,7 +691,7 @@ function SourcePanel(props: {
   episode: EpisodeMedia | null;
   segments: DialogueRow[];
   listRef: React.RefObject<HTMLDivElement | null>;
-  rowRefs: React.RefObject<Map<string, HTMLButtonElement>>;
+  rowRefs: React.RefObject<Map<string, HTMLDivElement>>;
   activeId: string | null;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
@@ -696,6 +716,12 @@ function SourcePanel(props: {
   dialogue: DialogueEditing;
   speakerWarning: string | null;
   error: string | null;
+  voices: EdgeVoice[];
+  speakerVoiceIds: Record<string, string>;
+  assigningSpeakerId: string | null;
+  assigningDisabled: boolean;
+  onAssignVoice: (speakerId: string, voiceId: string) => unknown;
+  voiceError: string | null;
 }) {
   const {
     episode,
@@ -723,6 +749,12 @@ function SourcePanel(props: {
     dialogue,
     speakerWarning,
     error,
+    voices,
+    speakerVoiceIds,
+    assigningSpeakerId,
+    assigningDisabled,
+    onAssignVoice,
+    voiceError,
   } = props;
   if (!segments.length)
     return (
@@ -818,40 +850,91 @@ function SourcePanel(props: {
           const speaker = (episode?.speakers ?? []).find(
             (item) => item.id === segment.speakerId,
           );
+          const speakerId = segment.speakerId;
+          const assigning = assigningSpeakerId === speakerId;
+          const assignedVoice = speakerId
+            ? voices.find((voice) => voice.id === speakerVoiceIds[speakerId])
+            : undefined;
           return (
-            <button
+            <div
               key={segment.id}
               ref={(node) => {
                 if (node) rowRefs.current.set(segment.id, node);
                 else rowRefs.current.delete(segment.id);
               }}
-              type="button"
               className={cn(
-                "grid w-full grid-cols-[28px_78px_42px_minmax(0,1fr)] items-start border-b border-l-2 border-l-transparent px-2 py-1.5 text-left space-x-4",
+                "flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-l-2 border-l-transparent px-2 py-1.5",
                 active && "border-l-primary bg-primary/10",
                 selectedRow &&
                   "bg-primary/20 ring-1 ring-inset ring-primary/50",
                 "hover:bg-muted/40",
               )}
-              onClick={() => {
-                setSelectedId(segment.id);
-                onSeek(segment.start);
-              }}
-              onDoubleClick={() => setTextEditorId(segment.id)}
             >
-              <span className="text-[9px] text-muted-foreground">
-                {index + 1}
-              </span>
-              <span className="text-[9px] tabular-nums text-muted-foreground">
-                {formatTime(segment.start, true)}
-              </span>
-              <span className="rounded bg-primary/10 px-1 py-0.5 text-center text-[8px] font-medium text-primary">
-                {speaker?.name ?? "—"}
-              </span>
-              <span className="min-w-0 text-[11px] leading-[1.45]">
-                {segment.text}
-              </span>
-            </button>
+              <button
+                type="button"
+                className="grid min-w-48 flex-1 grid-cols-[28px_74px_42px_minmax(0,1fr)] items-start gap-x-3 text-left"
+                onClick={() => {
+                  setSelectedId(segment.id);
+                  onSeek(segment.start);
+                }}
+                onDoubleClick={() => setTextEditorId(segment.id)}
+              >
+                <span className="text-[9px] text-muted-foreground">
+                  {index + 1}
+                </span>
+                <span className="text-[9px] tabular-nums text-muted-foreground">
+                  {formatTime(segment.start, true)}
+                </span>
+                <span className="rounded bg-primary/10 px-1 py-0.5 text-center text-[8px] font-medium text-primary">
+                  {speaker?.name ?? "—"}
+                </span>
+                <span className="min-w-0 text-[11px] leading-[1.45]">
+                  {segment.text}
+                </span>
+              </button>
+              {speakerId && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <Volume2 className="size-2.5 shrink-0 text-muted-foreground" />
+                  <Select
+                    value={speakerVoiceIds[speakerId] ?? ""}
+                    disabled={assigningDisabled}
+                    onValueChange={(voiceId) => {
+                      if (speakerId && voiceId)
+                        void onAssignVoice(speakerId, voiceId);
+                    }}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      aria-label={`Voice for ${speaker?.name ?? "speaker"} on line ${index + 1}`}
+                      title={
+                        assignedVoice
+                          ? `${assignedVoice.name} · ${assignedVoice.gender}. Changing the voice keeps existing audio and marks it outdated.`
+                          : "Assign this speaker's voice. Existing audio is kept and marked outdated."
+                      }
+                      className="w-36 pr-1 pl-1.5 text-[8px]"
+                    >
+                      <SelectValue placeholder="Assign voice" />
+                    </SelectTrigger>
+                    <SelectContent align="start" className="min-w-64">
+                      <SelectGroup>
+                        {voices.map((voice) => (
+                          <SelectItem
+                            key={voice.id}
+                            value={voice.id}
+                            className="text-[10px]"
+                          >
+                            {voice.name} · {voice.gender}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {assigning && (
+                    <LoaderCircle className="size-3 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
@@ -914,6 +997,14 @@ function SourcePanel(props: {
           className="border-t px-2 py-1.5 text-[10px] text-destructive"
         >
           {error}
+        </p>
+      )}
+      {voiceError && (
+        <p
+          role="alert"
+          className="border-t px-2 py-1.5 text-[10px] text-destructive"
+        >
+          {voiceError}
         </p>
       )}
     </div>
