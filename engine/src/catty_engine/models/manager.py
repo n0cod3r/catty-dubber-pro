@@ -258,15 +258,19 @@ class ModelManager:
     def remove(self, model_id: str) -> dict[str, object]:
         """Cancel an active download, otherwise remove installed/partial model data."""
         spec = self.spec(model_id)
+        cancelling = False
         with _JOBS_LOCK:
             job = _JOBS.get(model_id)
             if job is not None and job.status == "downloading":
                 job.status = "cancelling"
                 job.cancel_event.set()
-                return self._snapshot(spec)
-            if job is not None and job.status == "cancelling":
-                return self._snapshot(spec)
-            _JOBS.pop(model_id, None)
+                cancelling = True
+            elif job is not None and job.status == "cancelling":
+                cancelling = True
+            else:
+                _JOBS.pop(model_id, None)
+        if cancelling:
+            return self._snapshot(spec)
         shutil.rmtree(self.path_for(model_id), ignore_errors=True)
         shutil.rmtree(self.staging_path_for(model_id), ignore_errors=True)
         return self._snapshot(spec)
