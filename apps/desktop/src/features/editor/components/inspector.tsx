@@ -55,7 +55,7 @@ export function Inspector({ episode, currentTime, followTimeline, onSeek, dialog
   const textEditorSegment = segments.find((segment) => segment.id === textEditorId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedIndex = useMemo(() => segments.findIndex((segment) => segment.id === selectedId), [segments, selectedId]);
-  const selected = selectedIndex >= 0 ? segments[selectedIndex] : null;
+  const selected = selectedIndex >= 0 ? (segments[selectedIndex] ?? null) : null;
   const canSplit = !!selected && currentTime > selected.start + 0.05 && currentTime < selected.end - 0.05;
   const canMergeNext = selectedIndex >= 0 && selectedIndex < segments.length - 1;
 
