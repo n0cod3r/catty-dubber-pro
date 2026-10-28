@@ -20,39 +20,41 @@ class SettingsUpdateParams(BaseModel):
     settings: AppSettings
     credentials: dict[str, str | None] = Field(default_factory=dict)
 
-
 class ProviderParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: TranslationProviderId
     credential: str | None = None
-
 
 class CredentialAddParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: TranslationProviderId
     secret: str
 
-
 class CredentialRemoveParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: TranslationProviderId
     credential_id: str
 
+class ModelParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    model_id: str = Field(min_length=1)
+
+class ModelStatusParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    model_id: str | None = None
+
 
 def _stores() -> tuple[SettingsService, CredentialStore]:
     return SettingsService(), CredentialStore()
 
-
 def _credential_snapshot(settings: AppSettings, credentials: CredentialStore) -> dict[str, list[str]]:
     return {provider_id: credential_ids(provider_id, settings, credentials) for provider_id in PROVIDER_IDS if provider_id != "local"}
-
 
 def snapshot() -> dict[str, Any]:
     service, credentials = _stores()
     settings = service.get()
     ids = _credential_snapshot(settings, credentials)
     return {"settings": settings.model_dump(mode="json"), "credentials": {provider_id: bool(values) for provider_id, values in ids.items()}, "credential_ids": ids}
-
 
 def _replace_credentials(provider_id: TranslationProviderId, raw: str | None, settings: AppSettings, service: SettingsService, credentials: CredentialStore) -> None:
     provider_settings = getattr(settings.translation.providers, provider_id)
@@ -76,7 +78,6 @@ def _replace_credentials(provider_id: TranslationProviderId, raw: str | None, se
     provider_settings.credential_ids = [value for value in new_ids if value != DEFAULT_CREDENTIAL_ID]
     service.update({"translation": {"providers": {provider_id: {"credential_ids": provider_settings.credential_ids}}}})
 
-
 def update(params: dict[str, Any]) -> dict[str, Any]:
     parsed = SettingsUpdateParams.model_validate(params)
     service, credentials = _stores()
@@ -87,7 +88,6 @@ def update(params: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(f"Unsupported credential provider: {provider_key}")
         _replace_credentials(provider_id, secret, settings, service, credentials)
     return snapshot()
-
 
 def add_credential(params: dict[str, Any]) -> dict[str, Any]:
     parsed = CredentialAddParams.model_validate(params)
@@ -109,7 +109,6 @@ def add_credential(params: dict[str, Any]) -> dict[str, Any]:
             service.update({"translation": {"providers": {parsed.provider: {"credential_ids": configured}}}})
     return snapshot()
 
-
 def remove_credential(params: dict[str, Any]) -> dict[str, Any]:
     parsed = CredentialRemoveParams.model_validate(params)
     if parsed.provider == "local":
@@ -125,11 +124,9 @@ def remove_credential(params: dict[str, Any]) -> dict[str, Any]:
     service.update({"translation": {"providers": {parsed.provider: {"credential_ids": configured}}}})
     return snapshot()
 
-
 def providers() -> list[dict[str, Any]]:
     service, credentials = _stores()
     return [item.model_dump(mode="json") for item in provider_infos(service.get(), credentials)]
-
 
 def _provider_for_request(parsed: ProviderParams):
     service, credentials = _stores()
@@ -140,20 +137,27 @@ def _provider_for_request(parsed: ProviderParams):
         secret = credentials.get(parsed.provider, ids[0]) if ids else None
     return create_provider(parsed.provider, settings, credential=secret)
 
-
 def models(params: dict[str, Any]) -> list[dict[str, Any]]:
     parsed = ProviderParams.model_validate(params)
-    if parsed.provider == "local" and parsed.credential:
-        manager = ModelManager()
-        if parsed.credential.startswith("install:"):
-            manager.install(parsed.credential.removeprefix("install:"))
-        elif parsed.credential.startswith("remove:"):
-            manager.remove(parsed.credential.removeprefix("remove:"))
     if parsed.provider == "local":
         return ModelManager().list_models()
     provider = _provider_for_request(parsed)
     return [item.model_dump(mode="json") for item in provider.list_models()]
 
+def model_list() -> list[dict[str, object]]:
+    return ModelManager().list_models()
+
+def model_install(params: dict[str, Any]) -> dict[str, object]:
+    parsed = ModelParams.model_validate(params)
+    return ModelManager().start_install(parsed.model_id)
+
+def model_install_status(params: dict[str, Any]) -> list[dict[str, object]]:
+    parsed = ModelStatusParams.model_validate(params)
+    return ModelManager().install_status(parsed.model_id)
+
+def model_remove(params: dict[str, Any]) -> dict[str, object]:
+    parsed = ModelParams.model_validate(params)
+    return ModelManager().remove(parsed.model_id)
 
 def test_connection(params: dict[str, Any]) -> dict[str, Any]:
     provider = _provider_for_request(ProviderParams.model_validate(params))
