@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from catty_engine.progress import emit_tts_progress
 from catty_engine.project import ProjectService
@@ -34,6 +34,14 @@ class TTSGenerateParams(BaseModel):
     pitch: int = Field(default=0, ge=-100, le=100)
     volume: int = Field(default=0, ge=-100, le=100)
     cancel_file: Path | None = None
+    assign_speaker_id: UUID | None = None
+    assign_only: bool = False
+
+    @model_validator(mode="after")
+    def validate_assignment(self) -> TTSGenerateParams:
+        if self.assign_only and self.assign_speaker_id is None:
+            raise ValueError("assign_only requires assign_speaker_id")
+        return self
 
 
 class TTSPreviewParams(BaseModel):
@@ -80,6 +88,17 @@ def preview(params: dict[str, Any]) -> dict[str, str]:
 def generate(params: dict[str, Any]) -> dict[str, Any]:
     parsed = TTSGenerateParams.model_validate(params)
     service = TTSService()
+
+    if parsed.assign_speaker_id is not None:
+        episode = service.assign_speaker_voice(
+            parsed.project_directory,
+            parsed.episode_id,
+            parsed.assign_speaker_id,
+            parsed.voice_profile_id,
+        )
+        if parsed.assign_only:
+            return episode.model_dump(mode="json")
+
     last_completed = 0
     last_total = 0
 
