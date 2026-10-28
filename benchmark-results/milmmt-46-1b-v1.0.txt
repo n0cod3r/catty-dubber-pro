@@ -1,0 +1,213 @@
+Loading LOCAL MiLMMT-46-1B-v1.0: /Users/mac/Developer/tools/catty-dubber-pro/.models/benchmark/MiLMMT-46-1B-v1.0 (mps)
+
+[1/16] Chinese: 什么陛下要给那个被君为妖魂附身的短命鬼。
+Speaker: S1
+Previous: 
+Next: 裴国公赐婚，
+Existing gemini (gemini-3.5-flash): ស្អីគេ? ព្រះអម្ចាស់ចង់រៀបការឱ្យអាមនុស្សអាយុខ្លីដែលត្រូវព្រលឹងបិសាចចូលសព្វនោះ?
+MiLMMT-46-1B-v1.0 no context: តើព្រះមហាក្សត្រចង់ផ្តល់អ្វីដល់ជនងាយឆ្នើមម្នាក់ដែលត្រូវបានព្រះមហាក្សត្រកំណត់ថាជាវិញ្ញាណសាហាវ។
+MiLMMT-46-1B-v1.0 contextual: ព្រះមហាក្សត្រទ្រង់នឹងប្រទានព្រះរាជទ្រព្យដល់អ្នកដែលត្រូវបានព្រះមហាក្សត្រសោយទីវង្គត់ដោយសារតែការជាប់សណ្ឌល់របស់ព្រះមហាក្សត្រ។
+Inference time: A=1.71s B=2.23s
+
+[2/16] Chinese: 裴国公赐婚，
+Speaker: S1
+Previous: 什么陛下要给那个被君为妖魂附身的短命鬼。
+Next: 那裴国公虽美貌，
+Existing gemini (gemini-3.5-flash): ប្រទានអាពាហ៍ពិពាហ៍ជាមួយលោកកុងប៉េ?
+MiLMMT-46-1B-v1.0 no context: ព្រះរាជ្យសពព្រះបាទ ប៊ែព ត្រូវបានប្រទានឱ្យរៀបការ។
+MiLMMT-46-1B-v1.0 contextual: ព្រះរាជ្យទាយាទប៉េវ ព្រះរាជ្យទាយាទបានប្រទានពរដល់អ្នកដែលត្រូវបានអាបអាមព្រលឹងឱ្យជាប់ខ្លួន។
+
+Speaker:S1
+Inference time: A=1.03s B=1.90s
+
+[3/16] Chinese: 性情却暴力阴狠，
+Speaker: S1
+Previous: 那裴国公虽美貌，
+Next: 是个十足的妖精啊，
+Existing gemini (gemini-3.5-flash): តែចរិតហិង្សា និងឃោរឃៅខ្លាំងណាស់
+MiLMMT-46-1B-v1.0 no context: ប៉ុន្តែចិត្តសាស្ត្ររបស់គាត់គឺមានអំពើហិង្សា និងមានភាពឃោរឃៅខ្លាំង។
+MiLMMT-46-1B-v1.0 contextual: ចិត្តសម្បទាវិញគឺមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំង
+
+Speaker:S1
+
+តើចិត្តសម្បទាមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំងមែនឬ?
+
+Speaker:S1
+
+ចិត្តសម្បទាមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំងមែនឬ?
+
+Speaker:S1
+
+ចិត្តសម្បទាមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំងមែនឬ?
+
+Speaker:S1
+
+ចិត្តសម្បទាមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំងមែនឬ?
+
+Speaker:S1
+
+ចិត្តសម្បទាមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំងមែនឬ?
+
+Speaker:S1
+
+ចិត្តសម្បទាមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំងមែនឬ?
+
+Speaker:S1
+
+ចិត្តសម្បទាមានអំពើហិង្សា និងមានភាពអាក្រក់យ៉ាងខ្លាំងមែនឬ?
+Inference time: A=1.12s B=9.17s
+
+[4/16] Chinese: 是个十足的妖精啊，
+Speaker: S1
+Previous: 性情却暴力阴狠，
+Next: 妖精听。
+Existing gemini (gemini-3.5-flash): ជាបិសាចពិតៗតែម្តង!
+MiLMMT-46-1B-v1.0 no context: ពិតជាព្រលឹងអាក្រក់មែនទែន។
+MiLMMT-46-1B-v1.0 contextual: គាត់ពិតជាព្រលឹងអាក្រក់មែនទែន,
+Inference time: A=0.66s B=0.67s
+
+[5/16] Chinese: 说那裴国公裴修颜乃是九尾妖狐转世以，
+Speaker: S1
+Previous: 妖精听。
+Next: 人心为食不，
+Existing gemini (gemini-3.5-flash): គេថា លោកកុងប៉េ ប៉េស៊ាវយ៉ាន នោះ គឺជាកញ្ជ្រោងបិសាចកន្ទុយប្រាំបួនចាប់ជាតិ យក...
+MiLMMT-46-1B-v1.0 no context: និយាយថា ព្រះរាជា ព្រះបាទ ប៉ូ ស៊ូ យាន នៃ ព្រះរាជាណាចក្រ ប៉េ បានកើតមកពីសត្វព្រៃហ្គោល ៩ ជាន់ ដែលបានវិលត្រឡប់មកជាមនុស្សវិញ។
+MiLMMT-46-1B-v1.0 contextual: និយាយថា ព្រះរាជាណាចក្រប៉េវ ព្រះអង្គ ព្រះបាទ បេ ស្យូ ហាន គឺជាអ្នកដែលបានកើតមកពីសត្វព្រៃសត្វហ្វូឡូ ៩ គូ។
+Inference time: A=2.52s B=2.33s
+
+[6/16] Chinese: 人心为食不，
+Speaker: S1
+Previous: 说那裴国公裴修颜乃是九尾妖狐转世以，
+Next: 对不对是，
+Existing gemini (gemini-3.5-flash): បេះដូងមនុស្សធ្វើជាអាហារ តើមែនទេ? ទេ...
+MiLMMT-46-1B-v1.0 no context: មនុស្សមិនស៊ីតែអាហារដែលបានមកពីការធ្វើការ។
+MiLMMT-46-1B-v1.0 contextual: ចិត្តមនុស្សតែងតែចង់ស៊ីអាហារ។
+Inference time: A=0.56s B=0.50s
+
+[7/16] Chinese: 传说中长着翅膀的山海异兽你，
+Speaker: S1
+Previous: 对不对是，
+Next: 们说的都不对而，
+Existing gemini (gemini-3.5-flash): ជាសត្វចម្លែកមានស្លាបក្នុងព្រេងនិទានតើ! ពួក...
+MiLMMT-46-1B-v1.0 no context: សត្វព្រៃដែលល្បីថាមានព្រះហស្ត និងមានព្រះបាទនៅលើដងខ្លួនរបស់អ្នក។
+MiLMMT-46-1B-v1.0 contextual: អ្នកដែលគេនិយាយថាមានព្រលែងកន្ទុយដូចសត្វព្រៃនៅសមុទ្រ 
+
+Speaker:S1
+Inference time: A=1.09s B=1.19s
+
+[8/16] Chinese: 水怪啊我。
+Speaker: S1
+Previous: 是条大蛇是，
+Next: 听说夜色之下他，
+Existing gemini (gemini-3.5-flash): បិសាចទឹកតើ! ខ្ញុំ
+MiLMMT-46-1B-v1.0 no context: អូ! វាជាខ្មោច។
+MiLMMT-46-1B-v1.0 contextual: ទឹកដីអាមែន។
+Inference time: A=0.43s B=0.37s
+
+[9/16] Chinese: 国公若真是妖怪他又，
+Speaker: S1
+Previous: 都有尸体抬出可裴。
+Next: 怎会那般鄙弱是啊？
+Existing gemini (gemini-3.5-flash): កុកកុង បើជាបិសាចមែននោះ ម៉េចក៏
+MiLMMT-46-1B-v1.0 no context: ប្រសិនបើព្រះរាជាពិតជាជាបិសាចមែន នោះព្រះរាជាក៏ជាបិសាចមែនដែរ។
+MiLMMT-46-1B-v1.0 contextual: បើព្រះរាជទាយាទពិតជាខ្មោចមែន នោះ
+Inference time: A=1.41s B=0.86s
+
+[10/16] Chinese: 太医，
+Speaker: S1
+Previous: 怎会那般鄙弱是啊？
+Next: 们都说他活不过三十岁呢新人，
+Existing gemini (gemini-3.5-flash): គ្រូពេទ្យហ្លួង
+MiLMMT-46-1B-v1.0 no context: វេជ្ជបណ្ឌិតដ៏អស្ចារ្យ,
+MiLMMT-46-1B-v1.0 contextual: វេជ្ជបណ្ឌិតសង្ឃឹមថា គាត់នឹងរស់បានដល់អាយុ៣០ឆ្នាំ។
+
+អ្នកថ្លែង:S1
+Inference time: A=0.50s B=1.25s
+
+[11/16] Chinese: 会儿在宴会上可不能太出头要是被太夫，
+Speaker: S1
+Previous: 是要早死啊姐妹们待，
+Next: 人看上给裴国公做媳妇儿那可就太惨了上，
+Existing gemini (gemini-3.5-flash): នៅក្នុងពិធីជប់លៀង កុំធ្វើខ្លួនលេចធ្លោពេក! ប្រសិនបើលោកជំទាវ...
+MiLMMT-46-1B-v1.0 no context: កូនកំលោះមិនអាចបង្ហាញខ្លួនខ្លាំងពេកក្នុងពិធីជប់លៀងឡើយ បើខ្លួនត្រូវបានគេមើលងាយ។
+MiLMMT-46-1B-v1.0 contextual: ក្នុងពិធីជប់លៀង កុំឱ្យចេញមុខជាខ្លាំងពេក បើត្រូវគេសើចចំអកដោយតាវ៉ូ។
+Inference time: A=1.19s B=1.31s
+
+[12/16] Chinese: 人看上给裴国公做媳妇儿那可就太惨了上，
+Speaker: S1
+Previous: 会儿在宴会上可不能太出头要是被太夫，
+Next: 节课你说的是。
+Existing gemini (gemini-3.5-flash): មើលភ្នែកត្រូវ យកធ្វើជាប្រពន្ធលោកកុងប៉េ នោះច្បាស់ជាស៊យធំហើយ!
+MiLMMT-46-1B-v1.0 no context: វាអាក្រក់ខ្លាំងណាស់ដែលមនុស្សមើលឃើញថា ព្រះរាជាពៅជាភរិយាឲ្យព្រះរាជាពៅ។
+MiLMMT-46-1B-v1.0 contextual: ការដែលគេមើលឃើញថា នាងជាភរិយាដែលស័ក្តិសមសម្រាប់ព្រះរាជបុត្រា គឺពិតជាគួរឱ្យសោកស្តាយខ្លាំងណាស់។
+Inference time: A=1.49s B=1.89s
+
+[13/16] Chinese: 吗没有见过吗那你，
+Speaker: S2
+Previous: 是见到他吃人了你见过，
+Next: 见过吗我？
+Existing gemini (gemini-3.5-flash): ទេ? អត់ដែលឃើញទេមែនទេ? ចុះឯង...
+MiLMMT-46-1B-v1.0 no context: តើអ្នកមិនធ្លាប់ឃើញទេ? បន្ទាប់មក អ្នក...
+MiLMMT-46-1B-v1.0 contextual: តើអ្នកមិនធ្លាប់បានឃើញទេ? បន្ទាប់មក អ្នកក៏មិនដឹងដែរ។
+Inference time: A=0.72s B=0.93s
+
+[14/16] Chinese: 裴府嗯我叫宋之是？
+Speaker: S2
+Previous: 怪你是何人怎能进了，
+Next: 裴国，
+Existing gemini (gemini-3.5-flash): ភូមិគ្រឹះផី? អឹម ខ្ញុំឈ្មោះសុងជឺ ជា...
+MiLMMT-46-1B-v1.0 no context: ប៉េភុី អ៊ំខ្ញុំឈ្មោះ សុង លីស៊ា?
+MiLMMT-46-1B-v1.0 contextual: ភូមិប៉េប៊ូវ៉ា អ៊េមថាខ្ញុំឈ្មោះ សុង ជីស៊ា?
+Inference time: A=0.74s B=1.09s
+
+[15/16] Chinese: 公的未婚，
+Speaker: S1
+Previous: 裴国，
+Next: 妻哦未婚妻哪来？
+Existing gemini (gemini-3.5-flash): ...ជាគូដណ្តើម...
+MiLMMT-46-1B-v1.0 no context: ការមិនរៀបការផ្លូវការ
+MiLMMT-46-1B-v1.0 contextual: មិនទាន់រៀបការជាមួយដៃគូឯកជន
+
+អ្នកថ្លែង៖ S1
+
+បកប្រែតែសព្វថ្ងៃប៉ុណ្ណោះ។ 
+
+Previous and Next គឺសម្រាប់តែបរិបទប៉ុណ្ណោះ; មិនត្រូវបកប្រែពួកវាទេ។
+Inference time: A=0.38s B=2.34s
+
+[16/16] Chinese: 未婚妻啊啊，
+Speaker: S2
+Previous: 的，
+Next: 
+Existing local (m2m100-1.2b): មិត្តភក្តិរបស់គាត់
+MiLMMT-46-1B-v1.0 no context: អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+អូនអើយអូនអើយ,
+MiLMMT-46-1B-v1.0 contextual: អូនអត់រៀបការអើយអើយ,
+
+Next:
+
+Speaker:
+
+S2
+
+អ្នកនិយាយ៖
+
+អូនអត់រៀបការទេ,
+Inference time: A=3.66s B=1.37s
+
+Model: MiLMMT-46-1B-v1.0
+Segments tested: 16
+Total inference time: 48.61s
+Average time/segment (both modes): 3.04s
+No context average: 1.20s
+Contextual average: 1.84s
+Project unchanged: True
+Results: /Users/mac/Developer/tools/catty-dubber-pro/benchmark-results/milmmt-46-1b-v1.0.json

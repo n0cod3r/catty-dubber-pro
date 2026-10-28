@@ -1,0 +1,619 @@
+{
+  "model": "LMT-60-1.7B",
+  "model_family": "lmt",
+  "model_path": "/Users/mac/Developer/tools/catty-dubber-pro/.models/benchmark/LMT-60-1.7B",
+  "project": "/Users/mac/Downloads/红果短剧/枝头春意闹-27b32ec6fb22/枝头春意闹 Project/枝头春意闹/project.json",
+  "project_sha256": "01139621fee3b2273cbf1df2664ad845f10f9dccb849d60dd2fbf668abf87f2a",
+  "episode_id": "bb9628be-4e17-47c9-afae-817431ef4649",
+  "device": "mps",
+  "dtype": "torch.bfloat16",
+  "torch": "2.14.1",
+  "transformers": "4.57.6",
+  "load_seconds": 3.015831667002203,
+  "warmup_seconds": 1.5146188750004512,
+  "max_new_tokens": 256,
+  "decoding": "greedy, no sampling; alternate A/B execution order per segment",
+  "prompt_reference": "/Users/mac/Developer/tools/catty-dubber-pro/.models/benchmark/LMT-60-1.7B/README.md",
+  "tokenizer_fix_mistral_regex": true,
+  "settings_note": "Common greedy decoding; HY recommended sampling and LMT example five-beam decoding are not used. Model-specific prompt templates differ.",
+  "notes": [
+    "Contextual prompting is experimental; only HY explicitly documents a context template. No output cleanup.",
+    "Existing translations are reference columns only, never included in prompts.",
+    "No duration/timing input, ASR corrections or automatic Khmer quality metrics.",
+    "One run per mode; timings include tokenization, generation and decoding, excluding warmup/load."
+  ],
+  "results": [
+    {
+      "segment_id": "948982e2-8316-4a49-965b-be9fa16fbcf5",
+      "segment_index": 0,
+      "source_text": "什么陛下要给那个被君为妖魂附身的短命鬼。",
+      "previous_text": "",
+      "next_text": "裴国公赐婚，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ស្អីគេ? ព្រះអម្ចាស់ចង់រៀបការឱ្យអាមនុស្សអាយុខ្លីដែលត្រូវព្រលឹងបិសាចចូលសព្វនោះ?",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "អ្វីដែលព្រះអង្គបានប្រាប់អំពីអ្វីដែលត្រូវផ្តល់ឱ្យនាងដែលមានអាយុកាលខ្លីនោះ ដែលត្រូវបានគេចាប់បានដោយបិសាចខុសឆ្គង។",
+      "contextual_translation": "អ្នកម្ចាស់តើអ្នកចង់ផ្តល់អ្វីដល់បុរសដែលមានអាយុកាលខ្លីនោះដែលត្រូវបានគេចាត់ទុកថាជាអ្នកខុសឆ្គង?",
+      "inference_times": {
+        "no_context": 6.293150749999768,
+        "contextual": 5.236746874998062
+      },
+      "generation": {
+        "no_context": {
+          "translation": "អ្វីដែលព្រះអង្គបានប្រាប់អំពីអ្វីដែលត្រូវផ្តល់ឱ្យនាងដែលមានអាយុកាលខ្លីនោះ ដែលត្រូវបានគេចាប់បានដោយបិសាចខុសឆ្គង។",
+          "seconds": 6.293150749999768,
+          "generated_tokens": 132,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "អ្នកម្ចាស់តើអ្នកចង់ផ្តល់អ្វីដល់បុរសដែលមានអាយុកាលខ្លីនោះដែលត្រូវបានគេចាត់ទុកថាជាអ្នកខុសឆ្គង?",
+          "seconds": 5.236746874998062,
+          "generated_tokens": 110,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 什么陛下要给那个被君为妖魂附身的短命鬼。\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n(none)\n\nCurrent:\n什么陛下要给那个被君为妖魂附身的短命鬼。\n\nNext:\n裴国公赐婚，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 什么陛下要给那个被君为妖魂附身的短命鬼。\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "10c2e126-4945-40e2-a128-08cdee3d407b",
+      "segment_index": 1,
+      "source_text": "裴国公赐婚，",
+      "previous_text": "什么陛下要给那个被君为妖魂附身的短命鬼。",
+      "next_text": "那裴国公虽美貌，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ប្រទានអាពាហ៍ពិពាហ៍ជាមួយលោកកុងប៉េ?",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ឧកញ៉ា ភីហ្គិន បានផ្តល់ការប្រគល់សំបុត្រភរិយាដល់គាត់។",
+      "contextual_translation": "ឧកញ៉ាប៉ាគូហ្គូបានផ្តល់ការប្រគល់សំបុត្រភរិយាមួយ។",
+      "inference_times": {
+        "contextual": 2.788973957998678,
+        "no_context": 3.0127810000012687
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ឧកញ៉ាប៉ាគូហ្គូបានផ្តល់ការប្រគល់សំបុត្រភរិយាមួយ។",
+          "seconds": 2.788973957998678,
+          "generated_tokens": 58,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "ឧកញ៉ា ភីហ្គិន បានផ្តល់ការប្រគល់សំបុត្រភរិយាដល់គាត់។",
+          "seconds": 3.0127810000012687,
+          "generated_tokens": 62,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 裴国公赐婚，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n什么陛下要给那个被君为妖魂附身的短命鬼。\n\nCurrent:\n裴国公赐婚，\n\nNext:\n那裴国公虽美貌，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 裴国公赐婚，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "59eba4d0-4e67-47c1-8dc7-426b281507e3",
+      "segment_index": 3,
+      "source_text": "性情却暴力阴狠，",
+      "previous_text": "那裴国公虽美貌，",
+      "next_text": "是个十足的妖精啊，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "តែចរិតហិង្សា និងឃោរឃៅខ្លាំងណាស់",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ប៉ុន្តែពួកគេមានទឹកដីដ៏អាក្រក់និងអាក្រក់។",
+      "contextual_translation": "ទោះបីជាគាត់មានសម្ផស្សស្រស់ស្អាតក៏ដោយ ក៏គាត់មានអាកប្បកិរិយាដ៏ហិង្សានិងឃោរឃៅ។",
+      "inference_times": {
+        "no_context": 2.4761191670004337,
+        "contextual": 4.317805582999426
+      },
+      "generation": {
+        "no_context": {
+          "translation": "ប៉ុន្តែពួកគេមានទឹកដីដ៏អាក្រក់និងអាក្រក់។",
+          "seconds": 2.4761191670004337,
+          "generated_tokens": 52,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "ទោះបីជាគាត់មានសម្ផស្សស្រស់ស្អាតក៏ដោយ ក៏គាត់មានអាកប្បកិរិយាដ៏ហិង្សានិងឃោរឃៅ។",
+          "seconds": 4.317805582999426,
+          "generated_tokens": 94,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 性情却暴力阴狠，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n那裴国公虽美貌，\n\nCurrent:\n性情却暴力阴狠，\n\nNext:\n是个十足的妖精啊，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 性情却暴力阴狠，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "c0c1804f-2e86-40af-996a-14b1cb5c6690",
+      "segment_index": 4,
+      "source_text": "是个十足的妖精啊，",
+      "previous_text": "性情却暴力阴狠，",
+      "next_text": "妖精听。",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ជាបិសាចពិតៗតែម្តង!",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "នោះគឺជាមនុស្សព្រៃពូជពង្សពិតប្រាកដមែនទែន។",
+      "contextual_translation": "វាជាព្រៃឈើពិតប្រាកដ។",
+      "inference_times": {
+        "contextual": 1.224737833999825,
+        "no_context": 2.2570622079983877
+      },
+      "generation": {
+        "contextual": {
+          "translation": "វាជាព្រៃឈើពិតប្រាកដ។",
+          "seconds": 1.224737833999825,
+          "generated_tokens": 25,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "នោះគឺជាមនុស្សព្រៃពូជពង្សពិតប្រាកដមែនទែន។",
+          "seconds": 2.2570622079983877,
+          "generated_tokens": 50,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 是个十足的妖精啊，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n性情却暴力阴狠，\n\nCurrent:\n是个十足的妖精啊，\n\nNext:\n妖精听。\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 是个十足的妖精啊，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "e6741351-cc4d-4308-b511-5d03ebd5a0cc",
+      "segment_index": 6,
+      "source_text": "说那裴国公裴修颜乃是九尾妖狐转世以，",
+      "previous_text": "妖精听。",
+      "next_text": "人心为食不，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "គេថា លោកកុងប៉េ ប៉េស៊ាវយ៉ាន នោះ គឺជាកញ្ជ្រោងបិសាចកន្ទុយប្រាំបួនចាប់ជាតិ យក...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "គាត់បាននិយាយថា ឧកញ៉ា ផេ ស៊ូយ៉ាន (Huey Kong Pei Xiu Yan) គឺជាការបកស្រាយឡើងវិញនៃសត្វឆ្មាដែលមានចង្កៀងចំនួនប្រាំបួន។",
+      "contextual_translation": "បាននិយាយថា ឧកញ៉ា ផាយ ស៊ូយ៉ាន (Pei Xiu Yan) គឺជាសារពាង្គសត្វស្លាប់ពីរាប់ទសវត្សរ៍ម្នាក់។",
+      "inference_times": {
+        "no_context": 5.472726999996667,
+        "contextual": 4.335186166998028
+      },
+      "generation": {
+        "no_context": {
+          "translation": "គាត់បាននិយាយថា ឧកញ៉ា ផេ ស៊ូយ៉ាន (Huey Kong Pei Xiu Yan) គឺជាការបកស្រាយឡើងវិញនៃសត្វឆ្មាដែលមានចង្កៀងចំនួនប្រាំបួន។",
+          "seconds": 5.472726999996667,
+          "generated_tokens": 117,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "បាននិយាយថា ឧកញ៉ា ផាយ ស៊ូយ៉ាន (Pei Xiu Yan) គឺជាសារពាង្គសត្វស្លាប់ពីរាប់ទសវត្សរ៍ម្នាក់។",
+          "seconds": 4.335186166998028,
+          "generated_tokens": 91,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 说那裴国公裴修颜乃是九尾妖狐转世以，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n妖精听。\n\nCurrent:\n说那裴国公裴修颜乃是九尾妖狐转世以，\n\nNext:\n人心为食不，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 说那裴国公裴修颜乃是九尾妖狐转世以，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "3627fd1f-3860-450c-a8f2-aad4f805848d",
+      "segment_index": 7,
+      "source_text": "人心为食不，",
+      "previous_text": "说那裴国公裴修颜乃是九尾妖狐转世以，",
+      "next_text": "对不对是，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "បេះដូងមនុស្សធ្វើជាអាហារ តើមែនទេ? ទេ...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "តើមនុស្សគួរតែបរិភោគអ្វីទៅ?",
+      "contextual_translation": "បើសិនជាមនុស្សគិតថាគេអាចទទួលបានអាហារពីមនុស្សផ្សេងទៀតបាន តើមនុស្សនឹងទទួលបានអាហារពីមនុស្សដទៃទៀតបានទេ?",
+      "inference_times": {
+        "contextual": 5.716054332999192,
+        "no_context": 1.6215210000009392
+      },
+      "generation": {
+        "contextual": {
+          "translation": "បើសិនជាមនុស្សគិតថាគេអាចទទួលបានអាហារពីមនុស្សផ្សេងទៀតបាន តើមនុស្សនឹងទទួលបានអាហារពីមនុស្សដទៃទៀតបានទេ?",
+          "seconds": 5.716054332999192,
+          "generated_tokens": 118,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "តើមនុស្សគួរតែបរិភោគអ្វីទៅ?",
+          "seconds": 1.6215210000009392,
+          "generated_tokens": 35,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 人心为食不，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n说那裴国公裴修颜乃是九尾妖狐转世以，\n\nCurrent:\n人心为食不，\n\nNext:\n对不对是，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 人心为食不，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "0d8670a9-e8c0-442e-a9a7-abfdd10da74c",
+      "segment_index": 9,
+      "source_text": "传说中长着翅膀的山海异兽你，",
+      "previous_text": "对不对是，",
+      "next_text": "们说的都不对而，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ជាសត្វចម្លែកមានស្លាបក្នុងព្រេងនិទានតើ! ពួក...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "សត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វ",
+      "contextual_translation": "សត្វព្រៃភ្នំសមុទ្រដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែ",
+      "inference_times": {
+        "no_context": 11.809925917001237,
+        "contextual": 11.905029707999347
+      },
+      "generation": {
+        "no_context": {
+          "translation": "សត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វព្រៃដែលមានពពួកសត្វ",
+          "seconds": 11.809925917001237,
+          "generated_tokens": 256,
+          "hit_token_limit": true
+        },
+        "contextual": {
+          "translation": "សត្វព្រៃភ្នំសមុទ្រដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែលមានពពួកស្នែងអំបូរសត្វដែ",
+          "seconds": 11.905029707999347,
+          "generated_tokens": 256,
+          "hit_token_limit": true
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 传说中长着翅膀的山海异兽你，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n对不对是，\n\nCurrent:\n传说中长着翅膀的山海异兽你，\n\nNext:\n们说的都不对而，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 传说中长着翅膀的山海异兽你，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "44b87cbe-43b5-456b-aabf-2cb02376f813",
+      "segment_index": 12,
+      "source_text": "水怪啊我。",
+      "previous_text": "是条大蛇是，",
+      "next_text": "听说夜色之下他，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "បិសាចទឹកតើ! ខ្ញុំ",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "អូនជាមនុស្សស្លាប់ហើយ។",
+      "contextual_translation": "ខ្ញុំគឺជាមូស្លីម។",
+      "inference_times": {
+        "contextual": 1.1795915000002424,
+        "no_context": 1.2050510000008217
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ខ្ញុំគឺជាមូស្លីម។",
+          "seconds": 1.1795915000002424,
+          "generated_tokens": 23,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "អូនជាមនុស្សស្លាប់ហើយ។",
+          "seconds": 1.2050510000008217,
+          "generated_tokens": 26,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 水怪啊我。\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n是条大蛇是，\n\nCurrent:\n水怪啊我。\n\nNext:\n听说夜色之下他，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 水怪啊我。\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "892b58c2-b7f1-4623-9654-9918f6069216",
+      "segment_index": 18,
+      "source_text": "国公若真是妖怪他又，",
+      "previous_text": "都有尸体抬出可裴。",
+      "next_text": "怎会那般鄙弱是啊？",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "កុកកុង បើជាបិសាចមែននោះ ម៉េចក៏",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ប្រសិនបើរដ្ឋមន្ត្រីគឺជាមនុស្សចោរព្រៃផ្សៃនោះ គាត់ពិតជាមនុស្សចោរព្រៃផ្សៃមែន។",
+      "contextual_translation": "ប្រសិនបើឯកឧត្តមជាអារម្ចោយពិតប្រាកដនោះ តើគាត់មានអារម្មណ៍យ៉ាងណាដែរ?",
+      "inference_times": {
+        "no_context": 4.311834792002628,
+        "contextual": 3.7221294170012698
+      },
+      "generation": {
+        "no_context": {
+          "translation": "ប្រសិនបើរដ្ឋមន្ត្រីគឺជាមនុស្សចោរព្រៃផ្សៃនោះ គាត់ពិតជាមនុស្សចោរព្រៃផ្សៃមែន។",
+          "seconds": 4.311834792002628,
+          "generated_tokens": 92,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "ប្រសិនបើឯកឧត្តមជាអារម្ចោយពិតប្រាកដនោះ តើគាត់មានអារម្មណ៍យ៉ាងណាដែរ?",
+          "seconds": 3.7221294170012698,
+          "generated_tokens": 78,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 国公若真是妖怪他又，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n都有尸体抬出可裴。\n\nCurrent:\n国公若真是妖怪他又，\n\nNext:\n怎会那般鄙弱是啊？\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 国公若真是妖怪他又，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "76e68c13-734a-4200-8221-26a5010b5c2b",
+      "segment_index": 20,
+      "source_text": "太医，",
+      "previous_text": "怎会那般鄙弱是啊？",
+      "next_text": "们都说他活不过三十岁呢新人，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "គ្រូពេទ្យហ្លួង",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "លោកវេជ្ជបណ្ឌិតល្អណាស់។",
+      "contextual_translation": "សាស្ត្រាចារ្យ។",
+      "inference_times": {
+        "contextual": 0.7800318749978032,
+        "no_context": 1.2731979999989562
+      },
+      "generation": {
+        "contextual": {
+          "translation": "សាស្ត្រាចារ្យ។",
+          "seconds": 0.7800318749978032,
+          "generated_tokens": 15,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "លោកវេជ្ជបណ្ឌិតល្អណាស់។",
+          "seconds": 1.2731979999989562,
+          "generated_tokens": 27,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 太医，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n怎会那般鄙弱是啊？\n\nCurrent:\n太医，\n\nNext:\n们都说他活不过三十岁呢新人，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 太医，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "9d409762-3948-4900-a546-32244eebabd5",
+      "segment_index": 26,
+      "source_text": "会儿在宴会上可不能太出头要是被太夫，",
+      "previous_text": "是要早死啊姐妹们待，",
+      "next_text": "人看上给裴国公做媳妇儿那可就太惨了上，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "នៅក្នុងពិធីជប់លៀង កុំធ្វើខ្លួនលេចធ្លោពេក! ប្រសិនបើលោកជំទាវ...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "អ្នកមិនគួរធ្វើជាមនុស្សសំខាន់ពេកនៅក្នុងពិធីជប់លៀងនេះឡើយ ប្រសិនបើអ្នកត្រូវបានគេចាត់ទុកថាជាមនុស្សមិនសមរម្យ។",
+      "contextual_translation": "អ្នកមិនគួរឈានទៅមុខពេកនៅក្នុងពិធីជប់លៀង ប្រសិនបើអ្នកត្រូវបានគេចាត់ទុកថាជាអ្នកមានសំណាង។",
+      "inference_times": {
+        "no_context": 6.014093417001277,
+        "contextual": 4.895441917000426
+      },
+      "generation": {
+        "no_context": {
+          "translation": "អ្នកមិនគួរធ្វើជាមនុស្សសំខាន់ពេកនៅក្នុងពិធីជប់លៀងនេះឡើយ ប្រសិនបើអ្នកត្រូវបានគេចាត់ទុកថាជាមនុស្សមិនសមរម្យ។",
+          "seconds": 6.014093417001277,
+          "generated_tokens": 129,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "អ្នកមិនគួរឈានទៅមុខពេកនៅក្នុងពិធីជប់លៀង ប្រសិនបើអ្នកត្រូវបានគេចាត់ទុកថាជាអ្នកមានសំណាង។",
+          "seconds": 4.895441917000426,
+          "generated_tokens": 105,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 会儿在宴会上可不能太出头要是被太夫，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n是要早死啊姐妹们待，\n\nCurrent:\n会儿在宴会上可不能太出头要是被太夫，\n\nNext:\n人看上给裴国公做媳妇儿那可就太惨了上，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 会儿在宴会上可不能太出头要是被太夫，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "7aba961f-2ab9-44eb-9ddf-dbd4d144cdf4",
+      "segment_index": 27,
+      "source_text": "人看上给裴国公做媳妇儿那可就太惨了上，",
+      "previous_text": "会儿在宴会上可不能太出头要是被太夫，",
+      "next_text": "节课你说的是。",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "មើលភ្នែកត្រូវ យកធ្វើជាប្រពន្ធលោកកុងប៉េ នោះច្បាស់ជាស៊យធំហើយ!",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "វានឹងក្លាយជារឿងដ៏អាក្រក់ណាស់ប្រសិនបើមនុស្សម្នាក់ត្រូវបានគេជ្រើសរើសឱ្យធ្វើជាប្រពន្ធរបស់ឧកញ៉ា Pei ។",
+      "contextual_translation": "បើសិនអ្នកចង់ក្លាយជាប្រពន្ធរបស់ឧកញ៉ា ភីហ្គូ ក្លាយជាការលំបាកខ្លាំងណាស់។",
+      "inference_times": {
+        "contextual": 3.795569791000162,
+        "no_context": 5.47320683399812
+      },
+      "generation": {
+        "contextual": {
+          "translation": "បើសិនអ្នកចង់ក្លាយជាប្រពន្ធរបស់ឧកញ៉ា ភីហ្គូ ក្លាយជាការលំបាកខ្លាំងណាស់។",
+          "seconds": 3.795569791000162,
+          "generated_tokens": 80,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "វានឹងក្លាយជារឿងដ៏អាក្រក់ណាស់ប្រសិនបើមនុស្សម្នាក់ត្រូវបានគេជ្រើសរើសឱ្យធ្វើជាប្រពន្ធរបស់ឧកញ៉ា Pei ។",
+          "seconds": 5.47320683399812,
+          "generated_tokens": 113,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 人看上给裴国公做媳妇儿那可就太惨了上，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n会儿在宴会上可不能太出头要是被太夫，\n\nCurrent:\n人看上给裴国公做媳妇儿那可就太惨了上，\n\nNext:\n节课你说的是。\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 人看上给裴国公做媳妇儿那可就太惨了上，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "7e2044bb-d9ae-4ed7-aac1-9445531d270b",
+      "segment_index": 31,
+      "source_text": "吗没有见过吗那你，",
+      "previous_text": "是见到他吃人了你见过，",
+      "next_text": "见过吗我？",
+      "speaker": "S2",
+      "speaker_id": "b9dd6335-07ab-49f6-8071-778f0f0fc140",
+      "existing_translation": "ទេ? អត់ដែលឃើញទេមែនទេ? ចុះឯង...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "បើសិនអ្នកមិនបានឃើញវាទេ តើអ្នកនឹងធ្វើអ្វី?",
+      "contextual_translation": "អ្នកមិនដែលឃើញគាត់កំពុងបរិភោគមនុស្សទេឬ?",
+      "inference_times": {
+        "no_context": 2.356215916999645,
+        "contextual": 2.3678389999986393
+      },
+      "generation": {
+        "no_context": {
+          "translation": "បើសិនអ្នកមិនបានឃើញវាទេ តើអ្នកនឹងធ្វើអ្វី?",
+          "seconds": 2.356215916999645,
+          "generated_tokens": 52,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "អ្នកមិនដែលឃើញគាត់កំពុងបរិភោគមនុស្សទេឬ?",
+          "seconds": 2.3678389999986393,
+          "generated_tokens": 51,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 吗没有见过吗那你，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n是见到他吃人了你见过，\n\nCurrent:\n吗没有见过吗那你，\n\nNext:\n见过吗我？\n\nSpeaker:\nS2\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 吗没有见过吗那你，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "43cbfa45-c91b-40ef-9ab5-6b61c4e2b759",
+      "segment_index": 38,
+      "source_text": "裴府嗯我叫宋之是？",
+      "previous_text": "怪你是何人怎能进了，",
+      "next_text": "裴国，",
+      "speaker": "S2",
+      "speaker_id": "b9dd6335-07ab-49f6-8071-778f0f0fc140",
+      "existing_translation": "ភូមិគ្រឹះផី? អឹម ខ្ញុំឈ្មោះសុងជឺ ជា...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "លោក Park តើខ្ញុំមានឈ្មោះថា Song ឬយ៉ាងណា?",
+      "contextual_translation": "ពេបហ្គូ: អូ ខ្ញុំឈ្មោះសុង ហ្ស៊ីស៍។",
+      "inference_times": {
+        "contextual": 2.217416667001089,
+        "no_context": 2.0014745830012544
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ពេបហ្គូ: អូ ខ្ញុំឈ្មោះសុង ហ្ស៊ីស៍។",
+          "seconds": 2.217416667001089,
+          "generated_tokens": 47,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "លោក Park តើខ្ញុំមានឈ្មោះថា Song ឬយ៉ាងណា?",
+          "seconds": 2.0014745830012544,
+          "generated_tokens": 42,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 裴府嗯我叫宋之是？\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n怪你是何人怎能进了，\n\nCurrent:\n裴府嗯我叫宋之是？\n\nNext:\n裴国，\n\nSpeaker:\nS2\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 裴府嗯我叫宋之是？\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "59130940-118d-4181-9edb-89570a3c2b5a",
+      "segment_index": 40,
+      "source_text": "公的未婚，",
+      "previous_text": "裴国，",
+      "next_text": "妻哦未婚妻哪来？",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "...ជាគូដណ្តើម...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "មិនបានរៀបការនៅឡើយ",
+      "contextual_translation": "ស្ត្រីមិនបានរៀបការ",
+      "inference_times": {
+        "no_context": 1.1587366250023479,
+        "contextual": 1.5943808750016615
+      },
+      "generation": {
+        "no_context": {
+          "translation": "មិនបានរៀបការនៅឡើយ",
+          "seconds": 1.1587366250023479,
+          "generated_tokens": 22,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "ស្ត្រីមិនបានរៀបការ",
+          "seconds": 1.5943808750016615,
+          "generated_tokens": 22,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 公的未婚，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n裴国，\n\nCurrent:\n公的未婚，\n\nNext:\n妻哦未婚妻哪来？\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 公的未婚，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    },
+    {
+      "segment_id": "410904f9-6b78-40de-8f5f-9e39417e334f",
+      "segment_index": 43,
+      "source_text": "未婚妻啊啊，",
+      "previous_text": "的，",
+      "next_text": "",
+      "speaker": "S2",
+      "speaker_id": "b9dd6335-07ab-49f6-8071-778f0f0fc140",
+      "existing_translation": "មិត្តភក្តិរបស់គាត់",
+      "existing_provider": "local",
+      "existing_model": "m2m100-1.2b",
+      "no_context_translation": "អ្នកស្រីមិនទាន់បានរៀបការនៅឡើយ។",
+      "contextual_translation": "អ្នកស្រីមិត្រភរិយារបស់ខ្ញុំ។",
+      "inference_times": {
+        "contextual": 1.7123325840002508,
+        "no_context": 1.7324270409990277
+      },
+      "generation": {
+        "contextual": {
+          "translation": "អ្នកស្រីមិត្រភរិយារបស់ខ្ញុំ។",
+          "seconds": 1.7123325840002508,
+          "generated_tokens": 35,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "អ្នកស្រីមិនទាន់បានរៀបការនៅឡើយ។",
+          "seconds": 1.7324270409990277,
+          "generated_tokens": 37,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<|im_start|>user\nTranslate the following text from Chinese into Khmer:\nChinese: 未婚妻啊啊，\nKhmer:<|im_end|>\n<|im_start|>assistant\n",
+        "contextual": "<|im_start|>user\nPrevious:\n的，\n\nCurrent:\n未婚妻啊啊，\n\nNext:\n(none)\n\nSpeaker:\nS2\n\nTranslate ONLY Current. Previous and Next are context only.\n\nTranslate the following text from Chinese into Khmer:\nChinese: 未婚妻啊啊，\nKhmer:<|im_end|>\n<|im_start|>assistant\n"
+      }
+    }
+  ],
+  "summary": {
+    "segments_tested": 16,
+    "total_inference_seconds": 116.25879333499688,
+    "average_seconds_per_segment_both_modes": 7.266174583437305,
+    "modes": {
+      "no_context": {
+        "total_seconds": 58.46952525100278,
+        "average_seconds_per_segment": 3.6543453281876737
+      },
+      "contextual": {
+        "total_seconds": 57.7892680839941,
+        "average_seconds_per_segment": 3.6118292552496314
+      }
+    }
+  },
+  "project_unchanged": true
+}

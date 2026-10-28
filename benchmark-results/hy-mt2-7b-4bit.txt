@@ -1,0 +1,154 @@
+Loading LOCAL Hy-MT2-7B-4bit: /Users/mac/Developer/tools/catty-dubber-pro/.models/benchmark/Hy-MT2-7B-4bit (mlx-metal)
+
+[1/16] Chinese: 什么陛下要给那个被君为妖魂附身的短命鬼。
+Speaker: S1
+Previous: 
+Next: 裴国公赐婚，
+Existing gemini (gemini-3.5-flash): ស្អីគេ? ព្រះអម្ចាស់ចង់រៀបការឱ្យអាមនុស្សអាយុខ្លីដែលត្រូវព្រលឹងបិសាចចូលសព្វនោះ?
+Hy-MT2-7B-4bit no context: តើព្រះអង្គចង់ប្រទានអ្វីដល់អ្នកដែលត្រូវវិញ្ញាណអាក្រក់ចូលសណ្ឋិតនោះ?
+Hy-MT2-7B-4bit contextual: តើព្រះអង្គចង់ផ្ដល់អ្វីដល់បិសាចដែលមានអាយុខ្លី ហើយត្រូវវិញ្ញាណអាក្រក់ចូលនោះ?
+Inference time: A=3.39s B=3.96s
+
+[2/16] Chinese: 裴国公赐婚，
+Speaker: S1
+Previous: 什么陛下要给那个被君为妖魂附身的短命鬼。
+Next: 那裴国公虽美貌，
+Existing gemini (gemini-3.5-flash): ប្រទានអាពាហ៍ពិពាហ៍ជាមួយលោកកុងប៉េ?
+Hy-MT2-7B-4bit no context: ព្រះ​អង្គ​ប៉ៃ​ហ្គូកុង បាន​ប្រទាន​អនុញ្ញាត​ឱ្យ​មាន​ការ​រៀប​អាពាហ៍​ពិពាហ៍​នេះ។
+Hy-MT2-7B-4bit contextual: ព្រះអង្គម្ចាស់ផេយ៍ប្រទានអាពាហ៍ពិពាហ៍។
+Inference time: A=3.39s B=2.35s
+
+[3/16] Chinese: 性情却暴力阴狠，
+Speaker: S1
+Previous: 那裴国公虽美貌，
+Next: 是个十足的妖精啊，
+Existing gemini (gemini-3.5-flash): តែចរិតហិង្សា និងឃោរឃៅខ្លាំងណាស់
+Hy-MT2-7B-4bit no context: ប៉ុន្តែ​ចរិត​របស់​គេ​វិញ គឺ​ឃោរឃៅ និង​អាក្រក់​ណាស់។
+Hy-MT2-7B-4bit contextual: ប៉ុន្តែចរិតរបស់គាត់គឺឃោរឃៅ និងហឹង្សា។
+Inference time: A=2.66s B=2.43s
+
+[4/16] Chinese: 是个十足的妖精啊，
+Speaker: S1
+Previous: 性情却暴力阴狠，
+Next: 妖精听。
+Existing gemini (gemini-3.5-flash): ជាបិសាចពិតៗតែម្តង!
+Hy-MT2-7B-4bit no context: គឺជាបិសាចពិតប្រាកដមែន។
+Hy-MT2-7B-4bit contextual: គឺជាបិសាចពិតប្រាកដមែន!
+Inference time: A=1.29s B=1.57s
+
+[5/16] Chinese: 说那裴国公裴修颜乃是九尾妖狐转世以，
+Speaker: S1
+Previous: 妖精听。
+Next: 人心为食不，
+Existing gemini (gemini-3.5-flash): គេថា លោកកុងប៉េ ប៉េស៊ាវយ៉ាន នោះ គឺជាកញ្ជ្រោងបិសាចកន្ទុយប្រាំបួនចាប់ជាតិ យក...
+Hy-MT2-7B-4bit no context: គេនិយាយថា ព្រះ​អង្គ​ប៉ៃ ស៊ីវយ៉ាន់ គឺជាអតីតជាតិរបស់សត្វកញ្ជ្រោងប្រាំបួនកន្ទុយ។
+Hy-MT2-7B-4bit contextual: គេនិយាយថា ប៉េយ៍ ហ្គូហ្គុង ប៉េយ៍ ស៊ីវយ៉ាន គឺជាការចាប់កំណើតឡើងវិញរបស់សត្វកញ្ជ្រោងអាបធ្មប់មានកន្ទុយប្រាំបួន។
+Inference time: A=4.03s B=5.49s
+
+[6/16] Chinese: 人心为食不，
+Speaker: S1
+Previous: 说那裴国公裴修颜乃是九尾妖狐转世以，
+Next: 对不对是，
+Existing gemini (gemini-3.5-flash): បេះដូងមនុស្សធ្វើជាអាហារ តើមែនទេ? ទេ...
+Hy-MT2-7B-4bit no context: ចិត្តមនុស្ស គឺសម្រាប់អាហារ។
+Hy-MT2-7B-4bit contextual: មិនយកចិត្តមនុស្សធ្វើជាអាហារទេ។
+Inference time: A=1.45s B=1.95s
+
+[7/16] Chinese: 传说中长着翅膀的山海异兽你，
+Speaker: S1
+Previous: 对不对是，
+Next: 们说的都不对而，
+Existing gemini (gemini-3.5-flash): ជាសត្វចម្លែកមានស្លាបក្នុងព្រេងនិទានតើ! ពួក...
+Hy-MT2-7B-4bit no context: តាមរឿងព្រេង មានសត្វចម្លែកដែលមានស្លាប ហើយរស់នៅក្នុងភ្នំនិងសមុទ្រ។
+Hy-MT2-7B-4bit contextual: សត្វចម្លែកនៅក្នុងរឿងព្រេងដែលមានស្លាប អ្នកឯង،
+Inference time: A=3.28s B=2.56s
+
+[8/16] Chinese: 水怪啊我。
+Speaker: S1
+Previous: 是条大蛇是，
+Next: 听说夜色之下他，
+Existing gemini (gemini-3.5-flash): បិសាចទឹកតើ! ខ្ញុំ
+Hy-MT2-7B-4bit no context: អាសត្វទឹកអើយ!
+Hy-MT2-7B-4bit contextual: អាសត្វទឹកអើយខ្ញុំ។
+Inference time: A=0.84s B=1.43s
+
+[9/16] Chinese: 国公若真是妖怪他又，
+Speaker: S1
+Previous: 都有尸体抬出可裴。
+Next: 怎会那般鄙弱是啊？
+Existing gemini (gemini-3.5-flash): កុកកុង បើជាបិសាចមែននោះ ម៉េចក៏
+Hy-MT2-7B-4bit no context: ប្រសិនបើព្រះអង្គម្ចាស់នោះពិតជាបិសាចមែន នោះវានឹងអញ្ចឹងហើយ។
+Hy-MT2-7B-4bit contextual: បើសិនជាឧកញ៉ាពិតជាបិសាចមែន តើគាត់ជាអ្វីទៅ?
+Inference time: A=2.94s B=2.46s
+
+[10/16] Chinese: 太医，
+Speaker: S1
+Previous: 怎会那般鄙弱是啊？
+Next: 们都说他活不过三十岁呢新人，
+Existing gemini (gemini-3.5-flash): គ្រូពេទ្យហ្លួង
+Hy-MT2-7B-4bit no context: គ្រូពេទ្យឯកទេស
+Hy-MT2-7B-4bit contextual: ពេទ្យរាជ
+Inference time: A=0.93s B=0.91s
+
+[11/16] Chinese: 会儿在宴会上可不能太出头要是被太夫，
+Speaker: S1
+Previous: 是要早死啊姐妹们待，
+Next: 人看上给裴国公做媳妇儿那可就太惨了上，
+Existing gemini (gemini-3.5-flash): នៅក្នុងពិធីជប់លៀង កុំធ្វើខ្លួនលេចធ្លោពេក! ប្រសិនបើលោកជំទាវ...
+Hy-MT2-7B-4bit no context: នៅក្នុងពិធីជប់លៀងនោះ មិនត្រូវធ្វើខ្លួនឱ្យលេចធ្លោពេកនោះទេ បើមិនដូច្នេះទេ នឹងមានបញ្ហា។
+Hy-MT2-7B-4bit contextual: បន្តិចទៀតនៅក្នុងពិធីជប់លៀង មិនត្រូវលេចធ្លោពេកទេ បើមិនដូច្នោះទេនឹងត្រូវអ្នកមានអំណាចមើលងាយ។
+Inference time: A=4.55s B=4.95s
+
+[12/16] Chinese: 人看上给裴国公做媳妇儿那可就太惨了上，
+Speaker: S1
+Previous: 会儿在宴会上可不能太出头要是被太夫，
+Next: 节课你说的是。
+Existing gemini (gemini-3.5-flash): មើលភ្នែកត្រូវ យកធ្វើជាប្រពន្ធលោកកុងប៉េ នោះច្បាស់ជាស៊យធំហើយ!
+Hy-MT2-7B-4bit no context: បើសិនជាមាននរណាម្នាក់ចង់ក្លាយជាភរិយារបស់ព្រះអង្គម្ចាស់ប៉ៃ នោះគឺពិតជាអកុសលខ្លាំងណាស់។
+Hy-MT2-7B-4bit contextual: បើគេចាប់អារម្មណ៍ចង់ឱ្យធ្វើជាកូនប្រសាររបស់ព្រះអង្គម្ចាស់ប៉េយ នោះពិតជាអកុសលខ្លាំងណាស់។
+Inference time: A=4.09s B=4.52s
+
+[13/16] Chinese: 吗没有见过吗那你，
+Speaker: S2
+Previous: 是见到他吃人了你见过，
+Next: 见过吗我？
+Existing gemini (gemini-3.5-flash): ទេ? អត់ដែលឃើញទេមែនទេ? ចុះឯង...
+Hy-MT2-7B-4bit no context: មិនធ្លាប់ឃើញទេឬ? អ៊ីចឹងឯង…
+Hy-MT2-7B-4bit contextual: មែនទេ មិនដែលឃើញទេឬ? អ៊ីចឹងឯង?
+Inference time: A=1.48s B=2.00s
+
+[14/16] Chinese: 裴府嗯我叫宋之是？
+Speaker: S2
+Previous: 怪你是何人怎能进了，
+Next: 裴国，
+Existing gemini (gemini-3.5-flash): ភូមិគ្រឹះផី? អឹម ខ្ញុំឈ្មោះសុងជឺ ជា...
+Hy-MT2-7B-4bit no context: ផេយ៍ហ្វូ អឺម ខ្ញុំឈ្មោះ សុង ជី មែនទេ?
+Hy-MT2-7B-4bit contextual: ផ្ទះត្រកូលផេយ អឺម ខ្ញុំឈ្មោះសុង ជីស៊ី មែនទេ?
+Inference time: A=1.90s B=2.56s
+
+[15/16] Chinese: 公的未婚，
+Speaker: S1
+Previous: 裴国，
+Next: 妻哦未婚妻哪来？
+Existing gemini (gemini-3.5-flash): ...ជាគូដណ្តើម...
+Hy-MT2-7B-4bit no context: បុរសដែលមិនទាន់រៀបការ។
+Hy-MT2-7B-4bit contextual: បុរសដែលមិនទាន់រៀបការ
+Inference time: A=1.26s B=1.38s
+
+[16/16] Chinese: 未婚妻啊啊，
+Speaker: S2
+Previous: 的，
+Next: 
+Existing local (m2m100-1.2b): មិត្តភក្តិរបស់គាត់
+Hy-MT2-7B-4bit no context: គូដណ្ដឹងអើយ…
+Hy-MT2-7B-4bit contextual: គូដណ្ដឹងអើយ
+Inference time: A=0.80s B=0.96s
+
+Model: Hy-MT2-7B-4bit
+Segments tested: 16
+Total inference time: 79.74s
+Average time/segment (both modes): 4.98s
+No context average: 2.39s
+Contextual average: 2.59s
+Project unchanged: True
+Results: /Users/mac/Developer/tools/catty-dubber-pro/benchmark-results/hy-mt2-7b-4bit.json

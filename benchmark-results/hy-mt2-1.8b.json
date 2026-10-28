@@ -1,0 +1,626 @@
+{
+  "model": "Hy-MT2-1.8B",
+  "model_family": "hy",
+  "model_path": "/Users/mac/Developer/tools/catty-dubber-pro/.models/benchmark/Hy-MT2-1.8B",
+  "project": "/Users/mac/Downloads/红果短剧/枝头春意闹-27b32ec6fb22/枝头春意闹 Project/枝头春意闹/project.json",
+  "project_sha256": "01139621fee3b2273cbf1df2664ad845f10f9dccb849d60dd2fbf668abf87f2a",
+  "episode_id": "bb9628be-4e17-47c9-afae-817431ef4649",
+  "device": "mps",
+  "dtype": "torch.bfloat16",
+  "torch": "2.14.1",
+  "runtime": "transformers",
+  "mlx_lm_version": null,
+  "experimental_only": true,
+  "promote_to_default": false,
+  "transformers": "4.57.6",
+  "load_seconds": 5.079481249998935,
+  "warmup_seconds": 2.508561667000322,
+  "max_new_tokens": 256,
+  "decoding": "greedy, no sampling; alternate A/B execution order per segment",
+  "prompt_reference": "/Users/mac/Developer/tools/catty-dubber-pro/.models/benchmark/Hy-MT2-1.8B/README.md",
+  "tokenizer_fix_mistral_regex": false,
+  "add_generation_prompt": true,
+  "settings_note": "Common greedy decoding; HY recommended sampling and LMT example five-beam decoding are not used. Model-specific prompt templates differ.",
+  "notes": [
+    "Contextual prompting is experimental; only HY explicitly documents a context template. No output cleanup.",
+    "Existing translations are reference columns only, never included in prompts.",
+    "No duration/timing input, ASR corrections or automatic Khmer quality metrics.",
+    "One run per mode; timings include tokenization, generation and decoding, excluding warmup/load.",
+    "This 1.8B run inherited checkpoint repetition_penalty=1.05; the prior MLX 7B run used no repetition processor (1.0). Runtime, precision, chat-template tokens and generation defaults differ. This is not a controlled size-only comparison."
+  ],
+  "results": [
+    {
+      "segment_id": "948982e2-8316-4a49-965b-be9fa16fbcf5",
+      "segment_index": 0,
+      "source_text": "什么陛下要给那个被君为妖魂附身的短命鬼。",
+      "previous_text": "",
+      "next_text": "裴国公赐婚，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ស្អីគេ? ព្រះអម្ចាស់ចង់រៀបការឱ្យអាមនុស្សអាយុខ្លីដែលត្រូវព្រលឹងបិសាចចូលសព្វនោះ?",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "តើព្រះអង្គនឹងផ្តល់អ្វីដល់អារក្សដែលមានព្រះបិសាចចូលទៅក្នុងខ្លួននោះ?",
+      "contextual_translation": "តើព្រះអង្គនឹងផ្តល់ឱ្យអ្នកដែលត្រូវបានព្រះមហាក្សត្រប្រទានវិញ្ញាណខ្មោច នោះឬ?",
+      "inference_times": {
+        "no_context": 5.479967999999644,
+        "contextual": 5.792912583001453
+      },
+      "generation": {
+        "no_context": {
+          "translation": "តើព្រះអង្គនឹងផ្តល់អ្វីដល់អារក្សដែលមានព្រះបិសាចចូលទៅក្នុងខ្លួននោះ?",
+          "seconds": 5.479967999999644,
+          "generated_tokens": 108,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "តើព្រះអង្គនឹងផ្តល់ឱ្យអ្នកដែលត្រូវបានព្រះមហាក្សត្រប្រទានវិញ្ញាណខ្មោច នោះឬ?",
+          "seconds": 5.792912583001453,
+          "generated_tokens": 113,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n什么陛下要给那个被君为妖魂附身的短命鬼。<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n(none)\n\nCurrent:\n什么陛下要给那个被君为妖魂附身的短命鬼。\n\nNext:\n裴国公赐婚，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n什么陛下要给那个被君为妖魂附身的短命鬼。<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "10c2e126-4945-40e2-a128-08cdee3d407b",
+      "segment_index": 1,
+      "source_text": "裴国公赐婚，",
+      "previous_text": "什么陛下要给那个被君为妖魂附身的短命鬼。",
+      "next_text": "那裴国公虽美貌，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ប្រទានអាពាហ៍ពិពាហ៍ជាមួយលោកកុងប៉េ?",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ព្រះអង្គម្ចាស់ ភេ គួកុង ប្រទានអាពាហ៍ពិពាហ៍។",
+      "contextual_translation": "ព្រះអង្គម្ចាស់ ភេ ផ្ដល់ការរៀបអាពាហ៍ពិពាហ៍។",
+      "inference_times": {
+        "contextual": 3.173419250000734,
+        "no_context": 3.1037173330005317
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ព្រះអង្គម្ចាស់ ភេ ផ្ដល់ការរៀបអាពាហ៍ពិពាហ៍។",
+          "seconds": 3.173419250000734,
+          "generated_tokens": 65,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "ព្រះអង្គម្ចាស់ ភេ គួកុង ប្រទានអាពាហ៍ពិពាហ៍។",
+          "seconds": 3.1037173330005317,
+          "generated_tokens": 66,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n裴国公赐婚，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n什么陛下要给那个被君为妖魂附身的短命鬼。\n\nCurrent:\n裴国公赐婚，\n\nNext:\n那裴国公虽美貌，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n裴国公赐婚，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "59eba4d0-4e67-47c1-8dc7-426b281507e3",
+      "segment_index": 3,
+      "source_text": "性情却暴力阴狠，",
+      "previous_text": "那裴国公虽美貌，",
+      "next_text": "是个十足的妖精啊，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "តែចរិតហិង្សា និងឃោរឃៅខ្លាំងណាស់",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ប៉ុន្តែ ចរិតរបស់វា គឺមានភាពហិង្សា និងអាក្រក់។",
+      "contextual_translation": "ប៉ុន្តែចរិតវាមានភាពហិង្សា និងអាក្រក់។",
+      "inference_times": {
+        "no_context": 3.540977999997267,
+        "contextual": 2.9716592090007907
+      },
+      "generation": {
+        "no_context": {
+          "translation": "ប៉ុន្តែ ចរិតរបស់វា គឺមានភាពហិង្សា និងអាក្រក់។",
+          "seconds": 3.540977999997267,
+          "generated_tokens": 74,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "ប៉ុន្តែចរិតវាមានភាពហិង្សា និងអាក្រក់។",
+          "seconds": 2.9716592090007907,
+          "generated_tokens": 59,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n性情却暴力阴狠，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n那裴国公虽美貌，\n\nCurrent:\n性情却暴力阴狠，\n\nNext:\n是个十足的妖精啊，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n性情却暴力阴狠，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "c0c1804f-2e86-40af-996a-14b1cb5c6690",
+      "segment_index": 4,
+      "source_text": "是个十足的妖精啊，",
+      "previous_text": "性情却暴力阴狠，",
+      "next_text": "妖精听。",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ជាបិសាចពិតៗតែម្តង!",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "គឺជាបិសាចពិតប្រាកដមែន។",
+      "contextual_translation": "គឺជាស្រីព្រះដ៏អស្ចារ្យម្នាក់។",
+      "inference_times": {
+        "contextual": 2.125840374999825,
+        "no_context": 1.761741375001293
+      },
+      "generation": {
+        "contextual": {
+          "translation": "គឺជាស្រីព្រះដ៏អស្ចារ្យម្នាក់។",
+          "seconds": 2.125840374999825,
+          "generated_tokens": 43,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "គឺជាបិសាចពិតប្រាកដមែន។",
+          "seconds": 1.761741375001293,
+          "generated_tokens": 37,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n是个十足的妖精啊，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n性情却暴力阴狠，\n\nCurrent:\n是个十足的妖精啊，\n\nNext:\n妖精听。\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n是个十足的妖精啊，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "e6741351-cc4d-4308-b511-5d03ebd5a0cc",
+      "segment_index": 6,
+      "source_text": "说那裴国公裴修颜乃是九尾妖狐转世以，",
+      "previous_text": "妖精听。",
+      "next_text": "人心为食不，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "គេថា លោកកុងប៉េ ប៉េស៊ាវយ៉ាន នោះ គឺជាកញ្ជ្រោងបិសាចកន្ទុយប្រាំបួនចាប់ជាតិ យក...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "គេនិយាយថា ព្រះអង្គម្ចាស់ ភេវី ស៊ូយ៉ាន់ គឺជាអ្នកដែលបានចាប់កំណើតឡើងវិញពីសត្វកញ្ជ្រោងដែលមានកន្ទុយប្រាំបួន។",
+      "contextual_translation": "និយាយថា លោក ផេ គួងហ្គុង ផេ ស៊ូយ៉ាន គឺជាកូនចៅរបស់សត្វចង្រិតប្រាំបួនកន្ទុយ។",
+      "inference_times": {
+        "no_context": 7.96431187500275,
+        "contextual": 6.059187749997363
+      },
+      "generation": {
+        "no_context": {
+          "translation": "គេនិយាយថា ព្រះអង្គម្ចាស់ ភេវី ស៊ូយ៉ាន់ គឺជាអ្នកដែលបានចាប់កំណើតឡើងវិញពីសត្វកញ្ជ្រោងដែលមានកន្ទុយប្រាំបួន។",
+          "seconds": 7.96431187500275,
+          "generated_tokens": 169,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "និយាយថា លោក ផេ គួងហ្គុង ផេ ស៊ូយ៉ាន គឺជាកូនចៅរបស់សត្វចង្រិតប្រាំបួនកន្ទុយ។",
+          "seconds": 6.059187749997363,
+          "generated_tokens": 123,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n说那裴国公裴修颜乃是九尾妖狐转世以，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n妖精听。\n\nCurrent:\n说那裴国公裴修颜乃是九尾妖狐转世以，\n\nNext:\n人心为食不，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n说那裴国公裴修颜乃是九尾妖狐转世以，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "3627fd1f-3860-450c-a8f2-aad4f805848d",
+      "segment_index": 7,
+      "source_text": "人心为食不，",
+      "previous_text": "说那裴国公裴修颜乃是九尾妖狐转世以，",
+      "next_text": "对不对是，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "បេះដូងមនុស្សធ្វើជាអាហារ តើមែនទេ? ទេ...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ចិត្តមនុស្សគឺជាអាហារ។",
+      "contextual_translation": "ចិត្តមនុស្សជាអាហារ មិនបាន?",
+      "inference_times": {
+        "contextual": 2.003717666000739,
+        "no_context": 1.7285855830014043
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ចិត្តមនុស្សជាអាហារ មិនបាន?",
+          "seconds": 2.003717666000739,
+          "generated_tokens": 39,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "ចិត្តមនុស្សគឺជាអាហារ។",
+          "seconds": 1.7285855830014043,
+          "generated_tokens": 33,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n人心为食不，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n说那裴国公裴修颜乃是九尾妖狐转世以，\n\nCurrent:\n人心为食不，\n\nNext:\n对不对是，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n人心为食不，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "0d8670a9-e8c0-442e-a9a7-abfdd10da74c",
+      "segment_index": 9,
+      "source_text": "传说中长着翅膀的山海异兽你，",
+      "previous_text": "对不对是，",
+      "next_text": "们说的都不对而，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "ជាសត្វចម្លែកមានស្លាបក្នុងព្រេងនិទានតើ! ពួក...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "តាមរឿងព្រេង សត្វដែលមានស្លាប និងរស់នៅលើសមុទ្រ អ្នក…",
+      "contextual_translation": "អ្នកដែលជាសត្វចម្លែកដែលមានស្លាបនៅក្នុងរឿងព្រេងនិទាន",
+      "inference_times": {
+        "no_context": 4.0272780419982155,
+        "contextual": 4.296378584000195
+      },
+      "generation": {
+        "no_context": {
+          "translation": "តាមរឿងព្រេង សត្វដែលមានស្លាប និងរស់នៅលើសមុទ្រ អ្នក…",
+          "seconds": 4.0272780419982155,
+          "generated_tokens": 81,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "អ្នកដែលជាសត្វចម្លែកដែលមានស្លាបនៅក្នុងរឿងព្រេងនិទាន",
+          "seconds": 4.296378584000195,
+          "generated_tokens": 81,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n传说中长着翅膀的山海异兽你，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n对不对是，\n\nCurrent:\n传说中长着翅膀的山海异兽你，\n\nNext:\n们说的都不对而，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n传说中长着翅膀的山海异兽你，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "44b87cbe-43b5-456b-aabf-2cb02376f813",
+      "segment_index": 12,
+      "source_text": "水怪啊我。",
+      "previous_text": "是条大蛇是，",
+      "next_text": "听说夜色之下他，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "បិសាចទឹកតើ! ខ្ញុំ",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "សត្វសមុទ្រអើយ…",
+      "contextual_translation": "សត្វអណ្ដាតទឹកអើយ ខ្ញុំ។",
+      "inference_times": {
+        "contextual": 2.0129615000005288,
+        "no_context": 1.3461132499978703
+      },
+      "generation": {
+        "contextual": {
+          "translation": "សត្វអណ្ដាតទឹកអើយ ខ្ញុំ។",
+          "seconds": 2.0129615000005288,
+          "generated_tokens": 38,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "សត្វសមុទ្រអើយ…",
+          "seconds": 1.3461132499978703,
+          "generated_tokens": 24,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n水怪啊我。<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n是条大蛇是，\n\nCurrent:\n水怪啊我。\n\nNext:\n听说夜色之下他，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n水怪啊我。<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "892b58c2-b7f1-4623-9654-9918f6069216",
+      "segment_index": 18,
+      "source_text": "国公若真是妖怪他又，",
+      "previous_text": "都有尸体抬出可裴。",
+      "next_text": "怎会那般鄙弱是啊？",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "កុកកុង បើជាបិសាចមែននោះ ម៉េចក៏",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ប្រសិនបើជាសត្វចម្លែកពិតមែន គាត់នោះ…",
+      "contextual_translation": "ប្រសិនបើអ្នកជាបិសាចពិតមែន គាត់នឹង…",
+      "inference_times": {
+        "no_context": 2.9968195830006152,
+        "contextual": 2.893810500001564
+      },
+      "generation": {
+        "no_context": {
+          "translation": "ប្រសិនបើជាសត្វចម្លែកពិតមែន គាត់នោះ…",
+          "seconds": 2.9968195830006152,
+          "generated_tokens": 59,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "ប្រសិនបើអ្នកជាបិសាចពិតមែន គាត់នឹង…",
+          "seconds": 2.893810500001564,
+          "generated_tokens": 57,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n国公若真是妖怪他又，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n都有尸体抬出可裴。\n\nCurrent:\n国公若真是妖怪他又，\n\nNext:\n怎会那般鄙弱是啊？\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n国公若真是妖怪他又，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "76e68c13-734a-4200-8221-26a5010b5c2b",
+      "segment_index": 20,
+      "source_text": "太医，",
+      "previous_text": "怎会那般鄙弱是啊？",
+      "next_text": "们都说他活不过三十岁呢新人，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "គ្រូពេទ្យហ្លួង",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "គ្រូពេទ្យវេជ្ជសាស្ត្រ",
+      "contextual_translation": "ប្រធានគ្រូពេទ្យ,",
+      "inference_times": {
+        "contextual": 1.317338834000111,
+        "no_context": 1.5831946250000328
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ប្រធានគ្រូពេទ្យ,",
+          "seconds": 1.317338834000111,
+          "generated_tokens": 25,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "គ្រូពេទ្យវេជ្ជសាស្ត្រ",
+          "seconds": 1.5831946250000328,
+          "generated_tokens": 31,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n太医，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n怎会那般鄙弱是啊？\n\nCurrent:\n太医，\n\nNext:\n们都说他活不过三十岁呢新人，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n太医，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "9d409762-3948-4900-a546-32244eebabd5",
+      "segment_index": 26,
+      "source_text": "会儿在宴会上可不能太出头要是被太夫，",
+      "previous_text": "是要早死啊姐妹们待，",
+      "next_text": "人看上给裴国公做媳妇儿那可就太惨了上，",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "នៅក្នុងពិធីជប់លៀង កុំធ្វើខ្លួនលេចធ្លោពេក! ប្រសិនបើលោកជំទាវ...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "នៅក្នុងពិធីជប់លៀង មិនអាចធ្វើខ្លួនឱ្យលេចធ្លោពេកនោះទេ បើសិនជាត្រូវគេស្គាល់ថា ជាមនុស្សដែលមានភាពលេចធ្លោពេក។",
+      "contextual_translation": "នៅក្នុងពិធីជប់លៀង មិនអាចធ្វើខ្លួនឱ្យលេចធ្លោពេកទេ បើត្រូវបានថៃហ្វឺ។",
+      "inference_times": {
+        "no_context": 8.56222258300113,
+        "contextual": 5.9891149579998455
+      },
+      "generation": {
+        "no_context": {
+          "translation": "នៅក្នុងពិធីជប់លៀង មិនអាចធ្វើខ្លួនឱ្យលេចធ្លោពេកនោះទេ បើសិនជាត្រូវគេស្គាល់ថា ជាមនុស្សដែលមានភាពលេចធ្លោពេក។",
+          "seconds": 8.56222258300113,
+          "generated_tokens": 172,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "នៅក្នុងពិធីជប់លៀង មិនអាចធ្វើខ្លួនឱ្យលេចធ្លោពេកទេ បើត្រូវបានថៃហ្វឺ។",
+          "seconds": 5.9891149579998455,
+          "generated_tokens": 112,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n会儿在宴会上可不能太出头要是被太夫，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n是要早死啊姐妹们待，\n\nCurrent:\n会儿在宴会上可不能太出头要是被太夫，\n\nNext:\n人看上给裴国公做媳妇儿那可就太惨了上，\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n会儿在宴会上可不能太出头要是被太夫，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "7aba961f-2ab9-44eb-9ddf-dbd4d144cdf4",
+      "segment_index": 27,
+      "source_text": "人看上给裴国公做媳妇儿那可就太惨了上，",
+      "previous_text": "会儿在宴会上可不能太出头要是被太夫，",
+      "next_text": "节课你说的是。",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "មើលភ្នែកត្រូវ យកធ្វើជាប្រពន្ធលោកកុងប៉េ នោះច្បាស់ជាស៊យធំហើយ!",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ការដែលត្រូវធ្វើជាប្រពន្ធរបស់ព្រះអង្គម្ចាស់ភេអ៊ី គឺជារឿងដ៏អាក្រក់ណាស់។",
+      "contextual_translation": "ប្រសិនបើគេចង់យកអ្នកណាម្នាក់ធ្វើជាប្រពន្ធរបស់លោកប៉េ គឺវាពិតជាអយុត្តិធម៌ណាស់។",
+      "inference_times": {
+        "contextual": 6.187805916000798,
+        "no_context": 5.56693549999909
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ប្រសិនបើគេចង់យកអ្នកណាម្នាក់ធ្វើជាប្រពន្ធរបស់លោកប៉េ គឺវាពិតជាអយុត្តិធម៌ណាស់។",
+          "seconds": 6.187805916000798,
+          "generated_tokens": 122,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "ការដែលត្រូវធ្វើជាប្រពន្ធរបស់ព្រះអង្គម្ចាស់ភេអ៊ី គឺជារឿងដ៏អាក្រក់ណាស់។",
+          "seconds": 5.56693549999909,
+          "generated_tokens": 109,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n人看上给裴国公做媳妇儿那可就太惨了上，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n会儿在宴会上可不能太出头要是被太夫，\n\nCurrent:\n人看上给裴国公做媳妇儿那可就太惨了上，\n\nNext:\n节课你说的是。\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n人看上给裴国公做媳妇儿那可就太惨了上，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "7e2044bb-d9ae-4ed7-aac1-9445531d270b",
+      "segment_index": 31,
+      "source_text": "吗没有见过吗那你，",
+      "previous_text": "是见到他吃人了你见过，",
+      "next_text": "见过吗我？",
+      "speaker": "S2",
+      "speaker_id": "b9dd6335-07ab-49f6-8071-778f0f0fc140",
+      "existing_translation": "ទេ? អត់ដែលឃើញទេមែនទេ? ចុះឯង...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "មិនដែលឃើញទេឬ? ចុះអ្នកវិញ…",
+      "contextual_translation": "មែនទេ? មិនបានឃើញទេឬ? ដូច្នេះ អ្នក…",
+      "inference_times": {
+        "no_context": 2.32446283399986,
+        "contextual": 2.9592096249980386
+      },
+      "generation": {
+        "no_context": {
+          "translation": "មិនដែលឃើញទេឬ? ចុះអ្នកវិញ…",
+          "seconds": 2.32446283399986,
+          "generated_tokens": 46,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "មែនទេ? មិនបានឃើញទេឬ? ដូច្នេះ អ្នក…",
+          "seconds": 2.9592096249980386,
+          "generated_tokens": 57,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n吗没有见过吗那你，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n是见到他吃人了你见过，\n\nCurrent:\n吗没有见过吗那你，\n\nNext:\n见过吗我？\n\nSpeaker:\nS2\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n吗没有见过吗那你，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "43cbfa45-c91b-40ef-9ab5-6b61c4e2b759",
+      "segment_index": 38,
+      "source_text": "裴府嗯我叫宋之是？",
+      "previous_text": "怪你是何人怎能进了，",
+      "next_text": "裴国，",
+      "speaker": "S2",
+      "speaker_id": "b9dd6335-07ab-49f6-8071-778f0f0fc140",
+      "existing_translation": "ភូមិគ្រឹះផី? អឹម ខ្ញុំឈ្មោះសុងជឺ ជា...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "ផេហ្វូ អូហ៍ ខ្ញុំឈ្មោះ សុងជី មែនទេ?",
+      "contextual_translation": "ផេហ្វូ អើយ ខ្ញុំឈ្មោះ សុង ជីស៊ី?",
+      "inference_times": {
+        "contextual": 3.029093125001964,
+        "no_context": 3.0411232910009858
+      },
+      "generation": {
+        "contextual": {
+          "translation": "ផេហ្វូ អើយ ខ្ញុំឈ្មោះ សុង ជីស៊ី?",
+          "seconds": 3.029093125001964,
+          "generated_tokens": 54,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "ផេហ្វូ អូហ៍ ខ្ញុំឈ្មោះ សុងជី មែនទេ?",
+          "seconds": 3.0411232910009858,
+          "generated_tokens": 60,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n裴府嗯我叫宋之是？<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n怪你是何人怎能进了，\n\nCurrent:\n裴府嗯我叫宋之是？\n\nNext:\n裴国，\n\nSpeaker:\nS2\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n裴府嗯我叫宋之是？<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "59130940-118d-4181-9edb-89570a3c2b5a",
+      "segment_index": 40,
+      "source_text": "公的未婚，",
+      "previous_text": "裴国，",
+      "next_text": "妻哦未婚妻哪来？",
+      "speaker": "S1",
+      "speaker_id": "1dd4420d-3ae2-417a-a5b2-dd01634edba6",
+      "existing_translation": "...ជាគូដណ្តើម...",
+      "existing_provider": "gemini",
+      "existing_model": "gemini-3.5-flash",
+      "no_context_translation": "អ្នកស្រីមិនទាន់រៀបការនៅឡើយ។",
+      "contextual_translation": "ប្តីមិនរៀបការនៅឡើយ។",
+      "inference_times": {
+        "no_context": 2.37601029200232,
+        "contextual": 1.8299634579998383
+      },
+      "generation": {
+        "no_context": {
+          "translation": "អ្នកស្រីមិនទាន់រៀបការនៅឡើយ។",
+          "seconds": 2.37601029200232,
+          "generated_tokens": 47,
+          "hit_token_limit": false
+        },
+        "contextual": {
+          "translation": "ប្តីមិនរៀបការនៅឡើយ។",
+          "seconds": 1.8299634579998383,
+          "generated_tokens": 35,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n公的未婚，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n裴国，\n\nCurrent:\n公的未婚，\n\nNext:\n妻哦未婚妻哪来？\n\nSpeaker:\nS1\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n公的未婚，<｜hy_Assistant｜>"
+      }
+    },
+    {
+      "segment_id": "410904f9-6b78-40de-8f5f-9e39417e334f",
+      "segment_index": 43,
+      "source_text": "未婚妻啊啊，",
+      "previous_text": "的，",
+      "next_text": "",
+      "speaker": "S2",
+      "speaker_id": "b9dd6335-07ab-49f6-8071-778f0f0fc140",
+      "existing_translation": "មិត្តភក្តិរបស់គាត់",
+      "existing_provider": "local",
+      "existing_model": "m2m100-1.2b",
+      "no_context_translation": "មិត្តស្រីអើយ…",
+      "contextual_translation": "អូនស្រីស្រីស្នេហ៍!",
+      "inference_times": {
+        "contextual": 1.5799054999988584,
+        "no_context": 1.1785073749997537
+      },
+      "generation": {
+        "contextual": {
+          "translation": "អូនស្រីស្រីស្នេហ៍!",
+          "seconds": 1.5799054999988584,
+          "generated_tokens": 30,
+          "hit_token_limit": false
+        },
+        "no_context": {
+          "translation": "មិត្តស្រីអើយ…",
+          "seconds": 1.1785073749997537,
+          "generated_tokens": 22,
+          "hit_token_limit": false
+        }
+      },
+      "prompts": {
+        "no_context": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>将以下文本翻译为高棉语，注意只需要输出翻译后的结果，不要额外解释：\n\n未婚妻啊啊，<｜hy_Assistant｜>",
+        "contextual": "<｜hy_begin▁of▁sentence｜><｜hy_User｜>Previous:\n的，\n\nCurrent:\n未婚妻啊啊，\n\nNext:\n(none)\n\nSpeaker:\nS2\n\nTranslate ONLY Current. Previous and Next are context only.\n\n参考上面的信息，把下面的文本翻译成高棉语，注意不需要翻译上文，也不要额外解释：\n未婚妻啊啊，<｜hy_Assistant｜>"
+      }
+    }
+  ],
+  "summary": {
+    "segments_tested": 16,
+    "total_inference_seconds": 110.80428837400541,
+    "average_seconds_per_segment_both_modes": 6.925268023375338,
+    "modes": {
+      "no_context": {
+        "total_seconds": 56.58196954100276,
+        "average_seconds_per_segment": 3.5363730963126727
+      },
+      "contextual": {
+        "total_seconds": 54.222318833002646,
+        "average_seconds_per_segment": 3.3888949270626654
+      }
+    }
+  },
+  "project_unchanged": true,
+  "repetition_penalty": 1.05
+}

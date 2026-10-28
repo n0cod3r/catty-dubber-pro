@@ -1,0 +1,154 @@
+Loading LOCAL HY-MT1.5-1.8B: /Users/mac/Developer/tools/catty-dubber-pro/.models/benchmark/HY-MT1.5-1.8B (mps)
+
+[1/16] Chinese: 什么陛下要给那个被君为妖魂附身的短命鬼。
+Speaker: S1
+Previous: 
+Next: 裴国公赐婚，
+Existing gemini (gemini-3.5-flash): ស្អីគេ? ព្រះអម្ចាស់ចង់រៀបការឱ្យអាមនុស្សអាយុខ្លីដែលត្រូវព្រលឹងបិសាចចូលសព្វនោះ?
+HY-MT1.5-1.8B no context: 陛下为什么要把那个被妖魂附身的短命鬼赐予呢？
+HY-MT1.5-1.8B contextual: តើ​ព្រះ​អង្គ​នឹង​ផ្ដល់​ឱ្យ​អ្នក​ដែល​ត្រូវ​បាន​ព្រះ​អង្គ​ប្រទាន​ជីវិត​ឡើង​វិញ​នោះ នូវ​អ្វី​ទៅ?
+Inference time: A=0.90s B=7.32s
+
+[2/16] Chinese: 裴国公赐婚，
+Speaker: S1
+Previous: 什么陛下要给那个被君为妖魂附身的短命鬼。
+Next: 那裴国公虽美貌，
+Existing gemini (gemini-3.5-flash): ប្រទានអាពាហ៍ពិពាហ៍ជាមួយលោកកុងប៉េ?
+HY-MT1.5-1.8B no context: 裴国公赐予婚姻。
+HY-MT1.5-1.8B contextual: ព្រះ​អង្គ​បាន​ប្រទាន​ការ​រៀប​អាពាហ៍​ពិពាហ៍​ដល់​គាត់។
+Inference time: A=0.45s B=3.95s
+
+[3/16] Chinese: 性情却暴力阴狠，
+Speaker: S1
+Previous: 那裴国公虽美貌，
+Next: 是个十足的妖精啊，
+Existing gemini (gemini-3.5-flash): តែចរិតហិង្សា និងឃោរឃៅខ្លាំងណាស់
+HY-MT1.5-1.8B no context: 但他的性格却充满暴力与残忍。
+HY-MT1.5-1.8B contextual: ប៉ុន្តែ​ចរិត​របស់​គាត់​គឺ​ឃោរឃៅ និង​អាក្រក់​ណាស់។
+Inference time: A=0.48s B=3.97s
+
+[4/16] Chinese: 是个十足的妖精啊，
+Speaker: S1
+Previous: 性情却暴力阴狠，
+Next: 妖精听。
+Existing gemini (gemini-3.5-flash): ជាបិសាចពិតៗតែម្តង!
+HY-MT1.5-1.8B no context: 真是个十足的妖精啊。
+HY-MT1.5-1.8B contextual: គឺជាមនុស្សដ៏អាក្រក់ និងឃោរឃៅមែន។
+Inference time: A=0.47s B=2.76s
+
+[5/16] Chinese: 说那裴国公裴修颜乃是九尾妖狐转世以，
+Speaker: S1
+Previous: 妖精听。
+Next: 人心为食不，
+Existing gemini (gemini-3.5-flash): គេថា លោកកុងប៉េ ប៉េស៊ាវយ៉ាន នោះ គឺជាកញ្ជ្រោងបិសាចកន្ទុយប្រាំបួនចាប់ជាតិ យក...
+HY-MT1.5-1.8B no context: 据说，裴国公裴修颜其实是九尾妖狐的转世。
+HY-MT1.5-1.8B contextual: គេនិយាយថា លោក ភេវ ស៊ូអាន គឺជាអ្នកបម្រើព្រះនៃបិសាចហ្វូស៊ីល ដែលបានធ្វើជាអ្នកបម្រើព្រះនោះម្តងទៀត។
+Inference time: A=0.91s B=7.29s
+
+[6/16] Chinese: 人心为食不，
+Speaker: S1
+Previous: 说那裴国公裴修颜乃是九尾妖狐转世以，
+Next: 对不对是，
+Existing gemini (gemini-3.5-flash): បេះដូងមនុស្សធ្វើជាអាហារ តើមែនទេ? ទេ...
+HY-MT1.5-1.8B no context: 人心如食不
+HY-MT1.5-1.8B contextual: មនុស្ស​យក​ចិត្ត​ជា​អាហារ​មិន​បាន​ទេ។
+Inference time: A=0.29s B=2.68s
+
+[7/16] Chinese: 传说中长着翅膀的山海异兽你，
+Speaker: S1
+Previous: 对不对是，
+Next: 们说的都不对而，
+Existing gemini (gemini-3.5-flash): ជាសត្វចម្លែកមានស្លាបក្នុងព្រេងនិទានតើ! ពួក...
+HY-MT1.5-1.8B no context: 据传，那座拥有翅膀的山海奇兽，你……
+HY-MT1.5-1.8B contextual: អ្នក​ដែល​ត្រូវ​បាន​គេ​និយាយ​ថា ជា​សត្វ​ចម្លែក​ដែល​មាន​ស្លាប​នៅ​លើ​ខ្លួន…
+Inference time: A=0.82s B=5.12s
+
+[8/16] Chinese: 水怪啊我。
+Speaker: S1
+Previous: 是条大蛇是，
+Next: 听说夜色之下他，
+Existing gemini (gemini-3.5-flash): បិសាចទឹកតើ! ខ្ញុំ
+HY-MT1.5-1.8B no context: 水怪啊，我。
+HY-MT1.5-1.8B contextual: អ្នកដែលជាពស់ធំនោះ… គឺខ្ញុំហ្នឹងឯង។
+Inference time: A=0.38s B=2.87s
+
+[9/16] Chinese: 国公若真是妖怪他又，
+Speaker: S1
+Previous: 都有尸体抬出可裴。
+Next: 怎会那般鄙弱是啊？
+Existing gemini (gemini-3.5-flash): កុកកុង បើជាបិសាចមែននោះ ម៉េចក៏
+HY-MT1.5-1.8B no context: 如果国公真的是个怪物的话，那他……
+HY-MT1.5-1.8B contextual: ប្រសិនបើអ្នកជាសត្វចម្លែកពិតមែន តើអ្នកនឹងធ្វើដូចម្តេច?
+Inference time: A=0.61s B=4.46s
+
+[10/16] Chinese: 太医，
+Speaker: S1
+Previous: 怎会那般鄙弱是啊？
+Next: 们都说他活不过三十岁呢新人，
+Existing gemini (gemini-3.5-flash): គ្រូពេទ្យហ្លួង
+HY-MT1.5-1.8B no context: 太医，
+HY-MT1.5-1.8B contextual: ទេវតា​ព្យាបាល…
+Inference time: A=0.25s B=1.09s
+
+[11/16] Chinese: 会儿在宴会上可不能太出头要是被太夫，
+Speaker: S1
+Previous: 是要早死啊姐妹们待，
+Next: 人看上给裴国公做媳妇儿那可就太惨了上，
+Existing gemini (gemini-3.5-flash): នៅក្នុងពិធីជប់លៀង កុំធ្វើខ្លួនលេចធ្លោពេក! ប្រសិនបើលោកជំទាវ...
+HY-MT1.5-1.8B no context: 在宴会上可不能表现得过于显眼，否则可能会被主人责备。
+HY-MT1.5-1.8B contextual: ពេលនៅក្នុងពិធីជប់លៀង មិនត្រូវធ្វើខ្លួនឱ្យលេចធ្លោពេកទេ… បើសិនជាត្រូវគេចាប់អារម្មណ៍…
+Inference time: A=0.91s B=7.06s
+
+[12/16] Chinese: 人看上给裴国公做媳妇儿那可就太惨了上，
+Speaker: S1
+Previous: 会儿在宴会上可不能太出头要是被太夫，
+Next: 节课你说的是。
+Existing gemini (gemini-3.5-flash): មើលភ្នែកត្រូវ យកធ្វើជាប្រពន្ធលោកកុងប៉េ នោះច្បាស់ជាស៊យធំហើយ!
+HY-MT1.5-1.8B no context: 如果有人愿意成为裴国公的妻子的话，那真是太不幸了。
+HY-MT1.5-1.8B contextual: ប្រសិនបើគេចង់ក្លាយជាភរិយារបស់ព្រះអង្គម្ចាស់ប៉េហ្គូក្វឹង នោះវាពិតជារឿងដ៏អាក្រក់ណាស់។
+Inference time: A=0.94s B=7.09s
+
+[13/16] Chinese: 吗没有见过吗那你，
+Speaker: S2
+Previous: 是见到他吃人了你见过，
+Next: 见过吗我？
+Existing gemini (gemini-3.5-flash): ទេ? អត់ដែលឃើញទេមែនទេ? ចុះឯង...
+HY-MT1.5-1.8B no context: 你难道没见过吗？那你怎么会不知道呢？
+HY-MT1.5-1.8B contextual: មែនទេ? អ្នកមិនបានឃើញទេឬ? ដូច្នេះ…
+Inference time: A=0.74s B=2.98s
+
+[14/16] Chinese: 裴府嗯我叫宋之是？
+Speaker: S2
+Previous: 怪你是何人怎能进了，
+Next: 裴国，
+Existing gemini (gemini-3.5-flash): ភូមិគ្រឹះផី? អឹម ខ្ញុំឈ្មោះសុងជឺ ជា...
+HY-MT1.5-1.8B no context: 裴府啊，我叫宋之。
+HY-MT1.5-1.8B contextual: ផេហ្វូ ខ្ញុំឈ្មោះ សុង ជីស៊ី។
+Inference time: A=0.48s B=2.48s
+
+[15/16] Chinese: 公的未婚，
+Speaker: S1
+Previous: 裴国，
+Next: 妻哦未婚妻哪来？
+Existing gemini (gemini-3.5-flash): ...ជាគូដណ្តើម...
+HY-MT1.5-1.8B no context: 未婚的男性
+HY-MT1.5-1.8B contextual: អ្នក​ដែល​មិន​ទាន់​រៀបការ…
+Inference time: A=0.25s B=2.05s
+
+[16/16] Chinese: 未婚妻啊啊，
+Speaker: S2
+Previous: 的，
+Next: 
+Existing local (m2m100-1.2b): មិត្តភក្តិរបស់គាត់
+HY-MT1.5-1.8B no context: 未婚妻啊啊，
+HY-MT1.5-1.8B contextual: អូនស្រីព្រមទាំងជាគូដណ្តឹងហ្នឹង…
+Inference time: A=0.34s B=2.61s
+
+Model: HY-MT1.5-1.8B
+Segments tested: 16
+Total inference time: 74.98s
+Average time/segment (both modes): 4.69s
+No context average: 0.58s
+Contextual average: 4.11s
+Project unchanged: True
+Results: /Users/mac/Developer/tools/catty-dubber-pro/benchmark-results/hy-mt1.5-1.8b.json

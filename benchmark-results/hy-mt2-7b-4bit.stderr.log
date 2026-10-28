@@ -1,0 +1,1 @@
+[transformers] Unrecognized keys in `rope_parameters` for 'rope_type'='dynamic': {'alpha', 'beta_fast', 'mscale_all_dim', 'mscale', 'beta_slow'}
