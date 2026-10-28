@@ -64,6 +64,34 @@ class TTSService:
         projects.save_project(project_directory, project)
         return profile
 
+    def assign_speaker_voice(
+        self,
+        project_directory: Path,
+        episode_id: UUID,
+        speaker_id: UUID,
+        voice_profile_id: UUID,
+    ):
+        projects = ProjectService()
+        project = projects.open_project(project_directory)
+        episode = project.episode(episode_id)
+        if episode is None:
+            raise ValueError("Episode not found")
+        speaker = next((item for item in episode.speakers if item.id == speaker_id), None)
+        if speaker is None:
+            raise ValueError("Speaker not found")
+        if project.voice_profile(voice_profile_id) is None:
+            raise ValueError("Voice profile not found")
+        if speaker.voice_profile_id == voice_profile_id:
+            return episode
+        speaker.voice_profile_id = voice_profile_id
+        affected = set(speaker.segment_ids)
+        for dub in episode.dub_segments:
+            if dub.dialogue_segment_id in affected and dub.status is DubStatus.READY:
+                dub.status = DubStatus.OUTDATED
+        episode.processing.dubbing = ProcessingStatus.IDLE
+        projects.save_project(project_directory, project)
+        return episode
+
     def generate_segment(
         self,
         project_directory: Path,
@@ -223,11 +251,26 @@ class TTSService:
                 raise TTSGenerationCancelled("Voice generation cancelled")
             if on_progress is not None:
                 on_progress("generating", index, total, segment_id, None)
+            latest = ProjectService().open_project(project_directory)
+            latest_episode = latest.episode(episode_id)
+            dialogue = next(
+                item
+                for item in latest_episode.dialogue_segments
+                if item.id == segment_id
+            ) if latest_episode is not None else None
+            assigned_voice = voice_profile_id
+            if dialogue is not None and dialogue.speaker_id is not None and latest_episode is not None:
+                speaker = next(
+                    (item for item in latest_episode.speakers if item.id == dialogue.speaker_id),
+                    None,
+                )
+                if speaker is not None and speaker.voice_profile_id is not None:
+                    assigned_voice = speaker.voice_profile_id
             generated = self.generate_segment(
                 project_directory,
                 episode_id,
                 segment_id,
-                voice_profile_id,
+                assigned_voice,
                 speed=speed,
                 pitch=pitch,
                 volume=volume,
