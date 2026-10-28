@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any
+
+from edge_tts.data_classes import Voice
 
 
 class EdgeTTSError(RuntimeError):
@@ -33,7 +34,7 @@ class EdgeTTSProvider:
         )
         await communicate.save(str(output))
 
-    async def _voices(self) -> list[dict[str, Any]]:
+    async def _voices(self) -> list[Voice]:
         import edge_tts
 
         voices = await edge_tts.list_voices()
