@@ -4,4 +4,6 @@ export {
   listenTranslationProgress,
   listenTranscriptionProgress,
   listenTtsProgress,
+  prepareTtsCancel,
+  cancelTts,
 } from "@/features/engine";
