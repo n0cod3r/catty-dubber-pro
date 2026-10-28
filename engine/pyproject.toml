@@ -10,6 +10,8 @@ dependencies = [
   "funasr==1.4.16",
   "torch>=2.6,<3",
   "torchaudio>=2.6,<3",
+  "transformers>=4.57,<5",
+  "sentencepiece>=0.2,<1",
   "huggingface-hub>=0.30,<2",
   "keyring>=25.7.0",
 ]
@@ -29,5 +31,5 @@ dev = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["sherpa_onnx", "funasr"]
+module = ["sherpa_onnx", "funasr", "transformers"]
 ignore_missing_imports = true
