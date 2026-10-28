@@ -1,3 +1,4 @@
+from catty_engine.speakers.funasr import _ProductionCapture
 from catty_engine.speech.canonical_alignment import align_observed_paraformer
 
 
@@ -119,3 +120,27 @@ def test_alignment_recovers_text_when_fun_asr_sentence_info_is_punctuation_only(
     assert aligned is not None
     assert [s.text for s in aligned] == ["我叫宋之，", "是裴国公的未婚妻哦，"]
     assert [(s.start, s.end) for s in aligned] == [(106.11, 107.175), (107.44, 110.185)]
+
+
+def test_production_capture_restores_duration_sorted_vad_chunks_to_source_time():
+    capture = _ProductionCapture(source_start=10.0, return_spk_res=True)
+    capture.observe(
+        "vad",
+        [{"value": [[0, 1000], [2000, 5000]]}],
+        None,
+    )
+
+    # FunASR sorts VAD chunks by duration before ASR inference: 1s then 3s.
+    capture.observe(
+        "asr",
+        [
+            {"text": "你", "timestamp": [[100, 500]]},
+            {"text": "好", "timestamp": [[200, 900]]},
+        ],
+        2,
+    )
+
+    assert [row["native"]["text"] for row in capture.raw_asr] == ["你", "好"]
+    assert capture.raw_asr[0]["absolute_word_timestamps"] == [[10.1, 10.5]]
+    assert capture.raw_asr[1]["absolute_word_timestamps"] == [[12.2, 12.9]]
+    assert all(row["mapping"] == "duration_sorted_vad_order" for row in capture.raw_asr)
