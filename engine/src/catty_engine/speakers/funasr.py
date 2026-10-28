@@ -280,6 +280,52 @@ class _ProductionCapture:
         self.cursor = 0
         self.raw_asr: list[dict[str, Any]] = []
 
+    def warn(self, message: str) -> None:
+        trace = current_trace()
+        if trace is not None and trace.attempt is not None:
+            trace.safe(trace.attempt["capture_warnings"].append, message)
+
+    def capture_result(self, result: list[dict[str, Any]]) -> None:
+        """Recover absolute word timing from FunASR's final merged result.
+
+        ``inference_with_vad`` adds each VAD chunk offset to word timestamps
+        before punctuation, so ``timestamp`` is already in source time. This
+        keeps canonical raw-word alignment available when the internal
+        ``inference`` hook cannot be observed.
+        """
+        if not isinstance(result, list) or not result:
+            return
+        if self.raw_asr and all(
+            row.get("absolute_word_timestamps") for row in self.raw_asr
+        ):
+            return
+        row = result[0]
+        timestamps = row.get("timestamp")
+        if not isinstance(timestamps, list) or not timestamps:
+            return
+        absolute: list[list[float]] = []
+        for pair in timestamps:
+            if not isinstance(pair, (list, tuple)) or len(pair) < 2:
+                return
+            absolute.append(
+                [
+                    self.source_start + float(pair[0]) / 1000,
+                    self.source_start + float(pair[1]) / 1000,
+                ]
+            )
+        self.raw_asr = []
+        self.raw_asr.append(
+            {
+                "vad_region": None,
+                "mapping": "funasr_result_word_timestamps",
+                "native": {
+                    "text": str(row.get("text") or row.get("raw_text") or ""),
+                    "timestamp": timestamps,
+                },
+                "absolute_word_timestamps": absolute,
+            }
+        )
+
     def observe(self, stage: str, value: Any, input_count: int | None) -> None:
         rows = snapshot(value)
         if not isinstance(rows, list):
@@ -379,10 +425,19 @@ def _capture_production_pipeline(
     capture = _ProductionCapture(
         source_start=source_start, return_spk_res=return_spk_res
     )
-    _begin_diagnostic_attempt(return_spk_res)
+    try:
+        _begin_diagnostic_attempt(return_spk_res)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Could not start the transcription trace attempt", exc_info=True
+        )
     original = getattr(pipeline, "inference", None)
     if original is None:
-        raise RuntimeError("FunASR pipeline does not expose the inference hook")
+        capture.warn(
+            "Pipeline exposes no inference hook; using final result word timestamps"
+        )
+        yield capture
+        return
     own = "inference" in getattr(pipeline, "__dict__", {})
 
     def observed(*args: Any, **kwargs: Any):
@@ -413,7 +468,17 @@ def _capture_production_pipeline(
                 if stage == "asr" and isinstance(input_data, (list, tuple))
                 else None
             )
-            capture.observe(stage, output, count)
+            try:
+                capture.observe(stage, output, count)
+            except Exception:
+                capture.warn(
+                    f"{stage} capture failed; ASR inference left unchanged"
+                )
+                logging.getLogger(__name__).warning(
+                    "FunASR %s capture failed; inference unchanged",
+                    stage,
+                    exc_info=True,
+                )
             trace = current_trace()
             if trace is not None:
                 trace.safe(trace.observe, stage, output, count)
@@ -428,14 +493,26 @@ def _capture_production_pipeline(
                     trace.attempt["punctuation_input_text"] = input_data
         return output
 
-    pipeline.inference = observed
+    try:
+        pipeline.inference = observed
+    except Exception:
+        capture.warn(
+            "Could not install the inference hook; using final result word timestamps"
+        )
+        yield capture
+        return
     try:
         yield capture
     finally:
-        if own:
-            pipeline.inference = original
-        else:
-            del pipeline.inference
+        try:
+            if own:
+                pipeline.inference = original
+            else:
+                del pipeline.inference
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Could not restore the FunASR inference hook", exc_info=True
+            )
 
 
 @logged_process
@@ -461,6 +538,13 @@ def _run_generate(
             sentence_timestamp=True,
             return_spk_res=return_spk_res,
         )
+        try:
+            capture.capture_result(result)
+        except Exception:
+            capture.warn("Result timing capture failed; inference unchanged")
+            logging.getLogger(__name__).warning(
+                "Could not capture FunASR result word timing", exc_info=True
+            )
         trace = current_trace()
         if trace is not None and trace.attempt is not None:
             trace.safe(lambda: trace.attempt.update(funasr_result=snapshot(result)))
