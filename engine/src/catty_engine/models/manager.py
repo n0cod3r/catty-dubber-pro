@@ -31,13 +31,82 @@ class InstallJob:
 
 
 _M2M100_FILES = (
-    "config.json", "generation_config.json", "pytorch_model.bin", "model.safetensors",
-    "sentencepiece.bpe.model", "special_tokens_map.json", "tokenizer_config.json", "vocab.json",
+    "config.json",
+    "generation_config.json",
+    "pytorch_model.bin",
+    "model.safetensors",
+    "sentencepiece.bpe.model",
+    "special_tokens_map.json",
+    "tokenizer_config.json",
+    "vocab.json",
+)
+_CAUSAL_TRANSLATION_FILES = (
+    "config.json",
+    "generation_config.json",
+    "model*.safetensors",
+    "tokenizer.json",
+    "tokenizer.model",
+    "tokenizer_config.json",
+    "special_tokens_map.json",
+    "added_tokens.json",
+    "chat_template.jinja",
 )
 
 LOCAL_TRANSLATION_MODELS = (
-    ModelSpec(id="m2m100-418m", name="M2M100 418M", kind="translation", repository="facebook/m2m100_418M", license="MIT", description="Balanced local model. Direct Chinese → Khmer translation with lower memory use.", approximate_size_mb=1960, allow_patterns=_M2M100_FILES),
-    ModelSpec(id="m2m100-1.2b", name="M2M100 1.2B", kind="translation", repository="facebook/m2m100_1.2B", license="MIT", description="Larger local model for users who prefer translation quality over speed and memory use.", approximate_size_mb=4950, allow_patterns=_M2M100_FILES),
+    ModelSpec(
+        id="milmmt-46-1b-v1",
+        name="MiLMMT 46 1B v1",
+        kind="translation",
+        repository="xiaomi-research/MiLMMT-46-1B-v1.0",
+        license="Gemma",
+        description=(
+            "Experimental contextual local translator. Supports Chinese and Khmer and is "
+            "small enough to benchmark as Catty's preferred local model."
+        ),
+        approximate_size_mb=2050,
+        allow_patterns=_CAUSAL_TRANSLATION_FILES,
+        runtime="causal_translation",
+    ),
+    ModelSpec(
+        id="gemmax2-28-2b-v0.2",
+        name="GemmaX2 28 2B v0.2",
+        kind="translation",
+        repository="xiaomi-research/GemmaX2-28-2B-v0.2",
+        license="Gemma",
+        description=(
+            "Experimental LLM translation model with Chinese and Khmer support. Larger than "
+            "MiLMMT 1B; useful as a local quality benchmark."
+        ),
+        approximate_size_mb=5400,
+        allow_patterns=_CAUSAL_TRANSLATION_FILES,
+        runtime="causal_translation",
+    ),
+    ModelSpec(
+        id="m2m100-418m",
+        name="M2M100 418M (Legacy)",
+        kind="translation",
+        repository="facebook/m2m100_418M",
+        license="MIT",
+        description=(
+            "Legacy basic machine translation model. Does not understand dialogue context and "
+            "is kept only for comparison."
+        ),
+        approximate_size_mb=1960,
+        allow_patterns=_M2M100_FILES,
+    ),
+    ModelSpec(
+        id="m2m100-1.2b",
+        name="M2M100 1.2B (Legacy)",
+        kind="translation",
+        repository="facebook/m2m100_1.2B",
+        license="MIT",
+        description=(
+            "Legacy larger M2M100 model. Does not understand dialogue context and is not "
+            "recommended for Catty dubbing."
+        ),
+        approximate_size_mb=4950,
+        allow_patterns=_M2M100_FILES,
+    ),
 )
 LOCAL_TRANSLATION_MODEL = LOCAL_TRANSLATION_MODELS[0]
 _REGISTRY = {spec.id: spec for spec in LOCAL_TRANSLATION_MODELS}
@@ -68,20 +137,38 @@ class ModelManager:
         return [self._snapshot(spec) for spec in _REGISTRY.values()]
 
     def list_specs(self, *, kind: str | None = None) -> list[ModelSpec]:
-        return [spec for spec in _REGISTRY.values() if kind is None or spec.kind == kind]
+        return [
+            spec for spec in _REGISTRY.values() if kind is None or spec.kind == kind
+        ]
 
     def _job_snapshot(self, model_id: str) -> dict[str, object]:
         with _JOBS_LOCK:
             job = _JOBS.get(model_id)
         if job is None:
-            return {"model_id": model_id, "status": "installed" if self.installed(model_id) else "idle", "error": None}
+            return {
+                "model_id": model_id,
+                "status": "installed" if self.installed(model_id) else "idle",
+                "error": None,
+            }
         return {"model_id": model_id, "status": job.status, "error": job.error}
 
     def _snapshot(self, spec: ModelSpec) -> dict[str, object]:
         path = self.path_for(spec.id)
         installed = self.installed(spec.id)
         job = self._job_snapshot(spec.id)
-        return {"id": spec.id, "name": spec.name, "kind": spec.kind, "repository": spec.repository, "license": spec.license, "description": spec.description, "approximate_size_mb": spec.approximate_size_mb, "installed": installed, "path": str(path) if installed else None, "install_status": job["status"], "install_error": job["error"]}
+        return {
+            "id": spec.id,
+            "name": spec.name,
+            "kind": spec.kind,
+            "repository": spec.repository,
+            "license": spec.license,
+            "description": spec.description,
+            "approximate_size_mb": spec.approximate_size_mb,
+            "installed": installed,
+            "path": str(path) if installed else None,
+            "install_status": job["status"],
+            "install_error": job["error"],
+        }
 
     def install_status(self, model_id: str | None = None) -> list[dict[str, object]]:
         if model_id is not None:
@@ -100,7 +187,12 @@ class ModelManager:
             if not already_running:
                 _JOBS[model_id] = InstallJob()
         if not already_running:
-            threading.Thread(target=self._install_worker, args=(model_id,), name=f"catty-model-{model_id}", daemon=True).start()
+            threading.Thread(
+                target=self._install_worker,
+                args=(model_id,),
+                name=f"catty-model-{model_id}",
+                daemon=True,
+            ).start()
         return self._snapshot(spec)
 
     def _install_worker(self, model_id: str) -> None:
@@ -109,8 +201,14 @@ class ModelManager:
         staging = target.with_name(f".{target.name}.downloading")
         staging.mkdir(parents=True, exist_ok=True)
         try:
-            snapshot_download(repo_id=spec.repository, local_dir=staging, allow_patterns=list(spec.allow_patterns))
-            (staging / ".catty-installed").write_text(spec.repository, encoding="utf-8")
+            snapshot_download(
+                repo_id=spec.repository,
+                local_dir=staging,
+                allow_patterns=list(spec.allow_patterns),
+            )
+            (staging / ".catty-installed").write_text(
+                spec.repository, encoding="utf-8"
+            )
             shutil.rmtree(target, ignore_errors=True)
             staging.replace(target)
             with _JOBS_LOCK:
@@ -128,7 +226,11 @@ class ModelManager:
         if self.installed(model_id):
             return self._snapshot(spec)
         staging.mkdir(parents=True, exist_ok=True)
-        snapshot_download(repo_id=spec.repository, local_dir=staging, allow_patterns=list(spec.allow_patterns))
+        snapshot_download(
+            repo_id=spec.repository,
+            local_dir=staging,
+            allow_patterns=list(spec.allow_patterns),
+        )
         (staging / ".catty-installed").write_text(spec.repository, encoding="utf-8")
         shutil.rmtree(target, ignore_errors=True)
         staging.replace(target)
@@ -144,5 +246,8 @@ class ModelManager:
                 raise ValueError("Cannot remove a model while it is downloading")
             _JOBS.pop(model_id, None)
         shutil.rmtree(self.path_for(model_id), ignore_errors=True)
-        shutil.rmtree(self.path_for(model_id).with_name(f".{model_id}.downloading"), ignore_errors=True)
+        shutil.rmtree(
+            self.path_for(model_id).with_name(f".{model_id}.downloading"),
+            ignore_errors=True,
+        )
         return self._snapshot(spec)
