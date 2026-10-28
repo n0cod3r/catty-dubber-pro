@@ -112,7 +112,7 @@ def test_gap_analysis_distinguishes_vad_support_and_does_not_claim_silence_is_a_
     assert gaps[1]["duration"] == 8.84 and gaps[1]["suspicious"] is True
     assert gaps[1]["vad_overlap_seconds"] == 8.3
     raw = [{"absolute_word_timestamps": [[98, 100]]}]
-    gaps = suspicious_gaps(final, vad, raw, [], [], 0, 110)
+    gaps = suspicious_gaps(final, vad, raw, [], 0, 110)
     assert "punctuation" in gaps[1]["hint"]
     gaps = suspicious_gaps(final, vad, raw, [{"start": 98, "end": 100}], 0, 110)
     assert "semantic_split" in gaps[1]["hint"]
