@@ -19,9 +19,16 @@ class ProviderErrorKind(StrEnum):
 class ProviderError(RuntimeError):
     """Safe provider failure with machine-readable retry semantics."""
 
-    def __init__(self, message: str, *, kind: ProviderErrorKind = ProviderErrorKind.RESPONSE, retry_after: float | None = None) -> None:
+    def __init__(self, message: str, *, kind: ProviderErrorKind | None = None, retry_after: float | None = None) -> None:
         super().__init__(message)
-        self.kind = kind
+        lowered = message.lower()
+        if kind is None and "rate limit" in lowered:
+            kind = ProviderErrorKind.RATE_LIMIT
+        elif kind is None and ("api key" in lowered or "credential" in lowered):
+            kind = ProviderErrorKind.AUTH
+        elif kind is None and ("temporarily unavailable" in lowered or "could not reach" in lowered):
+            kind = ProviderErrorKind.TEMPORARY
+        self.kind = kind or ProviderErrorKind.RESPONSE
         self.retry_after = retry_after
 
 
