@@ -30,7 +30,7 @@ class ProviderParams(BaseModel):
 class CredentialAddParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: TranslationProviderId
-    credential: str
+    secret: str
 
 
 class CredentialRemoveParams(BaseModel):
@@ -97,7 +97,7 @@ def add_credential(params: dict[str, Any]) -> dict[str, Any]:
     parsed = CredentialAddParams.model_validate(params)
     if parsed.provider == "local":
         raise ValueError("Local translation does not use API credentials")
-    secret = parsed.credential.strip()
+    secret = parsed.secret.strip()
     if not secret:
         raise ValueError("Credential must not be empty")
 
