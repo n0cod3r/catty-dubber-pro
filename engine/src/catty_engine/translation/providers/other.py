@@ -48,6 +48,7 @@ class LocalProvider:
         except Exception as exc:
             raise ProviderError(f"Local translation failed: {exc}") from exc
         return TranslationBatchResult(
+            provider=self.id,
             model=self.selected_model,
             segments=[TranslationOutput(id=segment.id, text=text.strip()) for segment, text in zip(request.segments, translated, strict=True)],
         )
