@@ -67,5 +67,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.x"
+          enable-cache: true
+      - run: uv python install 3.13
+      - run: uv sync --project ../../../engine --frozen --dev
       - run: cargo check --locked
       - run: cargo test --locked
