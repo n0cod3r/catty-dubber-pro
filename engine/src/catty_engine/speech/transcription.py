@@ -10,9 +10,10 @@ from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
 
 from .backends import AsrBackendRegistry
+from .canonical_alignment import align_observed_paraformer
+from .diagnostics import current_trace, trace_transcription
 from .models import TranscriptionResult
 from .segmentation import split_long_dialogue
-from .diagnostics import current_trace, trace_transcription
 from .vad import VadBackend
 
 
@@ -71,6 +72,29 @@ class TranscriptionService:
         backend = self._asr_backends.get(backend_id)
         segments = backend.transcribe(audio, regions, language=language)
 
+        # FunASR concatenates VAD chunks before punctuation/speaker processing.
+        # Its sentence_info timestamps can therefore lose the silent gaps between
+        # chunks even though the raw Paraformer word timestamps are still correct.
+        # Rebuild canonical dialogue from the already-observed raw timestamps and
+        # final punctuated text. The aligner is intentionally strict and falls
+        # back to sentence_info whenever one-to-one alignment cannot be proven.
+        trace = current_trace()
+        if backend_id == "paraformer" and trace is not None and trace.attempt is not None:
+            observed_result = trace.attempt.get("funasr_result")
+            raw_asr = trace.attempt.get("raw_asr", [])
+            if isinstance(observed_result, list):
+                aligned = align_observed_paraformer(
+                    observed_result,
+                    raw_asr,
+                    start=source_start,
+                    duration=duration,
+                )
+                if aligned is not None:
+                    segments = aligned
+                    trace.data["canonical_alignment"] = "raw_word_timestamps"
+                else:
+                    trace.data["canonical_alignment"] = "sentence_info_fallback"
+
         speaker_error = getattr(backend, "speaker_error", None)
         model = backend.model
         integrated_speakers = bool(getattr(backend, "integrated_speakers", False))
@@ -94,7 +118,10 @@ class TranscriptionService:
         # ASR keeps full context. Shorten only after recognition and speaker
         # annotation, so every split inherits the recognized speaker.
         if trace is not None:
-            trace.safe(trace.data.update, parsed_segments=[segment.model_dump(mode="json") for segment in segments])
+            trace.safe(
+                trace.data.update,
+                parsed_segments=[segment.model_dump(mode="json") for segment in segments],
+            )
         segments = split_long_dialogue(segments)
         return TranscriptionResult(
             backend=backend.id,
