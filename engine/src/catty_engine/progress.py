@@ -10,14 +10,20 @@ from contextlib import contextmanager
 from typing import Any
 
 
-def emit_translation_progress(payload: dict[str, Any]) -> None:
+def _emit(kind: str, payload: dict[str, Any]) -> None:
     sys.stderr.write(
-        json.dumps(
-            {"catty_progress": "translation", "payload": payload}, ensure_ascii=False
-        )
+        json.dumps({"catty_progress": kind, "payload": payload}, ensure_ascii=False)
         + "\n"
     )
     sys.stderr.flush()
+
+
+def emit_translation_progress(payload: dict[str, Any]) -> None:
+    _emit("translation", payload)
+
+
+def emit_tts_progress(payload: dict[str, Any]) -> None:
+    _emit("tts", payload)
 
 
 # Transcription previews are ephemeral. Only the completed event carries a saved
@@ -47,14 +53,7 @@ class TranscriptionProgressReporter:
             "preview_segments": self.preview,
             "episode": episode,
         }
-        sys.stderr.write(
-            json.dumps(
-                {"catty_progress": "transcription", "payload": payload},
-                ensure_ascii=False,
-            )
-            + "\n"
-        )
-        sys.stderr.flush()
+        _emit("transcription", payload)
 
     def observe(self, stage, attempt):
         if stage == "vad":
