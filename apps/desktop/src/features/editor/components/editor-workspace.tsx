@@ -93,6 +93,11 @@ function WorkspaceContent({
           followPlayhead={followPlayhead}
           duration={duration}
           dialogueEditing={dialogue}
+          transcription={{
+            active: dialogue.transcribing,
+            projectDirectory,
+            progress: dialogue.progress,
+          }}
         />
       }
       preview={

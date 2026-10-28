@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { TranscriptionProgress } from "@catty/contracts";
 import { Flag, Plus } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -28,8 +29,10 @@ import { dialogueSplitTarget } from "../utils/dialogue-split";
 import { snapTime, visibleTicks } from "../utils/geometry";
 import { clipRenderWindow, thumbnailTiles } from "../utils/render-window";
 import { trackStyles } from "../utils/tracks";
+import { activeTranscriptionPreview } from "../utils/transcription-preview";
 import { TimelineToolbar } from "./timeline-toolbar";
 import { TimelineTrack } from "./timeline-track";
+import { TranscriptionPreviewTrack } from "./transcription-preview-track";
 
 type TimelineProps = {
   episode: EpisodeMedia | null;
@@ -39,6 +42,11 @@ type TimelineProps = {
   onMuteChange: (muted: boolean) => void;
   followPlayhead: boolean;
   duration: number;
+  transcription?: {
+    active: boolean;
+    projectDirectory: string;
+    progress: TranscriptionProgress | null;
+  };
   dialogueEditing: {
     busy: boolean;
     historyCounts: { undo: number; redo: number };
@@ -56,7 +64,14 @@ export function Timeline({
   followPlayhead,
   duration: projectDuration,
   dialogueEditing,
+  transcription,
 }: TimelineProps) {
+  const transcriptionPreview = activeTranscriptionPreview(
+    transcription?.progress,
+    transcription?.active ?? false,
+    transcription?.projectDirectory,
+    episode?.id,
+  );
   const history = useTimelineStore((state) => state.history);
   const actions = useTimelineStore(
     useShallow((state) => ({
@@ -410,7 +425,7 @@ export function Timeline({
           style={{
             gridTemplateColumns: `${TIMELINE.headerWidth}px ${viewport.width}px`,
             width: TIMELINE.headerWidth + viewport.width,
-            gridTemplateRows: `${TIMELINE.rulerHeight}px repeat(${document.layers.length}, ${TIMELINE.trackHeight}px) minmax(24px, 1fr)`,
+            gridTemplateRows: `${TIMELINE.rulerHeight}px repeat(${document.layers.length + (transcriptionPreview ? 1 : 0)}, ${TIMELINE.trackHeight}px) minmax(24px, 1fr)`,
           }}
         >
           <div className="sticky top-0 left-0 z-40 flex items-center border-r border-b bg-card px-3 text-[9px] font-medium tracking-widest text-muted-foreground">
@@ -455,6 +470,16 @@ export function Timeline({
               </button>
             ))}
           </div>
+          {transcriptionPreview && (
+            <TranscriptionPreviewTrack
+              progress={transcriptionPreview}
+              duration={timelineDuration}
+              width={viewport.width}
+              scrollLeft={viewport.scrollLeft}
+              viewportWidth={viewport.viewportWidth}
+              onSeek={onSeek}
+            />
+          )}
           {document.layers.map((layer) => (
             <TimelineTrack
               key={layer.id}
