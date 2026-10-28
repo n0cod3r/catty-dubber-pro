@@ -8,6 +8,7 @@ import type {
 } from "@catty/contracts";
 
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
+
 import {
   cancelTts,
   listenTtsProgress,
@@ -57,6 +58,7 @@ export function useTts(
   }, []);
 
   useEffect(() => {
+    let active = true;
     let unlisten: (() => void) | undefined;
     void listenTtsProgress((event) => {
       if (
@@ -69,9 +71,13 @@ export function useTts(
       if (["completed", "cancelled", "failed"].includes(event.phase))
         setGenerating(false);
     }).then((stop) => {
-      unlisten = stop;
+      if (active) unlisten = stop;
+      else stop();
     });
-    return () => unlisten?.();
+    return () => {
+      active = false;
+      unlisten?.();
+    };
   }, [episode?.id, onEpisodePersisted]);
 
   const dubByDialogue = useMemo(
@@ -133,9 +139,7 @@ export function useTts(
     try {
       await cancelTts(operationId);
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "មិនអាច cancel បានទេ។",
-      );
+      setError(cause instanceof Error ? cause.message : "មិនអាច cancel បានទេ។");
     }
   }, [generating]);
 
@@ -167,9 +171,7 @@ export function useTts(
         return result.path;
       } catch (cause) {
         setError(
-          cause instanceof Error
-            ? cause.message
-            : "មិនអាច preview សំឡេងបានទេ។",
+          cause instanceof Error ? cause.message : "មិនអាច preview សំឡេងបានទេ។",
         );
         return null;
       } finally {

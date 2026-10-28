@@ -10,6 +10,7 @@ from catty_engine.project import ProjectService
 from catty_engine.project.models import (
     DubSegment,
     DubStatus,
+    Episode,
     ProcessingStatus,
     VoiceEngine,
     VoiceProfile,
@@ -70,7 +71,7 @@ class TTSService:
         episode_id: UUID,
         speaker_id: UUID,
         voice_profile_id: UUID,
-    ):
+    ) -> Episode:
         projects = ProjectService()
         project = projects.open_project(project_directory)
         episode = project.episode(episode_id)
@@ -202,10 +203,29 @@ class TTSService:
         current.status = DubStatus.READY
         current.generated_at = datetime.now(UTC)
         current.generated_duration = None
-        if all(item.status is DubStatus.READY for item in episode.dub_segments):
-            episode.processing.dubbing = ProcessingStatus.COMPLETED
+        self._finalize_dubbing_status(episode)
         projects.save_project(project_directory, project)
         return current
+
+    @staticmethod
+    def _finalize_dubbing_status(episode: Episode) -> None:
+        translated = [
+            dialogue.id
+            for dialogue in episode.dialogue_segments
+            if dialogue.translation is not None
+            and dialogue.translation.text.strip()
+        ]
+        ready = {
+            dub.dialogue_segment_id
+            for dub in episode.dub_segments
+            if dub.status is DubStatus.READY
+        }
+        if translated and all(segment_id in ready for segment_id in translated):
+            episode.processing.dubbing = ProcessingStatus.COMPLETED
+        elif any(dub.status is DubStatus.FAILED for dub in episode.dub_segments):
+            episode.processing.dubbing = ProcessingStatus.FAILED
+        else:
+            episode.processing.dubbing = ProcessingStatus.IDLE
 
     def generate_episode(
         self,
@@ -253,15 +273,27 @@ class TTSService:
                 on_progress("generating", index, total, segment_id, None)
             latest = ProjectService().open_project(project_directory)
             latest_episode = latest.episode(episode_id)
-            dialogue = next(
-                item
-                for item in latest_episode.dialogue_segments
-                if item.id == segment_id
-            ) if latest_episode is not None else None
+            latest_dialogue = (
+                next(
+                    item
+                    for item in latest_episode.dialogue_segments
+                    if item.id == segment_id
+                )
+                if latest_episode is not None
+                else None
+            )
             assigned_voice = voice_profile_id
-            if dialogue is not None and dialogue.speaker_id is not None and latest_episode is not None:
+            if (
+                latest_dialogue is not None
+                and latest_dialogue.speaker_id is not None
+                and latest_episode is not None
+            ):
                 speaker = next(
-                    (item for item in latest_episode.speakers if item.id == dialogue.speaker_id),
+                    (
+                        item
+                        for item in latest_episode.speakers
+                        if item.id == latest_dialogue.speaker_id
+                    ),
                     None,
                 )
                 if speaker is not None and speaker.voice_profile_id is not None:

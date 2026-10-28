@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { convertFileSrc } from "@tauri-apps/api/core";
-import {
-  LoaderCircle,
-  Play,
-  RotateCcw,
-  Square,
-  Volume2,
-} from "lucide-react";
+import { LoaderCircle, Play, RotateCcw, Square, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
@@ -26,16 +20,14 @@ export function VoiceGenerationPanel({
 }) {
   const rows = useMemo(
     () =>
-      episode?.dialogueSegments?.filter((row) => row.translation?.text?.trim()) ??
-      [],
+      episode?.dialogueSegments?.filter((row) =>
+        row.translation?.text?.trim(),
+      ) ?? [],
     [episode?.dialogueSegments],
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected =
-    rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
-  const existing = selected
-    ? tts.dubByDialogue.get(selected.id)
-    : undefined;
+  const selected = rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
+  const existing = selected ? tts.dubByDialogue.get(selected.id) : undefined;
   const [tuning, setTuning] = useState<TtsTuning>(DEFAULT_TUNING);
 
   useEffect(() => {
@@ -165,7 +157,9 @@ export function VoiceGenerationPanel({
             size="xs"
             variant="outline"
             className="h-6 text-[9px]"
-            disabled={!selected || tts.previewing || tts.generating}
+            disabled={
+              !selected || !tts.voiceId || tts.previewing || tts.generating
+            }
             onClick={() => void preview()}
           >
             {tts.previewing ? (
@@ -179,7 +173,7 @@ export function VoiceGenerationPanel({
             size="xs"
             variant="outline"
             className="h-6 text-[9px]"
-            disabled={!selected || tts.generating}
+            disabled={!selected || !tts.voiceId || tts.generating}
             onClick={() =>
               selected && void tts.generate("selected", [selected.id], tuning)
             }
@@ -190,7 +184,7 @@ export function VoiceGenerationPanel({
             size="xs"
             variant="outline"
             className="h-6 text-[9px]"
-            disabled={tts.generating || rows.length === 0}
+            disabled={!tts.voiceId || tts.generating || rows.length === 0}
             onClick={() => void tts.generate("missing", [], tuning)}
           >
             Generate missing
@@ -198,7 +192,7 @@ export function VoiceGenerationPanel({
           <Button
             size="xs"
             className="h-6 text-[9px]"
-            disabled={tts.generating || rows.length === 0}
+            disabled={!tts.voiceId || tts.generating || rows.length === 0}
             onClick={() => void tts.generate("all", [], tuning)}
           >
             Regenerate all
@@ -245,19 +239,25 @@ function NumberControl({
   step: number;
   onChange: (value: number) => void;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
   return (
     <label className="text-[8px] text-muted-foreground">
       {label}
       <input
         className="mt-0.5 h-6 w-full rounded border bg-background px-1 text-[9px] text-foreground"
         type="number"
-        value={value}
+        value={draft ?? String(value)}
         min={min}
         max={max}
         step={step}
-        onChange={(event) =>
-          onChange(Math.min(max, Math.max(min, Number(event.target.value))))
-        }
+        onChange={(event) => {
+          const text = event.target.value;
+          setDraft(text);
+          const next = Number(text);
+          if (text.trim() === "" || !Number.isFinite(next)) return;
+          onChange(Math.min(max, Math.max(min, next)));
+        }}
+        onBlur={() => setDraft(null)}
       />
     </label>
   );

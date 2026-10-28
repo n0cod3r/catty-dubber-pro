@@ -1,6 +1,5 @@
 import type { TtsProgress } from "@catty/contracts";
-import type { UnlistenFn } from "@tauri-apps/api/event";
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export function listenTtsProgress(
   listener: (progress: TtsProgress) => void,

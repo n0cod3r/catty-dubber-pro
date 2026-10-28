@@ -1,3 +1,11 @@
+import type {
+  DubSegment,
+  EdgeVoice,
+  TtsGenerateParams,
+  TtsPreviewParams,
+  VoiceProfile,
+} from "./tts";
+
 export type {
   DubSegment,
   DubStatus,
@@ -7,13 +15,6 @@ export type {
   TtsPreviewParams,
   TtsProgress,
   VoiceEngine,
-  VoiceProfile,
-} from "./tts";
-import type {
-  DubSegment,
-  EdgeVoice,
-  TtsGenerateParams,
-  TtsPreviewParams,
   VoiceProfile,
 } from "./tts";
 
@@ -159,16 +160,9 @@ export type AudioPrepareParams = {
 };
 
 export type TranslationProviderId =
-  | "local"
-  | "gemini"
-  | "deepseek"
-  | "google"
-  | "baidu"
-  | "openai_compatible";
+  "local" | "gemini" | "deepseek" | "google" | "baidu" | "openai_compatible";
 export type TranslationStyle =
-  | "natural_dubbing"
-  | "literal"
-  | "short_conversational";
+  "natural_dubbing" | "literal" | "short_conversational";
 export type TranscriptionProgress = {
   operation_id: string;
   project_directory: string;
@@ -243,12 +237,7 @@ export type TranslationProviderInfo = {
   selected_model: string | null;
 };
 export type ModelInstallStatus =
-  | "idle"
-  | "downloading"
-  | "cancelling"
-  | "cancelled"
-  | "installed"
-  | "failed";
+  "idle" | "downloading" | "cancelling" | "cancelled" | "installed" | "failed";
 export type TranslationModel = {
   id: string;
   name: string;
@@ -391,7 +380,11 @@ export type EngineMethods = {
   "models.remove": { params: { model_id: string }; result: TranslationModel };
   "tts.voices": { params: Record<string, never>; result: EdgeVoice[] };
   "tts.ensure_voice": {
-    params: { project_directory: string; voice_id: string; name?: string | null };
+    params: {
+      project_directory: string;
+      voice_id: string;
+      name?: string | null;
+    };
     result: VoiceProfile;
   };
   "tts.preview": { params: TtsPreviewParams; result: { path: string } };
