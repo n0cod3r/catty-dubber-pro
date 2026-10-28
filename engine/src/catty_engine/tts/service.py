@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Callable, Literal
@@ -130,16 +131,22 @@ class TTSService:
             / str(episode.id)
             / f"{dialogue.id}.mp3"
         )
+        temp_output = output.with_name(f".{output.stem}.{uuid4().hex}.tmp.mp3")
         try:
             self.edge.synthesize(
                 dialogue.translation.text,
-                output,
+                temp_output,
                 voice=voice.engine_voice_id,
                 speed=speed,
                 pitch=pitch,
                 volume=volume,
             )
+            if not temp_output.exists() or temp_output.stat().st_size == 0:
+                raise RuntimeError("TTS provider produced no audio")
+            output.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(temp_output, output)
         except Exception:
+            temp_output.unlink(missing_ok=True)
             project = projects.open_project(project_directory)
             episode = project.episode(episode_id)
             if episode is not None:
