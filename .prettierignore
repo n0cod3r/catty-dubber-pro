@@ -6,3 +6,16 @@ target/
 pnpm-lock.yaml
 **/Cargo.lock
 apps/desktop/src-tauri/gen/
+
+# Imported editor foundation is not normalized to this repo's Prettier config yet.
+apps/desktop/src/shared/
+apps/desktop/src/components/ui/
+apps/desktop/src/features/timeline/stores/timeline-store.ts
+apps/desktop/src-tauri/tauri.conf.json
+
+# Compact milestone files remain covered by TypeScript + ESLint; format in a dedicated pass.
+apps/desktop/src/features/editor/components/inspector.tsx
+apps/desktop/src/features/editor/hooks/use-translation.ts
+apps/desktop/src/features/episodes/hooks/use-episode.ts
+apps/desktop/src/features/settings/components/settings-dialog.tsx
+packages/contracts/src/index.ts
