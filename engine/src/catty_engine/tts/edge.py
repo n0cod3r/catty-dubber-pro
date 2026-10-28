@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import TypedDict, cast
 
-from edge_tts.data_classes import Voice
+
+class EdgeVoice(TypedDict, total=False):
+    ShortName: str
+    FriendlyName: str
+    Locale: str
+    Gender: str
 
 
 class EdgeTTSError(RuntimeError):
@@ -34,10 +40,10 @@ class EdgeTTSProvider:
         )
         await communicate.save(str(output))
 
-    async def _voices(self) -> list[Voice]:
+    async def _voices(self) -> list[EdgeVoice]:
         import edge_tts
 
-        voices = await edge_tts.list_voices()
+        voices = cast(list[EdgeVoice], await edge_tts.list_voices())
         return [
             voice
             for voice in voices
