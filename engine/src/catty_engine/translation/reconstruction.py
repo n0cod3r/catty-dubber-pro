@@ -13,6 +13,7 @@ MAX_GROUP_CHARS = 48
 MAX_GAP_SECONDS = 0.65
 SHORT_FRAGMENT_CHARS = 10
 _TERMINAL = frozenset("。！？!?；;…")
+_CLOSING_MARKS = frozenset("”’\"'」』）)】]〉》")
 
 
 @dataclass(frozen=True)
@@ -30,7 +31,18 @@ class SemanticUnit:
 def _speaker_compatible(left: DialogueSegment, right: DialogueSegment) -> bool:
     # Unknown diarization must not prevent reconstruction. When both speakers
     # are known, however, a speaker change is a hard semantic boundary.
-    return left.speaker_id is None or right.speaker_id is None or left.speaker_id == right.speaker_id
+    return (
+        left.speaker_id is None
+        or right.speaker_id is None
+        or left.speaker_id == right.speaker_id
+    )
+
+
+def _ends_sentence(text: str) -> bool:
+    candidate = text.rstrip()
+    while candidate and candidate[-1] in _CLOSING_MARKS:
+        candidate = candidate[:-1].rstrip()
+    return bool(candidate) and candidate[-1] in _TERMINAL
 
 
 def _looks_continuous(left: DialogueSegment, right: DialogueSegment) -> bool:
@@ -42,10 +54,13 @@ def _looks_continuous(left: DialogueSegment, right: DialogueSegment) -> bool:
         return False
     if not _speaker_compatible(left, right):
         return False
-    if left_text[-1] in _TERMINAL:
+    if _ends_sentence(left_text):
         return False
     # Be conservative: long adjacent subtitle sentences should remain separate.
-    return len(left_text) <= SHORT_FRAGMENT_CHARS or len(right_text) <= SHORT_FRAGMENT_CHARS
+    return (
+        len(left_text) <= SHORT_FRAGMENT_CHARS
+        or len(right_text) <= SHORT_FRAGMENT_CHARS
+    )
 
 
 def build_semantic_units(segments: Sequence[DialogueSegment]) -> list[SemanticUnit]:
@@ -56,7 +71,9 @@ def build_semantic_units(segments: Sequence[DialogueSegment]) -> list[SemanticUn
     groups: list[list[DialogueSegment]] = [[segments[0]]]
     for segment in segments[1:]:
         current = groups[-1]
-        combined_chars = sum(len(item.source_text.strip()) for item in current) + len(segment.source_text.strip())
+        combined_chars = sum(len(item.source_text.strip()) for item in current) + len(
+            segment.source_text.strip()
+        )
         if (
             len(current) < MAX_GROUP_SEGMENTS
             and combined_chars <= MAX_GROUP_CHARS
@@ -75,7 +92,9 @@ def build_semantic_units(segments: Sequence[DialogueSegment]) -> list[SemanticUn
     ]
 
 
-def semantic_context_by_segment(segments: Sequence[DialogueSegment]) -> dict[UUID, SemanticUnit]:
+def semantic_context_by_segment(
+    segments: Sequence[DialogueSegment],
+) -> dict[UUID, SemanticUnit]:
     """Return only reconstructed units; single-row units need no extra prompt."""
     result: dict[UUID, SemanticUnit] = {}
     for unit in build_semantic_units(segments):
