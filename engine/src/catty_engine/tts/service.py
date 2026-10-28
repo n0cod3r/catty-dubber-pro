@@ -2,19 +2,66 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 from uuid import UUID, uuid4
 
 from catty_engine.project import ProjectService
-from catty_engine.project.models import DubSegment, DubStatus, ProcessingStatus, VoiceEngine
+from catty_engine.project.models import (
+    DubSegment,
+    DubStatus,
+    ProcessingStatus,
+    VoiceEngine,
+    VoiceProfile,
+)
 from catty_engine.tts.edge import EdgeTTSProvider
 
 GenerationMode = Literal["missing", "all", "selected"]
+ProgressCallback = Callable[[str, int, int, UUID | None, DubSegment | None], None]
+
+
+class TTSGenerationCancelled(RuntimeError):
+    """Raised between segments when the user cancels a dubbing batch."""
 
 
 class TTSService:
     def __init__(self, edge: EdgeTTSProvider | None = None) -> None:
         self.edge = edge or EdgeTTSProvider()
+
+    def list_edge_voices(self) -> list[dict[str, str]]:
+        return self.edge.list_voices()
+
+    def ensure_edge_voice_profile(
+        self,
+        project_directory: Path,
+        *,
+        voice_id: str,
+        name: str | None = None,
+    ) -> VoiceProfile:
+        voice_id = voice_id.strip()
+        if not voice_id:
+            raise ValueError("Edge voice id cannot be empty")
+        projects = ProjectService()
+        project = projects.open_project(project_directory)
+        existing = next(
+            (
+                voice
+                for voice in project.voice_profiles
+                if voice.engine is VoiceEngine.EDGE
+                and voice.engine_voice_id == voice_id
+            ),
+            None,
+        )
+        if existing is not None:
+            return existing
+        profile = VoiceProfile(
+            name=(name or voice_id).strip() or voice_id,
+            engine=VoiceEngine.EDGE,
+            language="km-KH",
+            engine_voice_id=voice_id,
+        )
+        project.voice_profiles.append(profile)
+        projects.save_project(project_directory, project)
+        return profile
 
     def generate_segment(
         self,
@@ -32,7 +79,10 @@ class TTSService:
         episode = project.episode(episode_id)
         if episode is None:
             raise ValueError("Episode not found")
-        dialogue = next((item for item in episode.dialogue_segments if item.id == dialogue_segment_id), None)
+        dialogue = next(
+            (item for item in episode.dialogue_segments if item.id == dialogue_segment_id),
+            None,
+        )
         if dialogue is None:
             raise ValueError("Dialogue segment not found")
         if dialogue.translation is None or not dialogue.translation.text.strip():
@@ -45,7 +95,14 @@ class TTSService:
         if not voice.engine_voice_id:
             raise ValueError("Edge voice profile has no engine voice id")
 
-        existing = next((item for item in episode.dub_segments if item.dialogue_segment_id == dialogue.id), None)
+        existing = next(
+            (
+                item
+                for item in episode.dub_segments
+                if item.dialogue_segment_id == dialogue.id
+            ),
+            None,
+        )
         old_status = existing.status if existing else None
         old_audio_path = existing.audio_path if existing else None
         old_generated_at = existing.generated_at if existing else None
@@ -66,7 +123,13 @@ class TTSService:
         episode.processing.dubbing = ProcessingStatus.PROCESSING
         projects.save_project(project_directory, project)
 
-        output = project_directory / "assets" / "dubbing" / str(episode.id) / f"{dialogue.id}.mp3"
+        output = (
+            project_directory
+            / "assets"
+            / "dubbing"
+            / str(episode.id)
+            / f"{dialogue.id}.mp3"
+        )
         try:
             self.edge.synthesize(
                 dialogue.translation.text,
@@ -80,7 +143,9 @@ class TTSService:
             project = projects.open_project(project_directory)
             episode = project.episode(episode_id)
             if episode is not None:
-                current = next((item for item in episode.dub_segments if item.id == dub.id), None)
+                current = next(
+                    (item for item in episode.dub_segments if item.id == dub.id), None
+                )
                 if current is not None:
                     if old_audio_path:
                         current.audio_path = old_audio_path
@@ -118,6 +183,8 @@ class TTSService:
         speed: float = 1.0,
         pitch: int = 0,
         volume: int = 0,
+        cancel_file: Path | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> list[DubSegment]:
         project = ProjectService().open_project(project_directory)
         episode = project.episode(episode_id)
@@ -125,31 +192,44 @@ class TTSService:
             raise ValueError("Episode not found")
         selected = segment_ids or set()
         existing = {item.dialogue_segment_id: item for item in episode.dub_segments}
-        targets = []
+        targets: list[UUID] = []
         for dialogue in episode.dialogue_segments:
             if dialogue.translation is None or not dialogue.translation.text.strip():
                 continue
             if mode == "selected" and dialogue.id not in selected:
                 continue
-            if mode == "missing" and existing.get(dialogue.id) is not None and existing[dialogue.id].status is DubStatus.READY:
+            current = existing.get(dialogue.id)
+            if mode == "missing" and current is not None and current.status is DubStatus.READY:
                 continue
             targets.append(dialogue.id)
         if mode == "selected" and not selected:
             raise ValueError("Selected TTS generation requires at least one segment")
 
+        total = len(targets)
+        if on_progress is not None:
+            on_progress("started", 0, total, None, None)
         results: list[DubSegment] = []
-        for segment_id in targets:
-            results.append(
-                self.generate_segment(
-                    project_directory,
-                    episode_id,
-                    segment_id,
-                    voice_profile_id,
-                    speed=speed,
-                    pitch=pitch,
-                    volume=volume,
-                )
+        for index, segment_id in enumerate(targets):
+            if cancel_file is not None and cancel_file.exists():
+                if on_progress is not None:
+                    on_progress("cancelled", len(results), total, segment_id, None)
+                raise TTSGenerationCancelled("Voice generation cancelled")
+            if on_progress is not None:
+                on_progress("generating", index, total, segment_id, None)
+            generated = self.generate_segment(
+                project_directory,
+                episode_id,
+                segment_id,
+                voice_profile_id,
+                speed=speed,
+                pitch=pitch,
+                volume=volume,
             )
+            results.append(generated)
+            if on_progress is not None:
+                on_progress("saved", len(results), total, segment_id, generated)
+        if on_progress is not None:
+            on_progress("completed", len(results), total, None, None)
         return results
 
     def preview(
@@ -163,4 +243,11 @@ class TTSService:
         volume: int = 0,
     ) -> Path:
         output = project_directory / "cache" / "tts-preview" / f"{uuid4()}.mp3"
-        return self.edge.synthesize(text, output, voice=voice_id, speed=speed, pitch=pitch, volume=volume)
+        return self.edge.synthesize(
+            text,
+            output,
+            voice=voice_id,
+            speed=speed,
+            pitch=pitch,
+            volume=volume,
+        )
