@@ -19,6 +19,7 @@ export type AudioPrepareParams = { source: string; episode_id: string; project_d
 
 export type TranslationProviderId = "local" | "gemini" | "deepseek" | "google" | "baidu" | "openai_compatible";
 export type TranslationStyle = "natural_dubbing" | "literal" | "short_conversational";
+export type TranslationMode = "missing" | "all" | "selected";
 export type ComputeDevice = "auto" | "cpu" | "cuda" | "mps";
 export type TranslationProviderSettings = { selected_model: string | null; credential_ids?: string[] };
 export type AppSettings = {
@@ -72,5 +73,5 @@ export type EngineMethods = {
   "translation.providers": { params: Record<string, never>; result: TranslationProviderInfo[] };
   "translation.models": { params: { provider: TranslationProviderId; credential?: string | null }; result: TranslationModel[] };
   "translation.test_connection": { params: { provider: TranslationProviderId; credential?: string | null }; result: ConnectionTestResult };
-  "translation.translate_episode": { params: { project_directory: string; episode_id: string; overwrite_manual?: boolean; batch_size?: number }; result: PersistedEpisode };
+  "translation.translate_episode": { params: { project_directory: string; episode_id: string; mode?: TranslationMode; segment_ids?: string[]; overwrite_manual?: boolean; batch_size?: number }; result: PersistedEpisode };
 };
