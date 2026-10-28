@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { PersistedEpisode, TranscriptionProgress } from "@catty/contracts";
 
-import { requestEngine, listenTranscriptionProgress } from "@/features/editor/deps/engine";
+import { listenTranscriptionProgress, requestEngine } from "@/features/editor/deps/engine";
 import type { EpisodeMedia } from "@/features/editor/deps/episodes";
 
 import { createDialogueSessionGuard } from "../utils/dialogue-session";
@@ -63,7 +63,14 @@ export function useDialogueEditing(
     let unlisten: (() => void) | undefined;
     try {
       unlisten = await listenTranscriptionProgress((update) => {
-        if (!sessionGuard.current.isCurrent(ticket) || update.operation_id !== operationId || update.project_directory !== projectDirectory || update.episode_id !== episode.id || (update.episode && update.episode.id !== episode.id)) return;
+        if (
+          !sessionGuard.current.isCurrent(ticket) ||
+          update.operation_id !== operationId ||
+          update.project_directory !== projectDirectory ||
+          update.episode_id !== episode.id ||
+          (update.episode && update.episode.id !== episode.id)
+        )
+          return;
         setProgress(update);
         if (update.phase === "completed" && update.episode) onEpisodePersisted(update.episode);
       });
@@ -98,7 +105,10 @@ export function useDialogueEditing(
       setError(cause instanceof Error ? cause.message : "មិនអាច Transcribe បានទេ។");
     } finally {
       unlisten?.();
-      if (sessionGuard.current.finish(ticket)) { unsubscribeTranscription.current = null; setTranscribing(false); }
+      if (sessionGuard.current.finish(ticket)) {
+        unsubscribeTranscription.current = null;
+        setTranscribing(false);
+      }
     }
   };
 
