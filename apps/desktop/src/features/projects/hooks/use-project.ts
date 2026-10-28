@@ -4,7 +4,7 @@ import type { PersistedProject } from "@catty/contracts";
 import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
-import { requestEngine } from "@/features/projects/deps/engine";
+import { allowAssetPath, requestEngine } from "@/features/projects/deps/engine";
 
 import type { OpenProject, RecentProject } from "../types";
 
@@ -55,6 +55,7 @@ export function useProject() {
       setError(null);
       try {
         const project = await requestEngine("project.open", { project_directory: directory });
+        await allowAssetPath(directory);
         setCurrent({ directory, project });
         remember(directory, project);
       } catch (cause) {
@@ -86,6 +87,7 @@ export function useProject() {
           project_directory: directory,
           name: name.trim(),
         });
+        await allowAssetPath(directory);
         setCurrent({ directory, project });
         remember(directory, project);
       } catch (cause) {

@@ -10,11 +10,11 @@ User decision recorded after manual benchmark review. Existing Catty defaults ar
 
 16 identical dialogue segments per model; 32 timed generations per model. MPS / bfloat16, greedy decoding, 256 new tokens maximum. No automatic quality ranking. Project unchanged.
 
-| Model | No context average | Context average | Total inference |
-|---|---:|---:|---:|
-| MiLMMT-46-1B-v1.0 | 1.20s | 1.84s | 48.61s |
-| HY-MT1.5-1.8B | 0.58s | 4.11s | 74.98s |
-| LMT-60-1.7B | 3.65s | 3.61s | 116.26s |
+| Model             | No context average | Context average | Total inference |
+| ----------------- | -----------------: | --------------: | --------------: |
+| MiLMMT-46-1B-v1.0 |              1.20s |           1.84s |          48.61s |
+| HY-MT1.5-1.8B     |              0.58s |           4.11s |          74.98s |
+| LMT-60-1.7B       |              3.65s |           3.61s |         116.26s |
 
 Native templates differ. Greedy decoding replaces HY’s recommended sampling and LMT’s example beam search. Context prompting is experimental outside HY. Timings exclude loading/warmup. All outputs below are raw, with no cleanup. Exact prompts and settings are in all-local-models.json.
 
@@ -381,7 +381,7 @@ no_context (1.09s):
 contextual (1.19s):
 
 ```text
-អ្នកដែលគេនិយាយថាមានព្រលែងកន្ទុយដូចសត្វព្រៃនៅសមុទ្រ 
+អ្នកដែលគេនិយាយថាមានព្រលែងកន្ទុយដូចសត្វព្រៃនៅសមុទ្រ
 
 Speaker:S1
 ```
@@ -805,7 +805,7 @@ contextual (2.34s):
 
 អ្នកថ្លែង៖ S1
 
-បកប្រែតែសព្វថ្ងៃប៉ុណ្ណោះ។ 
+បកប្រែតែសព្វថ្ងៃប៉ុណ្ណោះ។
 
 Previous and Next គឺសម្រាប់តែបរិបទប៉ុណ្ណោះ; មិនត្រូវបកប្រែពួកវាទេ។
 ```

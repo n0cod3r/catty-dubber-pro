@@ -11,6 +11,23 @@ fn app_status() -> &'static str {
     "Catty Dubber Pro desktop shell is ready"
 }
 
+/// Projects can live on external drives or outside the static asset scope.
+/// Allow the chosen media/project paths for the asset protocol at runtime.
+#[tauri::command]
+fn allow_asset_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(&path);
+    if !path.is_absolute() {
+        return Err("Media path must be absolute".into());
+    }
+    let scope = app.asset_protocol_scope();
+    let result = if path.is_file() {
+        scope.allow_file(&path)
+    } else {
+        scope.allow_directory(&path, true)
+    };
+    result.map_err(|error| format!("Could not allow media path: {error}"))
+}
+
 fn shutdown(app: tauri::AppHandle) {
     if !app.state::<engine::EngineJobs>().begin_shutdown() {
         return;
@@ -38,6 +55,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             app_status,
+            allow_asset_path,
             logs::app_logs,
             engine::engine_request,
             engine::prepare_audio,

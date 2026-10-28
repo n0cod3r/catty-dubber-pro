@@ -1,1 +1,1 @@
-export { requestEngine } from "@/features/engine";
+export { allowAssetPath, requestEngine } from "@/features/engine";

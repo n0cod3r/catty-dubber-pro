@@ -3,10 +3,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PersistedEpisode, PersistedProject } from "@catty/contracts";
 import { isTauri } from "@tauri-apps/api/core";
 
-import { requestEngine } from "@/features/episodes/deps/engine";
+import { allowAssetPath, requestEngine } from "@/features/episodes/deps/engine";
 
 import { pickEpisodePath } from "../services/import-episode";
 import type { EpisodeMedia } from "../types";
+import {
+  readActiveEpisodeId,
+  rememberActiveEpisode,
+  selectActiveEpisode,
+} from "../utils/active-episode";
 
 function basename(path: string) {
   return path.split(/[\\/]/).pop() ?? path;
@@ -48,9 +53,13 @@ function toEpisodeMedia(episode: PersistedEpisode): EpisodeMedia {
 }
 
 export function useEpisode(projectDirectory: string | null, project: PersistedProject | null) {
-  const [episode, setEpisode] = useState<EpisodeMedia | null>(() =>
-    project?.episodes[0] ? toEpisodeMedia(project.episodes[0]) : null,
-  );
+  const [episode, setEpisode] = useState<EpisodeMedia | null>(() => {
+    const active = selectActiveEpisode(
+      project?.episodes ?? [],
+      projectDirectory ? readActiveEpisodeId(projectDirectory) : null,
+    );
+    return active ? toEpisodeMedia(active) : null;
+  });
   const [mediaRevision, setMediaRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -65,18 +74,28 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
     return () => { mounted.current = false; };
   }, []);
   useEffect(() => {
-    const first = project?.episodes[0];
-    setEpisode(first ? toEpisodeMedia(first) : null);
+    const active = selectActiveEpisode(
+      project?.episodes ?? [],
+      projectDirectory ? readActiveEpisodeId(projectDirectory) : null,
+    );
+    setEpisode(active ? toEpisodeMedia(active) : null);
     setMediaRevision(0);
-    if (!first || !projectDirectory || !isTauri() || first.playback_proxy_path) {
+    if (!active) {
+      preparationKey.current = null; setPreparing(false); setStatus(null); return;
+    }
+    if (projectDirectory) rememberActiveEpisode(projectDirectory, active.id);
+    void allowAssetPath(active.media.source_path);
+    if (!projectDirectory || !isTauri()) {
       setPreparing(false); setStatus(null); return;
     }
-    const key = `${projectDirectory}:${first.id}`;
+    // Always validate cached preparation on open: a persisted proxy or audio
+    // path may point at a file that was moved or deleted since last session.
+    const key = `${projectDirectory}:${active.id}`;
     if (preparationKey.current === key) return;
     preparationKey.current = key;
     setPreparing(true);
     setStatus("កំពុងរៀបចំ preview video និង audio សម្រាប់ playback រលូន…");
-    void requestEngine("project.prepare_episode", { project_directory: projectDirectory, episode_id: first.id })
+    void requestEngine("project.prepare_episode", { project_directory: projectDirectory, episode_id: active.id })
       .then((prepared) => {
         if (!mounted.current) return;
         setEpisode(toEpisodeMedia(prepared)); setMediaRevision((value) => value + 1); setStatus("Preview រួចរាល់");
@@ -115,6 +134,8 @@ export function useEpisode(projectDirectory: string | null, project: PersistedPr
       if (!selected) return;
       setStatus("កំពុងបង្កើត preview video និង audio…");
       const persisted = await requestEngine("project.import_episode", { project_directory: projectDirectory, project_name: project.name, source: selected });
+      rememberActiveEpisode(projectDirectory, persisted.id);
+      void allowAssetPath(selected);
       if (mounted.current) {
         setEpisode(toEpisodeMedia(persisted)); setMediaRevision((value) => value + 1); setStatus("Episode រួចរាល់");
         window.setTimeout(() => { if (mounted.current) setStatus(null); }, 1800);

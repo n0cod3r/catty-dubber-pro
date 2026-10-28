@@ -324,10 +324,13 @@ def run_server() -> None:
         line = raw_line.strip()
         if not line:
             continue
-        payload: Any = None
         try:
-            payload = json.loads(line)
-            response = handle_request(payload)
+            response = handle_request(json.loads(line))
         except (json.JSONDecodeError, UnicodeDecodeError):
             response = _invalid_json_response()
         _write_response(response)
+        # The host keeps stdin open while it drains, so EOF alone is not a
+        # shutdown signal. Exit only after acknowledging system.shutdown;
+        # otherwise every close waits for the host's kill timeout.
+        if response.get("result") == {"shutting_down": True}:
+            break

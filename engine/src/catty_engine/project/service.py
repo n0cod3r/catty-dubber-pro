@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from catty_engine.logging import logged_process
 
 from pathlib import Path
@@ -68,13 +70,29 @@ class ProjectService:
         if not path.is_file():
             raise FileNotFoundError(f"Episode does not exist: {path}")
         episode = self.find_episode_by_source(project, path)
+        added = episode is None
         if episode is None:
             episode = project.add_episode(source_path=str(path))
+        try:
+            # Re-probe even for a known path: users often replace a file in
+            # place (same episode name/download), and stale duration/resolution
+            # breaks the timeline and the playback proxy.
             episode.media = self._media_probe.probe(str(path))
             self._store.save(directory=directory, project=project)
-        if prepare_audio:
-            episode = self.prepare_episode_audio(directory, project, episode.id)
-            episode = self.prepare_episode_proxy(directory, project, episode.id)
+            if prepare_audio:
+                episode = self.prepare_episode_audio(directory, project, episode.id)
+                episode = self.prepare_episode_proxy(directory, project, episode.id)
+        except Exception:
+            # A failed first import must not leave a half-imported episode that
+            # the UI never showed but that reappears on the next project open.
+            if added:
+                try:
+                    self.remove_episode(directory, project, episode.id)
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        "Could not roll back failed episode import"
+                    )
+            raise
         return episode
 
     def import_episodes(self, directory: Path, project: Project, source_paths: list[str]) -> list[Episode]:

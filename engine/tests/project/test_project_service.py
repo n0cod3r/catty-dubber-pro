@@ -530,3 +530,62 @@ def test_speaker_failure_persists_failed_state_without_failing_transcription(
     assert recovered.processing.transcription == ProcessingStatus.COMPLETED
     assert recovered.processing.speakers == ProcessingStatus.COMPLETED
     assert recovered.processing.speaker_error is None
+
+
+def test_reimport_reprobes_a_file_replaced_at_the_same_path(tmp_path: Path) -> None:
+    class SequenceProbe:
+        def __init__(self) -> None:
+            self.durations = iter([5.0, 12.0])
+            self.widths = iter([320, 1920])
+
+        def probe(self, source: str) -> MediaInfo:
+            return MediaInfo(
+                source_path=source,
+                duration=next(self.durations),
+                width=next(self.widths),
+                height=240,
+            )
+
+    service = ProjectService(media_probe=SequenceProbe())  # type: ignore[arg-type]
+    project_dir = tmp_path / "my-drama"
+    project = service.create_project(directory=project_dir, name="My Drama")
+    source = tmp_path / "EP01.mp4"
+    source.write_bytes(b"first")
+    first = service.import_episode(
+        directory=project_dir, project=project, source_path=str(source), prepare_audio=False
+    )
+    assert first.media.duration == 5.0
+
+    source.write_bytes(b"second-version-with-a-longer-clip")
+    second = service.import_episode(
+        directory=project_dir, project=project, source_path=str(source), prepare_audio=False
+    )
+
+    assert second.id == first.id
+    assert second.media.duration == 12.0
+    assert second.media.width == 1920
+    reopened = service.open_project(project_dir).episodes[0]
+    assert (reopened.media.duration, reopened.media.width) == (12.0, 1920)
+
+
+def test_failed_first_import_rolls_back_the_new_episode(tmp_path: Path) -> None:
+    import pytest
+
+    class FailingAudioPreparation:
+        def prepare_speech_audio(self, **kwargs):
+            raise RuntimeError("FFmpeg failed")
+
+    service = ProjectService(
+        media_probe=FakeProbe(),
+        audio_preparation=FailingAudioPreparation(),
+    )  # type: ignore[arg-type]
+    project_dir = tmp_path / "my-drama"
+    project = service.create_project(directory=project_dir, name="My Drama")
+    source = tmp_path / "EP01.mp4"
+    source.write_bytes(b"video")
+
+    with pytest.raises(RuntimeError, match="FFmpeg failed"):
+        service.import_episode(directory=project_dir, project=project, source_path=str(source))
+
+    assert project.episodes == []
+    assert service.open_project(project_dir).episodes == []

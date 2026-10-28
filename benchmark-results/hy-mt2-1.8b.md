@@ -2,10 +2,10 @@
 
 Experimental only. Same 16 segments and project checksum; greedy decoding, 256-token cap. No automatic quality score. Project unchanged.
 
-| Model | Runtime / weights | No context avg | Contextual avg | Total inference |
-|---|---|---:|---:|---:|
-| Hy-MT2-1.8B | transformers / torch.bfloat16 | 3.54s | 3.39s | 110.80s |
-| Hy-MT2-7B-4bit | mlx-lm / 4-bit affine weights, bfloat16 baseline | 2.39s | 2.59s | 79.74s |
+| Model          | Runtime / weights                                | No context avg | Contextual avg | Total inference |
+| -------------- | ------------------------------------------------ | -------------: | -------------: | --------------: |
+| Hy-MT2-1.8B    | transformers / torch.bfloat16                    |          3.54s |          3.39s |         110.80s |
+| Hy-MT2-7B-4bit | mlx-lm / 4-bit affine weights, bfloat16 baseline |          2.39s |          2.59s |          79.74s |
 
 Loading and warmup excluded. The 1.8B Transformers run inherits repetition penalty 1.05; the earlier 7B MLX run used 1.0. Different runtimes, quantization and native chat-template tokens mean timing/quality differences cannot be attributed to parameter count alone. Raw results follow.
 
@@ -552,4 +552,3 @@ Time: A 1.18s · B 1.58s
 គូដណ្ដឹងអើយ
 
 Time: A 0.80s · B 0.96s
-

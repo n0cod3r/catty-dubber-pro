@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -99,6 +100,46 @@ def test_cli_stdout_is_one_json_response() -> None:
     )
     assert json.loads(result.stdout)["id"] == "សួស្តី"
     assert len(result.stdout.splitlines()) == 1
+
+
+def test_cli_ignores_non_utf8_stdio_environment() -> None:
+    # Windows pipes default to the ANSI code page. The engine must always speak
+    # UTF-8 so Khmer/Chinese identifiers and paths survive the IPC boundary.
+    result = subprocess.run(
+        [sys.executable, "-m", "catty_engine", "--rpc"],
+        input=json.dumps(
+            {"version": 1, "id": "សួស្តី", "method": "health"}, ensure_ascii=False
+        ),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+        check=True,
+        timeout=10,
+    )
+    assert json.loads(result.stdout)["id"] == "សួស្តី"
+
+
+def test_server_exits_on_shutdown_without_waiting_for_eof() -> None:
+    process = subprocess.Popen(
+        [sys.executable, "-m", "catty_engine", "--server"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+    process.stdin.write(
+        json.dumps({"version": 1, "id": "bye", "method": "system.shutdown"}) + "\n"
+    )
+    process.stdin.flush()
+    response = json.loads(process.stdout.readline())
+    assert response["result"] == {"shutting_down": True}
+    # Keep stdin open: the host sends shutdown while its pipe is still alive.
+    process.wait(timeout=5)
+    assert process.returncode == 0
 
 
 def test_cli_malformed_json_stays_in_protocol() -> None:

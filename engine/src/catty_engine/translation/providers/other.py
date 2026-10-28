@@ -88,7 +88,10 @@ def _load_transformers_model(model_id: str, manager: ModelManager) -> tuple[Any,
     path = manager.path_for(model_id)
     device = _torch_device()
     tokenizer = AutoTokenizer.from_pretrained(path, local_files_only=True)
-    model = AutoModelForCausalLM.from_pretrained(path, local_files_only=True)
+    # Transformers' generic return type is not compatible with its own `.to`
+    # overloads across supported releases; the runtime object is a standard
+    # PreTrainedModel.
+    model: Any = AutoModelForCausalLM.from_pretrained(path, local_files_only=True)
     model.to(device)
     model.eval()
     result = (tokenizer, model, device)

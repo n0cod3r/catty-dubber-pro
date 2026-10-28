@@ -172,31 +172,56 @@ pub fn request(
         .lock()
         .map_err(|_| "Could not lock Python engine runtime".to_string())?;
 
-    if guard.is_none() {
-        *guard = Some(EngineProcess::start()?);
-    }
-
-    let result = guard
+    // A previous engine may have exited while no request was in flight. Reusing
+    // its stdin turns the next request into a permanent "Broken pipe" failure,
+    // so replace it before sending anything.
+    if guard
         .as_mut()
-        .expect("engine was initialized")
-        .send(payload, cancelled, cancel_file, timeout);
-
-    let restart_engine = matches!(
-        result.as_ref().err().map(String::as_str),
-        Some("CANCELLED" | "ENGINE_TIMEOUT")
-    );
-    if restart_engine {
-        if let Some(mut engine) = guard.take() {
-            processes::terminate(&mut engine.child);
-        }
+        .is_some_and(|engine| matches!(engine.child.try_wait(), Ok(Some(_))))
+    {
+        *guard = None;
     }
-    result
+
+    if let Some(mut engine) = guard.take() {
+        let result = engine.send(payload, cancelled, cancel_file, timeout);
+        if result.is_err() {
+            // Transport failures mean the stream/process can no longer be
+            // trusted (crash, broken pipe, protocol corruption, timeout or
+            // cancellation). Stop it and start a fresh engine next time.
+            processes::terminate(&mut engine.child);
+        } else {
+            *guard = Some(engine);
+        }
+        result
+    } else {
+        let mut engine = EngineProcess::start()?;
+        let result = engine.send(payload, cancelled, cancel_file, timeout);
+        if result.is_err() {
+            processes::terminate(&mut engine.child);
+        } else {
+            *guard = Some(engine);
+        }
+        result
+    }
 }
 
 pub fn shutdown() {
     if let Ok(mut guard) = runtime().lock() {
         if let Some(mut engine) = guard.take() {
             engine.stop();
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+/// Simulate an engine that died while idle, keeping the stale handle in place.
+#[cfg(test)]
+pub(crate) fn kill_engine_process() {
+    if let Ok(mut guard) = runtime().lock() {
+        if let Some(engine) = guard.as_mut() {
+            processes::terminate(&mut engine.child);
         }
     }
 }
