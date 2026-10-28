@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 import platform
+from pathlib import Path
 from typing import Any
 
 from catty_engine.models import LOCAL_TRANSLATION_MODEL, ModelManager
@@ -87,6 +89,34 @@ def _mlx_runtime() -> Any:
     return importlib.import_module("mlx_lm")
 
 
+def _normalize_mlx_tokenizer_config(model_path: Path) -> bool:
+    """Repair tokenizer metadata emitted by some MLX community conversions.
+
+    Hy-MT2 7B 4-bit currently ships ``tokenizer_class=TokenizersBackend``.
+    Transformers cannot resolve that implementation detail as an AutoTokenizer
+    class, while the tokenizer itself is a normal fast tokenizer. Normalize the
+    local metadata once so mlx-lm can load it without requiring a redownload.
+    """
+    config_path = model_path / "tokenizer_config.json"
+    if not config_path.is_file():
+        return False
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ProviderError(f"Could not read local tokenizer configuration: {exc}") from exc
+    if config.get("tokenizer_class") != "TokenizersBackend":
+        return False
+    config["tokenizer_class"] = "PreTrainedTokenizerFast"
+    try:
+        config_path.write_text(
+            json.dumps(config, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        raise ProviderError(f"Could not repair local tokenizer configuration: {exc}") from exc
+    return True
+
+
 def _load_mlx_model(model_id: str, manager: ModelManager) -> tuple[Any, Any]:
     cached = _MLX_MODEL_CACHE.get(model_id)
     if cached is not None:
@@ -94,7 +124,9 @@ def _load_mlx_model(model_id: str, manager: ModelManager) -> tuple[Any, Any]:
     if platform.system() != "Darwin" or platform.machine() not in {"arm64", "aarch64"}:
         raise ProviderError("Hy-MT2 7B 4-bit requires an Apple Silicon Mac.")
     mlx_lm = _mlx_runtime()
-    model, tokenizer = mlx_lm.load(str(manager.path_for(model_id)))
+    model_path = manager.path_for(model_id)
+    _normalize_mlx_tokenizer_config(model_path)
+    model, tokenizer = mlx_lm.load(str(model_path))
     result = (model, tokenizer)
     _MLX_MODEL_CACHE[model_id] = result
     return result
@@ -126,6 +158,10 @@ class LocalProvider:
                 return ConnectionTestResult(ok=False, message=f"{spec.name} requires an Apple Silicon Mac.")
             if importlib.util.find_spec("mlx_lm") is None:
                 return ConnectionTestResult(ok=False, message=f"{spec.name} requires the Catty MLX runtime (mlx-lm).")
+            try:
+                _normalize_mlx_tokenizer_config(self.manager.path_for(self.selected_model))
+            except ProviderError as exc:
+                return ConnectionTestResult(ok=False, message=str(exc))
         return ConnectionTestResult(ok=True, message=f"{spec.name} is ready for offline translation.")
 
     def _translate_transformers(self, request: TranslationBatchRequest) -> TranslationBatchResult:
