@@ -144,3 +144,14 @@ def test_production_capture_restores_duration_sorted_vad_chunks_to_source_time()
     assert capture.raw_asr[0]["absolute_word_timestamps"] == [[10.1, 10.5]]
     assert capture.raw_asr[1]["absolute_word_timestamps"] == [[12.2, 12.9]]
     assert all(row["mapping"] == "duration_sorted_vad_order" for row in capture.raw_asr)
+
+
+def test_production_capture_recovers_absolute_timing_from_final_result():
+    capture = _ProductionCapture(source_start=10.0, return_spk_res=True)
+    capture.capture_result(
+        [{"text": "你好。", "timestamp": [[100, 500], [500, 900]]}]
+    )
+
+    assert capture.raw_asr[0]["mapping"] == "funasr_result_word_timestamps"
+    assert capture.raw_asr[0]["absolute_word_timestamps"] == [[10.1, 10.5], [10.5, 10.9]]
+    assert capture.raw_asr[0]["vad_region"] is None

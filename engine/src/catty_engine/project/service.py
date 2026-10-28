@@ -29,6 +29,10 @@ from .models import (
 from .store import ProjectStore
 
 
+def _is_spoken(character: str) -> bool:
+    return character.isalnum()
+
+
 class ProjectService:
     def __init__(
         self,
@@ -266,9 +270,15 @@ class ProjectService:
             raise ValueError("Split point must be inside the dialogue segment")
         ratio = (split_at - segment.start) / segment.duration
         text = segment.source_text.strip()
-        cut = max(1, min(len(text) - 1, round(len(text) * ratio))) if len(text) > 1 else 0
-        left_text = text[:cut].strip() if cut else text
-        right_text = text[cut:].strip() if cut else text
+        spoken = [index for index, character in enumerate(text) if _is_spoken(character)]
+        if len(spoken) < 2:
+            raise ValueError(
+                "Dialogue segment needs at least two spoken characters to split"
+            )
+        target = round(len(text) * ratio)
+        cut = min(max(target, spoken[0] + 1), spoken[-1])
+        left_text = text[:cut].strip()
+        right_text = text[cut:].strip()
         left = DialogueSegment(start=segment.start, end=split_at, speaker_id=segment.speaker_id, source_language=segment.source_language, source_text=left_text, confidence=segment.confidence)
         right = DialogueSegment(start=split_at, end=segment.end, speaker_id=segment.speaker_id, source_language=segment.source_language, source_text=right_text, confidence=segment.confidence)
         episode.dialogue_segments[index : index + 1] = [left, right]
