@@ -58,6 +58,8 @@ export type TtsGenerateParams = {
   pitch?: number;
   volume?: number;
   cancel_file?: string | null;
+  assign_speaker_id?: string | null;
+  assign_only?: boolean;
 };
 
 export type TtsPreviewParams = {

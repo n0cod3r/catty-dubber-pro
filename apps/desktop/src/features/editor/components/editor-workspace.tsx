@@ -17,6 +17,7 @@ import { useTranslation } from "../hooks/use-translation";
 import { useTts } from "../hooks/use-tts";
 import { EditorPanels } from "./editor-panels";
 import { Inspector } from "./inspector";
+import { SpeakerVoiceAssignment } from "./speaker-voice-assignment";
 
 type EditorWorkspaceProps = {
   episode: EpisodeMedia | null;
@@ -138,15 +139,24 @@ function WorkspaceContent({
         />
       }
       inspector={
-        <Inspector
-          episode={episode}
-          currentTime={playback.currentTime}
-          followTimeline={followPlayhead}
-          onSeek={playback.seek}
-          dialogue={dialogue}
-          translation={translation}
-          tts={tts}
-        />
+        <div className="flex min-h-0 flex-1 flex-col bg-card">
+          {episode && (
+            <SpeakerVoiceAssignment
+              episode={episode}
+              projectDirectory={projectDirectory}
+              tts={tts}
+            />
+          )}
+          <Inspector
+            episode={episode}
+            currentTime={playback.currentTime}
+            followTimeline={followPlayhead}
+            onSeek={playback.seek}
+            dialogue={dialogue}
+            translation={translation}
+            tts={tts}
+          />
+        </div>
       }
     />
   );
