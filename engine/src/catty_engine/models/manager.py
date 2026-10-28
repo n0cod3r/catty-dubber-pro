@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import json
 import logging
+import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from huggingface_hub import snapshot_download
 
@@ -83,8 +83,17 @@ LOCAL_TRANSLATION_MODELS = (
         runtime="hy_mt2_transformers",
     ),
 )
-LOCAL_TRANSLATION_MODEL = LOCAL_TRANSLATION_MODELS[0]
 _REGISTRY = {spec.id: spec for spec in LOCAL_TRANSLATION_MODELS}
+
+
+def preferred_local_translation_model() -> ModelSpec:
+    """Choose a usable default instead of silently selecting an Apple-only runtime."""
+    if platform.system() == "Darwin" and platform.machine() in {"arm64", "aarch64"}:
+        return _REGISTRY["hy-mt2-7b-q4"]
+    return _REGISTRY["hy-mt2-1.8b"]
+
+
+LOCAL_TRANSLATION_MODEL = preferred_local_translation_model()
 _JOBS: dict[str, InstallJob] = {}
 _JOBS_LOCK = threading.Lock()
 
@@ -214,31 +223,36 @@ class ModelManager:
         with _JOBS_LOCK:
             job = _JOBS[model_id]
         try:
-            process = subprocess.Popen(
-                _download_command(spec, staging),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            with _JOBS_LOCK:
-                job.process = process
-            while process.poll() is None:
-                if job.cancel_event.wait(0.2):
-                    logger.info("Stopping model download process: %s", model_id)
-                    process.terminate()
-                    try:
-                        process.wait(timeout=2.0)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait(timeout=2.0)
-                    with _JOBS_LOCK:
-                        _JOBS[model_id] = InstallJob(status="cancelled")
-                    logger.info("Model download cancelled: %s; partial files kept for resume", model_id)
-                    return
-            stderr = process.stderr.read() if process.stderr is not None else ""
-            if process.returncode != 0:
-                message = stderr.strip().splitlines()[-1] if stderr.strip() else f"download process exited {process.returncode}"
-                raise RuntimeError(message)
+            # A pipe can deadlock when Hugging Face writes enough progress/error
+            # output before the parent reads it. A temporary file has no pipe
+            # back-pressure and still lets Catty report the final error line.
+            with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr_file:
+                process = subprocess.Popen(
+                    _download_command(spec, staging),
+                    stdout=subprocess.DEVNULL,
+                    stderr=stderr_file,
+                    text=True,
+                )
+                with _JOBS_LOCK:
+                    job.process = process
+                while process.poll() is None:
+                    if job.cancel_event.wait(0.2):
+                        logger.info("Stopping model download process: %s", model_id)
+                        process.terminate()
+                        try:
+                            process.wait(timeout=2.0)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait(timeout=2.0)
+                        with _JOBS_LOCK:
+                            _JOBS[model_id] = InstallJob(status="cancelled")
+                        logger.info("Model download cancelled: %s; partial files kept for resume", model_id)
+                        return
+                stderr_file.seek(0)
+                stderr = stderr_file.read()
+                if process.returncode != 0:
+                    message = stderr.strip().splitlines()[-1] if stderr.strip() else f"download process exited {process.returncode}"
+                    raise RuntimeError(message)
             if job.cancel_event.is_set():
                 with _JOBS_LOCK:
                     _JOBS[model_id] = InstallJob(status="cancelled")
@@ -291,7 +305,6 @@ class ModelManager:
                 process = None
                 _JOBS.pop(model_id, None)
         if job is not None and job.status == "cancelling":
-            # Do not wait for a Hugging Face progress callback. Terminate the child now.
             if process is not None and process.poll() is None:
                 logger.info("Cancel requested for model download: %s", model_id)
                 process.terminate()
