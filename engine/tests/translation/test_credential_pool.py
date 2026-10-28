@@ -1,11 +1,12 @@
+from catty_engine.settings.credentials import CredentialStore
 from catty_engine.translation.credentials import CredentialPool
 
 
-class Store:
+class Store(CredentialStore):
     def __init__(self):
         self.values = {("gemini", "one"): "key-one", ("gemini", "two"): "key-two"}
 
-    def get(self, provider: str, credential_id: str = "default"):
+    def get(self, provider: str, credential_id: str = "default") -> str | None:
         return self.values.get((provider, credential_id))
 
 
