@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from uuid import uuid4
 
@@ -26,18 +27,6 @@ class ProviderParams(BaseModel):
     credential: str | None = None
 
 
-class CredentialAddParams(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    provider: TranslationProviderId
-    secret: str
-
-
-class CredentialRemoveParams(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    provider: TranslationProviderId
-    credential_id: str
-
-
 def _stores() -> tuple[SettingsService, CredentialStore]:
     return SettingsService(), CredentialStore()
 
@@ -57,44 +46,38 @@ def snapshot() -> dict[str, Any]:
     }
 
 
+def _replace_credentials(provider_id: TranslationProviderId, raw: str | None, settings: AppSettings, service: SettingsService, credentials: CredentialStore) -> None:
+    provider_settings = getattr(settings.translation.providers, provider_id)
+    existing = credential_ids(provider_id, settings, credentials)
+    if raw is None:
+        for credential_id in existing:
+            credentials.delete(provider_id, credential_id)
+        service.update({"translation": {"providers": {provider_id: {"credential_ids": []}}}})
+        return
+    secrets = [value.strip() for value in re.split(r"[\n,]+", raw) if value.strip()]
+    if not secrets:
+        return
+    new_ids: list[str] = []
+    for index, secret in enumerate(secrets):
+        credential_id = DEFAULT_CREDENTIAL_ID if index == 0 else uuid4().hex[:12]
+        credentials.set(provider_id, secret, credential_id)
+        new_ids.append(credential_id)
+    for credential_id in existing:
+        if credential_id not in new_ids:
+            credentials.delete(provider_id, credential_id)
+    provider_settings.credential_ids = [value for value in new_ids if value != DEFAULT_CREDENTIAL_ID]
+    service.update({"translation": {"providers": {provider_id: {"credential_ids": provider_settings.credential_ids}}}})
+
+
 def update(params: dict[str, Any]) -> dict[str, Any]:
     parsed = SettingsUpdateParams.model_validate(params)
     service, credentials = _stores()
-    service.update(parsed.settings.model_dump(mode="json"))
-    for provider_id, secret in parsed.credentials.items():
+    settings = service.update(parsed.settings.model_dump(mode="json"))
+    for provider_key, secret in parsed.credentials.items():
+        provider_id = provider_key.split(":", 1)[0]
         if provider_id not in PROVIDER_IDS or provider_id == "local":
-            raise ValueError(f"Unsupported credential provider: {provider_id}")
-        if secret is None:
-            credentials.delete(provider_id, DEFAULT_CREDENTIAL_ID)
-        elif secret.strip():
-            credentials.set(provider_id, secret, DEFAULT_CREDENTIAL_ID)
-    return snapshot()
-
-
-def add_credential(params: dict[str, Any]) -> dict[str, Any]:
-    parsed = CredentialAddParams.model_validate(params)
-    if parsed.provider == "local":
-        raise ValueError("Local translation does not use credentials")
-    service, credentials = _stores()
-    settings = service.get()
-    credential_id = uuid4().hex[:12]
-    credentials.set(parsed.provider, parsed.secret, credential_id)
-    provider_settings = getattr(settings.translation.providers, parsed.provider)
-    ids = [*provider_settings.credential_ids, credential_id]
-    service.update({"translation": {"providers": {parsed.provider: {"credential_ids": ids}}}})
-    return snapshot()
-
-
-def remove_credential(params: dict[str, Any]) -> dict[str, Any]:
-    parsed = CredentialRemoveParams.model_validate(params)
-    if parsed.provider == "local":
-        raise ValueError("Local translation does not use credentials")
-    service, credentials = _stores()
-    settings = service.get()
-    credentials.delete(parsed.provider, parsed.credential_id)
-    provider_settings = getattr(settings.translation.providers, parsed.provider)
-    ids = [value for value in provider_settings.credential_ids if value != parsed.credential_id]
-    service.update({"translation": {"providers": {parsed.provider: {"credential_ids": ids}}}})
+            raise ValueError(f"Unsupported credential provider: {provider_key}")
+        _replace_credentials(provider_id, secret, settings, service, credentials)
     return snapshot()
 
 
