@@ -1,5 +1,4 @@
 """RPC-facing application settings operations."""
-
 from __future__ import annotations
 
 import re
@@ -8,6 +7,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from catty_engine.models import ModelManager
 from catty_engine.translation.registry import create_provider, credential_ids, provider_infos
 
 from .credentials import CredentialStore, DEFAULT_CREDENTIAL_ID
@@ -51,11 +51,7 @@ def snapshot() -> dict[str, Any]:
     service, credentials = _stores()
     settings = service.get()
     ids = _credential_snapshot(settings, credentials)
-    return {
-        "settings": settings.model_dump(mode="json"),
-        "credentials": {provider_id: bool(values) for provider_id, values in ids.items()},
-        "credential_ids": ids,
-    }
+    return {"settings": settings.model_dump(mode="json"), "credentials": {provider_id: bool(values) for provider_id, values in ids.items()}, "credential_ids": ids}
 
 
 def _replace_credentials(provider_id: TranslationProviderId, raw: str | None, settings: AppSettings, service: SettingsService, credentials: CredentialStore) -> None:
@@ -100,13 +96,11 @@ def add_credential(params: dict[str, Any]) -> dict[str, Any]:
     secret = parsed.secret.strip()
     if not secret:
         raise ValueError("Credential must not be empty")
-
     service, credentials = _stores()
     settings = service.get()
     existing = credential_ids(parsed.provider, settings, credentials)
     credential_id = DEFAULT_CREDENTIAL_ID if not existing else uuid4().hex[:12]
     credentials.set(parsed.provider, secret, credential_id)
-
     if credential_id != DEFAULT_CREDENTIAL_ID:
         provider_settings = getattr(settings.translation.providers, parsed.provider)
         configured = list(provider_settings.credential_ids)
@@ -120,13 +114,11 @@ def remove_credential(params: dict[str, Any]) -> dict[str, Any]:
     parsed = CredentialRemoveParams.model_validate(params)
     if parsed.provider == "local":
         raise ValueError("Local translation does not use API credentials")
-
     service, credentials = _stores()
     settings = service.get()
     existing = credential_ids(parsed.provider, settings, credentials)
     if parsed.credential_id not in existing:
         raise ValueError("Credential does not exist")
-
     credentials.delete(parsed.provider, parsed.credential_id)
     provider_settings = getattr(settings.translation.providers, parsed.provider)
     configured = [value for value in provider_settings.credential_ids if value != parsed.credential_id]
@@ -150,7 +142,16 @@ def _provider_for_request(parsed: ProviderParams):
 
 
 def models(params: dict[str, Any]) -> list[dict[str, Any]]:
-    provider = _provider_for_request(ProviderParams.model_validate(params))
+    parsed = ProviderParams.model_validate(params)
+    if parsed.provider == "local" and parsed.credential:
+        manager = ModelManager()
+        if parsed.credential.startswith("install:"):
+            manager.install(parsed.credential.removeprefix("install:"))
+        elif parsed.credential.startswith("remove:"):
+            manager.remove(parsed.credential.removeprefix("remove:"))
+    if parsed.provider == "local":
+        return ModelManager().list_models()
+    provider = _provider_for_request(parsed)
     return [item.model_dump(mode="json") for item in provider.list_models()]
 
 
