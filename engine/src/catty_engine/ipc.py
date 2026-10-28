@@ -115,6 +115,7 @@ class SpeechTranscribeParams(BaseModel):
     existing_asset: AudioAsset | None = None
 
 class TranslationEpisodeParams(ProjectPrepareEpisodeParams):
+    operation_id: str | None = Field(default=None, min_length=1, max_length=128)
     mode: Literal["missing", "all", "selected"] = "missing"
     segment_ids: list[UUID] = Field(default_factory=list)
     overwrite_manual: bool = False
@@ -210,6 +211,7 @@ def handle_request(payload: Any) -> dict[str, Any]:
                 segment_ids=set(translation_params.segment_ids),
                 overwrite_manual=translation_params.overwrite_manual,
                 batch_size=translation_params.batch_size,
+                operation_id=translation_params.operation_id,
             ).model_dump(mode="json")
         elif request.method == "project.create":
             create_params = ProjectCreateParams.model_validate(request.params)

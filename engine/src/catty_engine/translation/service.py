@@ -9,6 +9,7 @@ from typing import Literal
 from uuid import UUID
 
 from catty_engine.logging import logged_process
+from catty_engine.progress import emit_translation_progress
 from catty_engine.project.models import ProcessingStatus, Project, Translation, TranslationStatus, utc_now
 from catty_engine.project.service import ProjectService
 from catty_engine.settings.credentials import CredentialStore
@@ -39,6 +40,7 @@ class TranslationService:
         segment_ids: set[UUID] | None = None,
         overwrite_manual: bool = False,
         batch_size: int = DEFAULT_BATCH_SIZE,
+        operation_id: str | None = None,
     ):
         if batch_size < 1 or batch_size > 20:
             raise ValueError("Translation batch size must be between 1 and 20")
@@ -55,7 +57,20 @@ class TranslationService:
             segment_ids=segment_ids or set(),
             overwrite_manual=overwrite_manual,
         )
+        completed = 0
+
+        def progress(phase: str, active_ids: list[str] | None = None, *, saved: bool = False) -> None:
+            if operation_id is not None:
+                emit_translation_progress({
+                    "operation_id": operation_id, "project_directory": str(project_directory),
+                    "episode_id": str(episode_id), "phase": phase,
+                    "completed": completed, "total": len(candidates),
+                    "active_segment_ids": active_ids or [],
+                    "episode": episode.model_dump(mode="json") if saved else None,
+                })
+
         if not candidates:
+            progress("completed", saved=True)
             return episode
 
         app_settings = SettingsService().get()
@@ -69,6 +84,11 @@ class TranslationService:
 
         episode.processing.translation = ProcessingStatus.PROCESSING
         self._projects.save_project(project_directory, project)
+        progress("started")
+        # Local inference already generates one dialogue at a time. Persist and
+        # publish each one; retain cloud batching to avoid extra API calls.
+        if translation_settings.provider == "local":
+            batch_size = 1
         try:
             for start in range(0, len(candidates), batch_size):
                 logging.getLogger(__name__).info(
@@ -78,6 +98,7 @@ class TranslationService:
                     len(candidates),
                 )
                 batch = candidates[start : start + batch_size]
+                progress("translating", [str(segment.id) for segment in batch])
                 request = self._build_request(project, episode_id, batch, app_settings)
                 result = self._translate_batch(translation_settings.provider, app_settings, pool, request)
                 by_id = {item.id: item.text.strip() for item in result.segments}
@@ -92,13 +113,17 @@ class TranslationService:
                     )
                     segment.updated_at = utc_now()
                 self._projects.save_project(project_directory, project)
-        except ProviderError:
+                completed += len(batch)
+                progress("saved", saved=True)
+        except Exception:
             episode.processing.translation = ProcessingStatus.FAILED
             self._projects.save_project(project_directory, project)
+            progress("failed", saved=True)
             raise
 
         episode.processing.translation = ProcessingStatus.COMPLETED
         self._projects.save_project(project_directory, project)
+        progress("completed", saved=True)
         return episode
 
     @staticmethod

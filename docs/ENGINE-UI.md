@@ -145,3 +145,24 @@ controls unmount. Audio extraction first gets a cooperative cancellation signal
 so FFmpeg can stop and remove staged output. The host force-stops an unresponsive
 request after two seconds and drains tracked jobs before exiting. Shutdown tests
 cover cancellation, rejection of late work, and descendant-process termination.
+
+### Live translation updates
+
+Translation requests may include an `operation_id`. Python emits structured
+`catty_progress: translation` messages on stderr; Rust relays these through the
+`catty:translation-progress` Tauri event without waiting for the final RPC reply.
+Stdout remains reserved for the response. The frontend subscribes before invoking
+translation and accepts updates only for the active operation, project and episode.
+Listeners and queued callbacks are invalidated on completion or scope changes.
+
+Local translation saves and publishes each completed dialogue line. Cloud
+translation retains batches (currently 12 lines by default) and publishes each
+completed batch. Progress includes active segment IDs, the operation's saved/total
+counts, and an episode snapshot only after it has been saved to project.json.
+The Inspector immediately displays these saved translations, highlights active
+rows, and shows a progress bar with elapsed time. This is completed-line/batch
+streaming, not token streaming or a guessed percentage during model loading.
+Manual edits remain protected. If later work fails, earlier saved results remain
+visible and persistent; the frontend refreshes saved state after an RPC error.
+
+Restart the desktop process after updating Rust/Python to enable the event bridge.

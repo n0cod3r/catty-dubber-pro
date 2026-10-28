@@ -2,6 +2,7 @@ mod engine;
 mod logs;
 mod persistent_engine;
 mod processes;
+mod progress;
 
 use tauri::{Emitter, Manager};
 
@@ -27,6 +28,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(engine::EngineJobs::default())
         .setup(|app| {
+            progress::initialize(app.handle().clone());
             logs::record("rust", "INFO", "Catty desktop started");
             if let Some(window) = app.get_webview_window("main") {
                 window.maximize()?;

@@ -19,6 +19,16 @@ export type AudioPrepareParams = { source: string; episode_id: string; project_d
 
 export type TranslationProviderId = "local" | "gemini" | "deepseek" | "google" | "baidu" | "openai_compatible";
 export type TranslationStyle = "natural_dubbing" | "literal" | "short_conversational";
+export type TranslationProgress = {
+  operation_id: string;
+  project_directory: string;
+  episode_id: string;
+  phase: "started" | "translating" | "saved" | "completed" | "failed";
+  completed: number;
+  total: number;
+  active_segment_ids: string[];
+  episode: PersistedEpisode | null;
+};
 export type TranslationMode = "missing" | "all" | "selected";
 export type ComputeDevice = "auto" | "cpu" | "cuda" | "mps";
 export type TranslationProviderSettings = { selected_model: string | null; credential_ids?: string[] };
@@ -60,7 +70,7 @@ export type EngineMethods = {
   "translation.providers": { params: Record<string, never>; result: TranslationProviderInfo[] };
   "translation.models": { params: { provider: TranslationProviderId; credential?: string | null }; result: TranslationModel[] };
   "translation.test_connection": { params: { provider: TranslationProviderId; credential?: string | null }; result: ConnectionTestResult };
-  "translation.translate_episode": { params: { project_directory: string; episode_id: string; mode?: TranslationMode; segment_ids?: string[]; overwrite_manual?: boolean; batch_size?: number }; result: PersistedEpisode };
+  "translation.translate_episode": { params: { project_directory: string; episode_id: string; mode?: TranslationMode; operation_id?: string; segment_ids?: string[]; overwrite_manual?: boolean; batch_size?: number }; result: PersistedEpisode };
   "models.list": { params: Record<string, never>; result: TranslationModel[] };
   "models.install": { params: { model_id: string }; result: TranslationModel };
   "models.install_status": { params: { model_id?: string | null }; result: ModelStatus[] };

@@ -63,6 +63,7 @@ impl EngineProcess {
         });
         std::thread::spawn(move || {
             for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                if crate::progress::forward(&line) { continue; }
                 crate::logs::python_line(&line);
                 eprintln!("[catty-engine] {line}");
             }
