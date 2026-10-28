@@ -21,7 +21,7 @@ class ModelSpec:
     description: str
     approximate_size_mb: int
     allow_patterns: tuple[str, ...]
-    runtime: str = "m2m100"
+    runtime: str
 
 
 @dataclass
@@ -30,82 +30,47 @@ class InstallJob:
     error: str | None = None
 
 
-_M2M100_FILES = (
-    "config.json",
-    "generation_config.json",
-    "pytorch_model.bin",
-    "model.safetensors",
-    "sentencepiece.bpe.model",
-    "special_tokens_map.json",
-    "tokenizer_config.json",
-    "vocab.json",
-)
-_CAUSAL_TRANSLATION_FILES = (
+_HY_MT2_FILES = (
     "config.json",
     "generation_config.json",
     "model*.safetensors",
+    "model*.safetensors.index.json",
     "tokenizer.json",
     "tokenizer.model",
     "tokenizer_config.json",
     "special_tokens_map.json",
-    "added_tokens.json",
     "chat_template.jinja",
 )
+_HY_MT2_MLX_FILES = _HY_MT2_FILES + ("mlx_manifest.json",)
 
 LOCAL_TRANSLATION_MODELS = (
     ModelSpec(
-        id="milmmt-46-1b-v1",
-        name="MiLMMT 46 1B v1",
+        id="hy-mt2-7b-q4",
+        name="Hy-MT2 7B 4-bit (Quality)",
         kind="translation",
-        repository="xiaomi-research/MiLMMT-46-1B-v1.0",
-        license="Gemma",
+        repository="mlx-community/Hy-MT2-7B-4bit",
+        license="Apache-2.0",
         description=(
-            "Experimental contextual local translator. Supports Chinese and Khmer and is "
-            "small enough to benchmark as Catty's preferred local model."
+            "Recommended high-quality Chinese to Khmer translator for Apple Silicon. "
+            "Uses MLX/Metal with 4-bit weights."
         ),
-        approximate_size_mb=2050,
-        allow_patterns=_CAUSAL_TRANSLATION_FILES,
-        runtime="causal_translation",
+        approximate_size_mb=4240,
+        allow_patterns=_HY_MT2_MLX_FILES,
+        runtime="hy_mt2_mlx",
     ),
     ModelSpec(
-        id="gemmax2-28-2b-v0.2",
-        name="GemmaX2 28 2B v0.2",
+        id="hy-mt2-1.8b",
+        name="Hy-MT2 1.8B (Lightweight)",
         kind="translation",
-        repository="xiaomi-research/GemmaX2-28-2B-v0.2",
-        license="Gemma",
+        repository="tencent/Hy-MT2-1.8B",
+        license="Apache-2.0",
         description=(
-            "Experimental LLM translation model with Chinese and Khmer support. Larger than "
-            "MiLMMT 1B; useful as a local quality benchmark."
+            "Smaller cross-platform Chinese to Khmer translator. Faster to deploy, with a "
+            "quality trade-off compared with the recommended 7B model."
         ),
-        approximate_size_mb=5400,
-        allow_patterns=_CAUSAL_TRANSLATION_FILES,
-        runtime="causal_translation",
-    ),
-    ModelSpec(
-        id="m2m100-418m",
-        name="M2M100 418M (Legacy)",
-        kind="translation",
-        repository="facebook/m2m100_418M",
-        license="MIT",
-        description=(
-            "Legacy basic machine translation model. Does not understand dialogue context and "
-            "is kept only for comparison."
-        ),
-        approximate_size_mb=1960,
-        allow_patterns=_M2M100_FILES,
-    ),
-    ModelSpec(
-        id="m2m100-1.2b",
-        name="M2M100 1.2B (Legacy)",
-        kind="translation",
-        repository="facebook/m2m100_1.2B",
-        license="MIT",
-        description=(
-            "Legacy larger M2M100 model. Does not understand dialogue context and is not "
-            "recommended for Catty dubbing."
-        ),
-        approximate_size_mb=4950,
-        allow_patterns=_M2M100_FILES,
+        approximate_size_mb=4090,
+        allow_patterns=_HY_MT2_FILES,
+        runtime="hy_mt2_transformers",
     ),
 )
 LOCAL_TRANSLATION_MODEL = LOCAL_TRANSLATION_MODELS[0]
