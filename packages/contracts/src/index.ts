@@ -67,6 +67,8 @@ export type EngineMethods = {
   "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
   "settings.get": { params: Record<string, never>; result: SettingsSnapshot };
   "settings.update": { params: { settings: AppSettings; credentials?: Record<string, string | null> }; result: SettingsSnapshot };
+  "settings.credential_add": { params: { provider: TranslationProviderId; secret: string }; result: SettingsSnapshot };
+  "settings.credential_remove": { params: { provider: TranslationProviderId; credential_id: string }; result: SettingsSnapshot };
   "translation.providers": { params: Record<string, never>; result: TranslationProviderInfo[] };
   "translation.models": { params: { provider: TranslationProviderId; credential?: string | null }; result: TranslationModel[] };
   "translation.test_connection": { params: { provider: TranslationProviderId; credential?: string | null }; result: ConnectionTestResult };
