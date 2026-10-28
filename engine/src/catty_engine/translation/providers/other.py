@@ -1,6 +1,8 @@
 """Local and configuration-ready translation providers."""
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import platform
 from typing import Any
 
@@ -16,21 +18,30 @@ from ..models import (
     TranslationOutput,
 )
 
-# Keep local models warm across TranslationService/provider instances.
 _TRANSFORMERS_MODEL_CACHE: dict[str, tuple[Any, Any, str]] = {}
 _MLX_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 
 
 def _hy_mt2_prompt(segment: TranslationInput, request: TranslationBatchRequest) -> str:
-    """Build an Hy-MT2 translation instruction; context is reference-only."""
+    """Build an Hy-MT2 instruction while keeping surrounding dialogue read-only."""
     lines: list[str] = []
     if request.use_context and (segment.previous or segment.next):
-        lines.append("Use the following dialogue only as context for meaning. Do not translate it:")
+        lines.append(
+            "Use the following dialogue only as context for meaning. Do not translate it:"
+        )
         for item in segment.previous:
-            speaker = f"{item.speaker}: " if request.use_speaker_context and item.speaker else ""
+            speaker = (
+                f"{item.speaker}: "
+                if request.use_speaker_context and item.speaker
+                else ""
+            )
             lines.append(f"Previous: {speaker}{item.text}")
         for item in segment.next:
-            speaker = f"{item.speaker}: " if request.use_speaker_context and item.speaker else ""
+            speaker = (
+                f"{item.speaker}: "
+                if request.use_speaker_context and item.speaker
+                else ""
+            )
             lines.append(f"Next: {speaker}{item.text}")
     if request.glossary:
         lines.append("Reference the following translations exactly when applicable:")
@@ -55,7 +66,6 @@ def _hy_mt2_prompt(segment: TranslationInput, request: TranslationBatchRequest) 
     return "\n".join(lines)
 
 
-# Kept as a compatibility alias for tests/extensions that used the old helper name.
 _contextual_prompt = _hy_mt2_prompt
 
 
@@ -88,19 +98,22 @@ def _load_transformers_model(
     return result
 
 
+def _mlx_runtime() -> Any:
+    if importlib.util.find_spec("mlx_lm") is None:
+        raise ProviderError(
+            "Hy-MT2 7B 4-bit requires the Catty MLX runtime (mlx-lm)."
+        )
+    return importlib.import_module("mlx_lm")
+
+
 def _load_mlx_model(model_id: str, manager: ModelManager) -> tuple[Any, Any]:
     cached = _MLX_MODEL_CACHE.get(model_id)
     if cached is not None:
         return cached
     if platform.system() != "Darwin" or platform.machine() not in {"arm64", "aarch64"}:
         raise ProviderError("Hy-MT2 7B 4-bit requires an Apple Silicon Mac.")
-    try:
-        from mlx_lm import load
-    except ImportError as exc:
-        raise ProviderError(
-            "Hy-MT2 7B 4-bit requires the Catty MLX runtime (mlx-lm)."
-        ) from exc
-    model, tokenizer = load(str(manager.path_for(model_id)))
+    mlx_lm = _mlx_runtime()
+    model, tokenizer = mlx_lm.load(str(manager.path_for(model_id)))
     result = (model, tokenizer)
     _MLX_MODEL_CACHE[model_id] = result
     return result
@@ -112,7 +125,6 @@ class LocalProvider:
     id = "local"
 
     def __init__(self, selected_model: str | None = None) -> None:
-        # Removed/unknown model settings safely migrate to Catty's recommended model.
         candidate = selected_model or LOCAL_TRANSLATION_MODEL.id
         self.manager = ModelManager()
         try:
@@ -133,13 +145,19 @@ class LocalProvider:
             return ConnectionTestResult(
                 ok=False, message=f"{spec.name} must be downloaded first."
             )
-        if spec.runtime == "hy_mt2_mlx" and (
-            platform.system() != "Darwin"
-            or platform.machine() not in {"arm64", "aarch64"}
-        ):
-            return ConnectionTestResult(
-                ok=False, message=f"{spec.name} requires an Apple Silicon Mac."
-            )
+        if spec.runtime == "hy_mt2_mlx":
+            if platform.system() != "Darwin" or platform.machine() not in {
+                "arm64",
+                "aarch64",
+            }:
+                return ConnectionTestResult(
+                    ok=False, message=f"{spec.name} requires an Apple Silicon Mac."
+                )
+            if importlib.util.find_spec("mlx_lm") is None:
+                return ConnectionTestResult(
+                    ok=False,
+                    message=f"{spec.name} requires the Catty MLX runtime (mlx-lm).",
+                )
         return ConnectionTestResult(
             ok=True, message=f"{spec.name} is ready for offline translation."
         )
@@ -154,9 +172,8 @@ class LocalProvider:
         )
         outputs: list[TranslationOutput] = []
         for segment in request.segments:
-            prompt = _hy_mt2_prompt(segment, request)
             encoded = tokenizer(
-                prompt,
+                _hy_mt2_prompt(segment, request),
                 add_special_tokens=False,
                 return_tensors="pt",
                 truncation=True,
@@ -184,17 +201,11 @@ class LocalProvider:
         )
 
     def _translate_mlx(self, request: TranslationBatchRequest) -> TranslationBatchResult:
-        try:
-            from mlx_lm import generate
-        except ImportError as exc:
-            raise ProviderError(
-                "Hy-MT2 7B 4-bit requires the Catty MLX runtime (mlx-lm)."
-            ) from exc
-
+        mlx_lm = _mlx_runtime()
         model, tokenizer = _load_mlx_model(self.selected_model, self.manager)
         outputs: list[TranslationOutput] = []
         for segment in request.segments:
-            text = generate(
+            text = mlx_lm.generate(
                 model,
                 tokenizer,
                 prompt=_hy_mt2_prompt(segment, request),
@@ -217,7 +228,8 @@ class LocalProvider:
             )
         if not self.manager.installed(self.selected_model):
             raise ProviderError(
-                "Selected local translation model is not installed. Open Settings → Models to download it."
+                "Selected local translation model is not installed. "
+                "Open Settings → Models to download it."
             )
         spec = self.manager.spec(self.selected_model)
         try:
