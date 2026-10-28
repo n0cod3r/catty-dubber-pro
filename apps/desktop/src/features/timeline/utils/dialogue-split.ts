@@ -29,5 +29,7 @@ export function dialogueSplitTarget<
         time > segment.start + 0.05 &&
         time < segment.end - 0.05,
     ) ?? null;
-  return segment && hasSplittableText(segment.sourceText ?? "") ? segment : null;
+  return segment && hasSplittableText(segment.sourceText ?? "")
+    ? segment
+    : null;
 }
