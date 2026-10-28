@@ -20,28 +20,45 @@ class ModelSpec:
     description: str
     approximate_size_mb: int
     allow_patterns: tuple[str, ...]
+    runtime: str = "m2m100"
 
 
-LOCAL_TRANSLATION_MODEL = ModelSpec(
-    id="m2m100-418m",
-    name="M2M100 418M",
-    kind="translation",
-    repository="facebook/m2m100_418M",
-    license="MIT",
-    description="Offline multilingual translation with direct Chinese → Khmer support.",
-    approximate_size_mb=1960,
-    allow_patterns=(
-        "config.json",
-        "generation_config.json",
-        "pytorch_model.bin",
-        "sentencepiece.bpe.model",
-        "special_tokens_map.json",
-        "tokenizer_config.json",
-        "vocab.json",
+_M2M100_FILES = (
+    "config.json",
+    "generation_config.json",
+    "pytorch_model.bin",
+    "model.safetensors",
+    "sentencepiece.bpe.model",
+    "special_tokens_map.json",
+    "tokenizer_config.json",
+    "vocab.json",
+)
+
+LOCAL_TRANSLATION_MODELS = (
+    ModelSpec(
+        id="m2m100-418m",
+        name="M2M100 418M",
+        kind="translation",
+        repository="facebook/m2m100_418M",
+        license="MIT",
+        description="Balanced local model. Direct Chinese → Khmer translation with lower memory use.",
+        approximate_size_mb=1960,
+        allow_patterns=_M2M100_FILES,
+    ),
+    ModelSpec(
+        id="m2m100-1.2b",
+        name="M2M100 1.2B",
+        kind="translation",
+        repository="facebook/m2m100_1.2B",
+        license="MIT",
+        description="Larger local model for users who prefer translation quality over speed and memory use.",
+        approximate_size_mb=4950,
+        allow_patterns=_M2M100_FILES,
     ),
 )
 
-_REGISTRY = {LOCAL_TRANSLATION_MODEL.id: LOCAL_TRANSLATION_MODEL}
+LOCAL_TRANSLATION_MODEL = LOCAL_TRANSLATION_MODELS[0]
+_REGISTRY = {spec.id: spec for spec in LOCAL_TRANSLATION_MODELS}
 
 
 class ModelManager:
@@ -67,8 +84,13 @@ class ModelManager:
     def list_models(self) -> list[dict[str, object]]:
         return [self._snapshot(spec) for spec in _REGISTRY.values()]
 
+    def list_specs(self, *, kind: str | None = None) -> list[ModelSpec]:
+        specs = list(_REGISTRY.values())
+        return [spec for spec in specs if kind is None or spec.kind == kind]
+
     def _snapshot(self, spec: ModelSpec) -> dict[str, object]:
         path = self.path_for(spec.id)
+        installed = self.installed(spec.id)
         return {
             "id": spec.id,
             "name": spec.name,
@@ -77,8 +99,8 @@ class ModelManager:
             "license": spec.license,
             "description": spec.description,
             "approximate_size_mb": spec.approximate_size_mb,
-            "installed": self.installed(spec.id),
-            "path": str(path) if self.installed(spec.id) else None,
+            "installed": installed,
+            "path": str(path) if installed else None,
         }
 
     def install(self, model_id: str) -> dict[str, object]:
