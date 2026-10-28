@@ -47,7 +47,6 @@ class Pipeline:
         }
         self.inference("audio", model=self.vad_model)
         raw = self.inference(["short", "long"], model=self.model)
-        # FunASR mutates word timestamps when restoring sorted chunks.
         raw[0]["timestamp"][0][0] = 5000
         self.inference("你好世界", model=self.punc_model)
         return [
@@ -63,13 +62,24 @@ class Pipeline:
 
 def test_stage_capture_preserves_output_generate_arguments_and_internal_state(tmp_path):
     pipeline = Pipeline()
-    original = copy.deepcopy(
-        _run_generate(pipeline, "samples", 16000, return_spk_res=True)
+    original, _ = _run_generate(
+        pipeline,
+        "samples",
+        16000,
+        source_start=0,
+        return_spk_res=True,
     )
+    original = copy.deepcopy(original)
     trace = TranscriptionTrace(tmp_path, uuid4(), 12, 10)
     token = _CURRENT.set(trace)
     try:
-        observed = _run_generate(pipeline, "samples", 16000, return_spk_res=True)
+        observed, raw_asr = _run_generate(
+            pipeline,
+            "samples",
+            16000,
+            source_start=12,
+            return_spk_res=True,
+        )
         segments = parse_sentences(observed, start=12, duration=10)
         trace.data["parsed_segments"] = [s.model_dump(mode="json") for s in segments]
         trace.finish(segments)
@@ -77,6 +87,8 @@ def test_stage_capture_preserves_output_generate_arguments_and_internal_state(tm
         _CURRENT.reset(token)
     assert observed == original and pipeline.generations == 2
     assert "inference" not in vars(pipeline)
+    assert raw_asr[0]["vad_region"]["start"] == 17
+    assert raw_asr[1]["vad_region"]["start"] == 13
     data = json.loads(trace.path.read_text())
     assert data["raw_asr"][0]["vad_region"]["start"] == 17
     assert data["raw_asr"][1]["vad_region"]["start"] == 13
@@ -100,7 +112,7 @@ def test_gap_analysis_distinguishes_vad_support_and_does_not_claim_silence_is_a_
     assert gaps[1]["duration"] == 8.84 and gaps[1]["suspicious"] is True
     assert gaps[1]["vad_overlap_seconds"] == 8.3
     raw = [{"absolute_word_timestamps": [[98, 100]]}]
-    gaps = suspicious_gaps(final, vad, raw, [], 0, 110)
+    gaps = suspicious_gaps(final, vad, raw, [], [], 0, 110)
     assert "punctuation" in gaps[1]["hint"]
     gaps = suspicious_gaps(final, vad, raw, [{"start": 98, "end": 100}], 0, 110)
     assert "semantic_split" in gaps[1]["hint"]
@@ -196,7 +208,13 @@ def test_inference_hook_is_restored_when_generation_raises(tmp_path):
     token = _CURRENT.set(trace)
     try:
         with pytest.raises(RuntimeError, match="ASR failure"):
-            _run_generate(pipeline, "samples", 16000, return_spk_res=True)
+            _run_generate(
+                pipeline,
+                "samples",
+                16000,
+                source_start=0,
+                return_spk_res=True,
+            )
     finally:
         _CURRENT.reset(token)
     assert "inference" not in vars(pipeline)
