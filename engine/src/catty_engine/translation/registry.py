@@ -51,7 +51,7 @@ def provider_infos(
                 requires_credentials=provider_id != "local",
                 supports_model_discovery=provider_id == "gemini",
                 contextual=provider_id
-                in {"gemini", "deepseek", "openai_compatible"},
+                in {"local", "gemini", "deepseek", "openai_compatible"},
                 credential_configured=bool(
                     credential_ids(provider_id, settings, credentials)
                 ),
