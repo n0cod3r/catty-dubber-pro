@@ -26,22 +26,12 @@ def _hy_mt2_prompt(segment: TranslationInput, request: TranslationBatchRequest) 
     """Build an Hy-MT2 instruction while keeping surrounding dialogue read-only."""
     lines: list[str] = []
     if request.use_context and (segment.previous or segment.next):
-        lines.append(
-            "Use the following dialogue only as context for meaning. Do not translate it:"
-        )
+        lines.append("Use the following dialogue only as context for meaning. Do not translate it:")
         for item in segment.previous:
-            speaker = (
-                f"{item.speaker}: "
-                if request.use_speaker_context and item.speaker
-                else ""
-            )
+            speaker = f"{item.speaker}: " if request.use_speaker_context and item.speaker else ""
             lines.append(f"Previous: {speaker}{item.text}")
         for item in segment.next:
-            speaker = (
-                f"{item.speaker}: "
-                if request.use_speaker_context and item.speaker
-                else ""
-            )
+            speaker = f"{item.speaker}: " if request.use_speaker_context and item.speaker else ""
             lines.append(f"Next: {speaker}{item.text}")
     if request.glossary:
         lines.append("Reference the following translations exactly when applicable:")
@@ -56,13 +46,10 @@ def _hy_mt2_prompt(segment: TranslationInput, request: TranslationBatchRequest) 
         lines.append(request.custom_instructions.strip())
     if request.use_speaker_context and segment.speaker:
         lines.append(f"Current speaker: {segment.speaker}")
-    lines.extend(
-        [
-            "Translate ONLY the following Current text into Khmer. "
-            "Only output the translated result without any additional explanation:",
-            f"Current: {segment.text}",
-        ]
-    )
+    lines.extend([
+        "Translate ONLY the following Current text into Khmer. Only output the translated result without any additional explanation:",
+        f"Current: {segment.text}",
+    ])
     return "\n".join(lines)
 
 
@@ -71,7 +58,6 @@ _contextual_prompt = _hy_mt2_prompt
 
 def _torch_device() -> str:
     import torch
-
     if torch.cuda.is_available():
         return "cuda"
     if torch.backends.mps.is_available():
@@ -79,14 +65,11 @@ def _torch_device() -> str:
     return "cpu"
 
 
-def _load_transformers_model(
-    model_id: str, manager: ModelManager
-) -> tuple[Any, Any, str]:
+def _load_transformers_model(model_id: str, manager: ModelManager) -> tuple[Any, Any, str]:
     cached = _TRANSFORMERS_MODEL_CACHE.get(model_id)
     if cached is not None:
         return cached
     from transformers import AutoModelForCausalLM, AutoTokenizer
-
     path = manager.path_for(model_id)
     device = _torch_device()
     tokenizer = AutoTokenizer.from_pretrained(path, local_files_only=True)
@@ -100,9 +83,7 @@ def _load_transformers_model(
 
 def _mlx_runtime() -> Any:
     if importlib.util.find_spec("mlx_lm") is None:
-        raise ProviderError(
-            "Hy-MT2 7B 4-bit requires the Catty MLX runtime (mlx-lm)."
-        )
+        raise ProviderError("Hy-MT2 7B 4-bit requires the Catty MLX runtime (mlx-lm).")
     return importlib.import_module("mlx_lm")
 
 
@@ -134,103 +115,52 @@ class LocalProvider:
         self.selected_model = candidate
 
     def list_models(self) -> list[TranslationModel]:
-        return [
-            TranslationModel(id=spec.id, name=spec.name, description=spec.description)
-            for spec in self.manager.list_specs(kind="translation")
-        ]
+        return [TranslationModel(id=spec.id, name=spec.name, description=spec.description) for spec in self.manager.list_specs(kind="translation")]
 
     def test_connection(self) -> ConnectionTestResult:
         spec = self.manager.spec(self.selected_model)
         if not self.manager.installed(self.selected_model):
-            return ConnectionTestResult(
-                ok=False, message=f"{spec.name} must be downloaded first."
-            )
+            return ConnectionTestResult(ok=False, message=f"{spec.name} must be downloaded first.")
         if spec.runtime == "hy_mt2_mlx":
-            if platform.system() != "Darwin" or platform.machine() not in {
-                "arm64",
-                "aarch64",
-            }:
-                return ConnectionTestResult(
-                    ok=False, message=f"{spec.name} requires an Apple Silicon Mac."
-                )
+            if platform.system() != "Darwin" or platform.machine() not in {"arm64", "aarch64"}:
+                return ConnectionTestResult(ok=False, message=f"{spec.name} requires an Apple Silicon Mac.")
             if importlib.util.find_spec("mlx_lm") is None:
-                return ConnectionTestResult(
-                    ok=False,
-                    message=f"{spec.name} requires the Catty MLX runtime (mlx-lm).",
-                )
-        return ConnectionTestResult(
-            ok=True, message=f"{spec.name} is ready for offline translation."
-        )
+                return ConnectionTestResult(ok=False, message=f"{spec.name} requires the Catty MLX runtime (mlx-lm).")
+        return ConnectionTestResult(ok=True, message=f"{spec.name} is ready for offline translation.")
 
-    def _translate_transformers(
-        self, request: TranslationBatchRequest
-    ) -> TranslationBatchResult:
+    def _translate_transformers(self, request: TranslationBatchRequest) -> TranslationBatchResult:
         import torch
-
-        tokenizer, model, device = _load_transformers_model(
-            self.selected_model, self.manager
-        )
+        tokenizer, model, device = _load_transformers_model(self.selected_model, self.manager)
         outputs: list[TranslationOutput] = []
         for segment in request.segments:
-            encoded = tokenizer(
-                _hy_mt2_prompt(segment, request),
-                add_special_tokens=False,
-                return_tensors="pt",
-                truncation=True,
-                max_length=2048,
-            )
+            encoded = tokenizer(_hy_mt2_prompt(segment, request), add_special_tokens=False, return_tensors="pt", truncation=True, max_length=2048)
             encoded = {key: value.to(device) for key, value in encoded.items()}
             with torch.inference_mode():
-                generated = model.generate(
-                    **encoded,
-                    do_sample=False,
-                    max_new_tokens=256,
-                    repetition_penalty=1.05,
-                )
+                generated = model.generate(**encoded, do_sample=False, max_new_tokens=256, repetition_penalty=1.05)
             input_length = encoded["input_ids"].shape[1]
-            text = tokenizer.decode(
-                generated[0][input_length:], skip_special_tokens=True
-            ).strip()
+            text = tokenizer.decode(generated[0][input_length:], skip_special_tokens=True).strip()
             if not text:
-                raise ProviderError(
-                    f"{self.selected_model} returned an empty translation for {segment.id}."
-                )
+                raise ProviderError(f"{self.selected_model} returned an empty translation for {segment.id}.")
             outputs.append(TranslationOutput(id=segment.id, text=text))
-        return TranslationBatchResult(
-            provider=self.id, model=self.selected_model, segments=outputs
-        )
+        return TranslationBatchResult(provider=self.id, model=self.selected_model, segments=outputs)
 
     def _translate_mlx(self, request: TranslationBatchRequest) -> TranslationBatchResult:
-        mlx_lm = _mlx_runtime()
+        mlx_lm: Any = _mlx_runtime()
         model, tokenizer = _load_mlx_model(self.selected_model, self.manager)
+        generate: Any = getattr(mlx_lm, "generate")
         outputs: list[TranslationOutput] = []
         for segment in request.segments:
-            text = mlx_lm.generate(
-                model,
-                tokenizer,
-                prompt=_hy_mt2_prompt(segment, request),
-                max_tokens=256,
-                verbose=False,
-            ).strip()
+            text = generate(model, tokenizer, prompt=_hy_mt2_prompt(segment, request), max_tokens=256, verbose=False).strip()
             if not text:
-                raise ProviderError(
-                    f"{self.selected_model} returned an empty translation for {segment.id}."
-                )
+                raise ProviderError(f"{self.selected_model} returned an empty translation for {segment.id}.")
             outputs.append(TranslationOutput(id=segment.id, text=text))
-        return TranslationBatchResult(
-            provider=self.id, model=self.selected_model, segments=outputs
-        )
+        return TranslationBatchResult(provider=self.id, model=self.selected_model, segments=outputs)
 
     def translate_batch(self, request: TranslationBatchRequest) -> TranslationBatchResult:
         if request.source_language != "zh" or request.target_language != "km":
-            raise ProviderError(
-                "Catty local translation currently supports Chinese → Khmer only."
-            )
+            raise ProviderError("Catty local translation currently supports Chinese → Khmer only.")
         if not self.manager.installed(self.selected_model):
-            raise ProviderError(
-                "Selected local translation model is not installed. "
-                "Open Settings → Models to download it."
-            )
+            raise ProviderError("Selected local translation model is not installed. Open Settings → Models to download it.")
         spec = self.manager.spec(self.selected_model)
         try:
             if spec.runtime == "hy_mt2_transformers":
@@ -255,10 +185,7 @@ class ConfigurationOnlyProvider:
         raise ProviderError(f"{self.name} model discovery is not available yet.")
 
     def test_connection(self) -> ConnectionTestResult:
-        return ConnectionTestResult(
-            ok=False,
-            message=f"{self.name} connection testing is not available yet.",
-        )
+        return ConnectionTestResult(ok=False, message=f"{self.name} connection testing is not available yet.")
 
     def translate_batch(self, request: TranslationBatchRequest) -> TranslationBatchResult:
         del request
