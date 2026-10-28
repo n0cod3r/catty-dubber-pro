@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 
 class EdgeTTSError(RuntimeError):
@@ -31,6 +32,32 @@ class EdgeTTSProvider:
             volume=f"{volume:+d}%",
         )
         await communicate.save(str(output))
+
+    async def _voices(self) -> list[dict[str, Any]]:
+        import edge_tts
+
+        voices = await edge_tts.list_voices()
+        return [
+            voice
+            for voice in voices
+            if str(voice.get("Locale", "")).lower() == "km-kh"
+        ]
+
+    def list_voices(self) -> list[dict[str, str]]:
+        try:
+            voices = asyncio.run(self._voices())
+        except Exception as exc:
+            raise EdgeTTSError(f"Could not load Edge TTS voices: {exc}") from exc
+        return [
+            {
+                "id": str(voice.get("ShortName", "")),
+                "name": str(voice.get("FriendlyName") or voice.get("ShortName", "")),
+                "locale": str(voice.get("Locale", "km-KH")),
+                "gender": str(voice.get("Gender", "")),
+            }
+            for voice in voices
+            if voice.get("ShortName")
+        ]
 
     def synthesize(
         self,
