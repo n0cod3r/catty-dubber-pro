@@ -275,10 +275,13 @@ def handle_request(payload: Any) -> dict[str, Any]:
         elif request.method == "speech.transcribe":
             speech_params = SpeechTranscribeParams.model_validate(request.params)
             from catty_engine.speech.runtime import create_transcription_service
-            transcription = create_transcription_service(backend_id=speech_params.asr_backend, asr_config=speech_params.asr_config, vad_backend=speech_params.vad_backend, vad_config=speech_params.vad_config).transcribe(project_directory=speech_params.project_directory, episode_id=speech_params.episode_id, source=speech_params.source, backend_id=speech_params.asr_backend, language=speech_params.language, source_start=speech_params.source_start, duration=speech_params.duration, existing_asset=speech_params.existing_asset)
+            transcription_service = create_transcription_service(backend_id=speech_params.asr_backend, asr_config=speech_params.asr_config, vad_backend=speech_params.vad_backend, vad_config=speech_params.vad_config)
+            transcription = transcription_service.transcribe(project_directory=speech_params.project_directory, episode_id=speech_params.episode_id, source=speech_params.source, backend_id=speech_params.asr_backend, language=speech_params.language, source_start=speech_params.source_start, duration=speech_params.duration, existing_asset=speech_params.existing_asset)
             service = ProjectService()
             project = service.open_project(speech_params.project_directory)
-            service.replace_dialogue_segments(speech_params.project_directory, project, speech_params.episode_id, transcription.segments, source_language=speech_params.language, speaker_error=transcription.speaker_error)
+            persisted = service.replace_dialogue_segments(speech_params.project_directory, project, speech_params.episode_id, transcription.segments, source_language=speech_params.language, speaker_error=transcription.speaker_error)
+            from catty_engine.speech.diagnostics import record_persisted_dialogue
+            record_persisted_dialogue(speech_params.project_directory, persisted, getattr(transcription_service, "_diagnostic_run_id", None))
             result = transcription.model_dump(mode="json")
         else:
             probe_params = ProbeParams.model_validate(request.params)

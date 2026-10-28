@@ -56,3 +56,40 @@ CAM++ clusters speakers acoustically. Brief, similar, noisy or overlapping voice
 The 50% / 300 ms coverage floor applies to the separate speaker-turn matcher used by SenseSmall. FunASR's integrated `punc_segment` labels are assigned by its internal maximum-overlap `distribute_spk`, which does not expose a supported fine-grained turn list or a coverage score; Catty does not patch those internals. A dedicated diarizer port is the seam for changing that later.
 
 Long-dialogue splitting uses punctuation boundaries and proportional character timing because word-level timestamps are not persisted. It is a usability pass, not word-accurate alignment. Retrying speaker detection currently means re-transcription; there is no annotate-only retry operation. Cross-episode character identity, gender classification, translation and TTS are separate work and are not inferred from `S1/S2` labels.
+
+## Smart Transcribe diagnostics
+
+Each Paraformer/Smart Transcribe service run writes a debug-only artifact:
+
+`cache/transcription/<episode-id>/smart-transcribe-debug.json`
+
+The artifact contains the prepared audio path/fingerprint, run ID, pinned model
+revisions/runtime settings, FSMN VAD regions, raw per-chunk Paraformer text and
+word timestamps, actual CT-Punc input/output, FunASR sentence_info, parser drops,
+pre-split dialogue and final segments. The normal RPC path also annotates the
+persisted dialogue and whether its text/timing matches final output. Nothing is
+added to the project schema. The most recent run replaces the previous artifact.
+Artifact failures are logged and do not fail transcription.
+
+Stage observations wrap the existing FunASR instance's inference method only for
+the duration of its existing generate call, returning original objects unchanged.
+Snapshots exclude speaker embeddings and copy text/timing before FunASR mutates
+word timestamps in place. No extra inference is performed. VAD chunks are mapped
+to raw ASR by FunASR's stable duration-sorted batch order; a result-count mismatch
+is marked unavailable instead of inventing a mapping. Absolute source seconds and
+native chunk-relative milliseconds are explicitly separated. Punctuation output
+is merged text, not a separately timed speech region.
+
+Gap analysis lists gaps >= 0.5 seconds, including leading/trailing gaps. A gap with
+>= 0.25 seconds of VAD support is flagged for review, with raw word-timestamp and
+pre-split overlap to help locate a loss. These thresholds affect diagnostics only.
+A gap without VAD support is **not** proof of silence or a VAD bug; listen to the
+audio before deciding. An unobserved VAD stage is explicitly distinguished from a
+successfully observed VAD result with no speech.
+
+Logs prefixed `[TRANSCRIBE DEBUG]` include VAD ranges, raw ASR chunk/word timing,
+punctuation text, final timing and gap summaries. Full text is in the artifact.
+Multiple attempts reflect the existing speaker-recovery behavior; diagnostics do
+not add fallback ASR, modify VAD settings, or change semantic splitting. Translation
+and reconstruction are untouched. The cache contains dialogue text; it is local
+debug data, not intended for committing to the repository.

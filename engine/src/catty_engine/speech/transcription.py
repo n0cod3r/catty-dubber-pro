@@ -12,6 +12,7 @@ from catty_engine.media.audio_preparation import AudioPreparationService
 from .backends import AsrBackendRegistry
 from .models import TranscriptionResult
 from .segmentation import split_long_dialogue
+from .diagnostics import current_trace, trace_transcription
 from .vad import VadBackend
 
 
@@ -30,12 +31,14 @@ class TranscriptionService:
         audio_preparation: AudioPreparationService | None = None,
         speaker_pipeline: SpeakerPipeline | None = None,
     ) -> None:
+        self._diagnostic_run_id: str | None = None
         self._speaker_pipeline = speaker_pipeline
         self._asr_backends = asr_backends
         self._vad = vad
         self._audio_preparation = audio_preparation or AudioPreparationService()
 
     @logged_process
+    @trace_transcription
     def transcribe(
         self,
         *,
@@ -59,6 +62,10 @@ class TranscriptionService:
             source=source,
             existing_asset=existing_asset,
         )
+        trace = current_trace()
+        if trace is not None:
+            trace.data["audio"] = speech_asset.model_dump(mode="json")
+            trace.data["backend"] = backend_id
         audio = Path(speech_asset.path)
         regions = self._vad.detect(audio, start=source_start, duration=duration)
         backend = self._asr_backends.get(backend_id)
@@ -86,6 +93,8 @@ class TranscriptionService:
 
         # ASR keeps full context. Shorten only after recognition and speaker
         # annotation, so every split inherits the recognized speaker.
+        if trace is not None:
+            trace.safe(trace.data.update, parsed_segments=[segment.model_dump(mode="json") for segment in segments])
         segments = split_long_dialogue(segments)
         return TranscriptionResult(
             backend=backend.id,

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from catty_engine.speech.model_manager import ModelManager
+from catty_engine.speech.diagnostics import capture_pipeline, current_trace, snapshot
 from catty_engine.speech.models import SpeechRegion, TranscriptSegment, TranscriptionResult
 from catty_engine.speech.wav import read_mono_pcm16
 
@@ -194,6 +195,10 @@ def parse_sentences(
         left, right = max(0, left), min(duration, right)
         text = _sentence_text(sentence)
         if right <= left or not text or not _has_spoken_text(text):
+            trace = current_trace()
+            if trace is not None and trace.attempt is not None:
+                reason = "invalid_or_clipped_timing" if right <= left else "empty_text" if not text else "punctuation_only"
+                trace.safe(trace.attempt["dropped_regions"].append, {"stage": "sentence_parser", "reason": reason, "start": start + left, "end": start + right, "text": text, "native": snapshot(sentence)})
             continue
         cluster = sentence.get("spk")
         label = None
@@ -254,14 +259,19 @@ def _run_generate(
     ``return_spk_res=False`` is therefore the supported recovery path. It keeps
     canonical ASR, VAD and CT-Punc output without loading a second model stack.
     """
-    return pipeline.generate(
-        input=samples,
-        fs=rate,
-        batch_size_s=30,
-        disable_pbar=True,
-        sentence_timestamp=True,
-        return_spk_res=return_spk_res,
-    )
+    with capture_pipeline(pipeline, return_spk_res=return_spk_res):
+        result = pipeline.generate(
+            input=samples,
+            fs=rate,
+            batch_size_s=30,
+            disable_pbar=True,
+            sentence_timestamp=True,
+            return_spk_res=return_spk_res,
+        )
+        trace = current_trace()
+        if trace is not None and trace.attempt is not None:
+            trace.safe(lambda: trace.attempt.update(funasr_result=snapshot(result)))
+        return result
 
 
 class FunASRParaformerBackend:
@@ -304,6 +314,10 @@ class FunASRParaformerBackend:
 
             device = resolve_device(torch)
             ncpu = _cpu_threads()
+            trace = current_trace()
+            if trace is not None:
+                trace.data["model_revisions"] = dict(MODEL_REVISIONS)
+                trace.data["runtime"] = {"device": device, "cpu_threads": ncpu, "max_vad_segment_ms": MAX_VAD_SEGMENT_MS, "batch_size_s": 30, "sentence_timestamp": True}
             model_paths = tuple(models.items())
             pipeline = _load_pipeline(model_paths, device, ncpu)
             audio_duration = min(duration, len(samples) / rate)
