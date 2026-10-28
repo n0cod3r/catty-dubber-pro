@@ -45,6 +45,9 @@ class TranslationInput(BaseModel):
     speaker: str | None = None
     previous: list[TranslationContextLine] = Field(default_factory=list)
     next: list[TranslationContextLine] = Field(default_factory=list)
+    # Full source utterance reconstructed from adjacent ASR fragments. The
+    # provider still translates only `text` for this original timed row.
+    semantic_context: str | None = None
 
 
 class TranslationBatchRequest(BaseModel):
