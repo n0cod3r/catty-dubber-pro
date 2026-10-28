@@ -32,7 +32,9 @@ export type AppSettings = {
   storage: { projects_directory: string | null; models_directory: string | null; exports_directory: string | null };
 };
 export type TranslationProviderInfo = { id: TranslationProviderId; name: string; offline: boolean; requires_credentials: boolean; supports_model_discovery: boolean; contextual: boolean; credential_configured: boolean; selected_model: string | null };
-export type TranslationModel = { id: string; name: string; description?: string | null; kind?: string; repository?: string; license?: string; approximate_size_mb?: number; installed?: boolean; path?: string | null };
+export type ModelInstallStatus = "idle" | "downloading" | "installed" | "failed";
+export type TranslationModel = { id: string; name: string; description?: string | null; kind?: string; repository?: string; license?: string; approximate_size_mb?: number; installed?: boolean; path?: string | null; install_status?: ModelInstallStatus; install_error?: string | null };
+export type ModelStatus = { model_id: string; status: ModelInstallStatus; error: string | null };
 export type ConnectionTestResult = { ok: boolean; message: string };
 export type SettingsSnapshot = { settings: AppSettings; credentials: Partial<Record<TranslationProviderId, boolean>>; credential_ids?: Partial<Record<TranslationProviderId, string[]>> };
 
@@ -59,4 +61,8 @@ export type EngineMethods = {
   "translation.models": { params: { provider: TranslationProviderId; credential?: string | null }; result: TranslationModel[] };
   "translation.test_connection": { params: { provider: TranslationProviderId; credential?: string | null }; result: ConnectionTestResult };
   "translation.translate_episode": { params: { project_directory: string; episode_id: string; mode?: TranslationMode; segment_ids?: string[]; overwrite_manual?: boolean; batch_size?: number }; result: PersistedEpisode };
+  "models.list": { params: Record<string, never>; result: TranslationModel[] };
+  "models.install": { params: { model_id: string }; result: TranslationModel };
+  "models.install_status": { params: { model_id?: string | null }; result: ModelStatus[] };
+  "models.remove": { params: { model_id: string }; result: TranslationModel };
 };
