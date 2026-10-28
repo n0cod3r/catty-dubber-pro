@@ -3,7 +3,12 @@ function hasSplittableText(text: string): boolean {
 }
 
 export function dialogueSplitTarget<
-  T extends { id: string; start: number; end: number; sourceText?: string },
+  T extends {
+    id: string;
+    start: number;
+    end: number;
+    sourceText?: string;
+  },
 >(
   sourceId: string | undefined,
   segments: readonly T[],
