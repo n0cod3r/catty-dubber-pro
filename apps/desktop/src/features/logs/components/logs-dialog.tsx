@@ -10,6 +10,14 @@ import { createPortal } from "react-dom";
 import { FileText, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   clearLogs,
@@ -17,6 +25,21 @@ import {
   pollNativeLogs,
   subscribeLogs,
 } from "../services/log-store";
+
+const SOURCE_ITEMS = [
+  { label: "All sources", value: "all" },
+  { label: "Frontend", value: "frontend" },
+  { label: "Rust", value: "rust" },
+  { label: "Python", value: "python" },
+];
+
+const LEVEL_ITEMS = [
+  { label: "All levels", value: "all" },
+  ...["DEBUG", "INFO", "WARNING", "WARN", "ERROR"].map((level) => ({
+    label: level,
+    value: level,
+  })),
+];
 
 export function LogsButton() {
   const [open, setOpen] = useState(false);
@@ -154,32 +177,56 @@ function LogsDialog({ onClose }: { onClose: () => void }) {
             onChange={(event) => setSearch(event.target.value)}
             className="min-w-36 flex-1 rounded border bg-background px-2 py-1.5 outline-none focus:ring-1 focus:ring-ring"
           />
-          <select
-            aria-label="Log source"
+          <Select
             value={source}
-            onChange={(event) => setSource(event.target.value)}
-            className="rounded border bg-background p-1.5"
+            items={SOURCE_ITEMS}
+            onValueChange={(val) => {
+              if (val) setSource(val);
+            }}
           >
-            <option value="all">All sources</option>
-            <option value="frontend">Frontend</option>
-            <option value="rust">Rust</option>
-            <option value="python">Python</option>
-          </select>
-          <select
-            aria-label="Log level"
+            <SelectTrigger
+              aria-label="Log source"
+              className="rounded border bg-background p-1.5"
+            >
+              <SelectValue placeholder="Select source..." />
+            </SelectTrigger>
+            <SelectContent container={dialog}>
+              <SelectGroup>
+                {SOURCE_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select
             value={level}
-            onChange={(event) => setLevel(event.target.value)}
-            className="rounded border bg-background p-1.5"
+            items={LEVEL_ITEMS}
+            onValueChange={(val) => {
+              if (val) setLevel(val);
+            }}
           >
-            <option value="all">All levels</option>
-            {["DEBUG", "INFO", "WARNING", "WARN", "ERROR"].map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-          <Button variant="outline" size="xs" onClick={() => void copy()}>
+            <SelectTrigger
+              aria-label="Log level"
+              className="rounded border bg-background p-1.5"
+            >
+              <SelectValue placeholder="All levels" />
+            </SelectTrigger>
+            <SelectContent container={dialog}>
+              <SelectGroup>
+                {LEVEL_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={() => void copy()}>
             Copy
           </Button>
-          <Button variant="ghost" size="xs" onClick={clearLogs}>
+          <Button variant="ghost" onClick={clearLogs}>
             Clear
           </Button>
         </div>

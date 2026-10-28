@@ -64,6 +64,20 @@ const providerLabels: Record<TranslationProviderId, string> = {
   openai_compatible: "OpenAI-compatible",
 };
 const providers = Object.keys(providerLabels) as TranslationProviderId[];
+const targetLanguageItems = [{ label: "ខ្មែរ (Khmer)", value: "km" }];
+const translationStyleItems = [
+  { label: "Natural Dubbing", value: "natural_dubbing" },
+  { label: "Accurate / Literal", value: "literal" },
+  { label: "Short & Conversational", value: "short_conversational" },
+];
+const languageItems = [
+  { label: "ខ្មែរ", value: "km" },
+  { label: "English", value: "en" },
+];
+const computeDeviceItems = ["auto", "cpu", "cuda", "mps"].map((device) => ({
+  label: device.toUpperCase(),
+  value: device,
+}));
 type Props = { open: boolean; onOpenChange: (open: boolean) => void };
 
 export function SettingsDialog({ open, onOpenChange }: Props) {
@@ -125,22 +139,27 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
     };
   }, [open, loadRevision]);
 
+  const modelsBusy = localModels.some(
+    (model) =>
+      model.install_status === "downloading" ||
+      model.install_status === "cancelling",
+  );
+
   useEffect(() => {
-    if (!open) return;
+    if (!open || !modelsBusy) return;
     let cancelled = false;
-    const poll = () =>
+    const timer = window.setInterval(() => {
       void requestEngine("models.list", {})
         .then((value) => {
           if (!cancelled) setLocalModels(value);
         })
         .catch(() => undefined);
-    poll();
-    const timer = window.setInterval(poll, 1000);
+    }, 1000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [open]);
+  }, [open, modelsBusy]);
 
   const provider = draft?.translation.provider ?? "local";
   const configured = snapshot?.credentials[provider] ?? false;
@@ -230,6 +249,13 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
         if (result.install_status === "cancelling") {
           setMessage(
             "Cancelling download… Partial files will be kept so you can resume later.",
+          );
+        } else if (
+          result.install_status === "cancelled" &&
+          (result.downloaded_bytes ?? 0) > 0
+        ) {
+          setMessage(
+            "Download stopped. Partial files are kept so you can resume later.",
           );
         } else {
           setMessage("Model data removed.");
@@ -814,6 +840,16 @@ function TranslationPage({
   const installedLocal = localModels.filter(
     (model) => model.installed && model.kind !== "tts",
   );
+  const localModelItems = installedLocal.map((model) => ({
+    label: model.name,
+    value: model.id,
+  }));
+  const geminiModelItems = [
+    ...(selectedModel && !models.some((model) => model.id === selectedModel)
+      ? [{ label: `${selectedModel} (saved)`, value: selectedModel }]
+      : []),
+    ...models.map((model) => ({ label: model.name, value: model.id })),
+  ];
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Section
@@ -850,6 +886,7 @@ function TranslationPage({
           <Field label="Model">
             <Select
               value={selectedModel}
+              items={localModelItems}
               onValueChange={(value) =>
                 patchProvider({ selected_model: value || null })
               }
@@ -865,9 +902,9 @@ function TranslationPage({
               </SelectTrigger>
               <SelectContent align="start">
                 <SelectGroup>
-                  {installedLocal.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
+                  {localModelItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -976,6 +1013,7 @@ function TranslationPage({
               <div className="flex gap-2">
                 <Select
                   value={selectedModel}
+                  items={geminiModelItems}
                   onValueChange={(value) =>
                     patchProvider({ selected_model: value || null })
                   }
@@ -985,15 +1023,9 @@ function TranslationPage({
                   </SelectTrigger>
                   <SelectContent align="start">
                     <SelectGroup>
-                      {selectedModel &&
-                        !models.some((m) => m.id === selectedModel) && (
-                          <SelectItem value={selectedModel}>
-                            {selectedModel} (saved)
-                          </SelectItem>
-                        )}
-                      {models.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.name}
+                      {geminiModelItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -1041,6 +1073,7 @@ function TranslationPage({
         <Field label="Target language">
           <Select
             value={draft.translation.target_language}
+            items={targetLanguageItems}
             onValueChange={(value) => {
               if (value) patch({ target_language: value });
             }}
@@ -1050,7 +1083,11 @@ function TranslationPage({
             </SelectTrigger>
             <SelectContent align="start">
               <SelectGroup>
-                <SelectItem value="km">ខ្មែរ (Khmer)</SelectItem>
+                {targetLanguageItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -1058,6 +1095,7 @@ function TranslationPage({
         <Field label="Style">
           <Select
             value={draft.translation.style}
+            items={translationStyleItems}
             onValueChange={(value) => {
               if (value) patch({ style: value as TranslationStyle });
             }}
@@ -1067,11 +1105,11 @@ function TranslationPage({
             </SelectTrigger>
             <SelectContent align="start">
               <SelectGroup>
-                <SelectItem value="natural_dubbing">Natural Dubbing</SelectItem>
-                <SelectItem value="literal">Accurate / Literal</SelectItem>
-                <SelectItem value="short_conversational">
-                  Short & Conversational
-                </SelectItem>
+                {translationStyleItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -1106,6 +1144,7 @@ function GeneralPage({
       >
         <Select
           value={draft.general.language}
+          items={languageItems}
           onValueChange={(value) => {
             if (value)
               setDraft({
@@ -1119,8 +1158,11 @@ function GeneralPage({
           </SelectTrigger>
           <SelectContent align="start">
             <SelectGroup>
-              <SelectItem value="km">ខ្មែរ</SelectItem>
-              <SelectItem value="en">English</SelectItem>
+              {languageItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -1156,6 +1198,7 @@ function PerformancePage({
       >
         <Select
           value={device}
+          items={computeDeviceItems}
           onValueChange={(value) => {
             if (value)
               setDraft({
@@ -1172,9 +1215,9 @@ function PerformancePage({
           </SelectTrigger>
           <SelectContent align="start">
             <SelectGroup>
-              {["auto", "cpu", "cuda", "mps"].map((v) => (
-                <SelectItem key={v} value={v}>
-                  {v.toUpperCase()}
+              {computeDeviceItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
                 </SelectItem>
               ))}
             </SelectGroup>

@@ -875,6 +875,13 @@ function SourcePanel(props: {
               ? `${speaker.name} default · ${inheritedVoice.name}`
               : `${speaker.name} default (unset)`
             : "Global default";
+          const voiceItems = [
+            { label: inheritLabel, value: INHERIT_VOICE },
+            ...voices.map((voice) => ({
+              label: `${voice.name} · ${voice.gender}`,
+              value: voice.id,
+            })),
+          ];
           return (
             <div
               key={segment.id}
@@ -921,6 +928,7 @@ function SourcePanel(props: {
                 />
                 <Select
                   value={overrideVoiceId ?? INHERIT_VOICE}
+                  items={voiceItems}
                   disabled={assigningDisabled}
                   onValueChange={(voiceId) => {
                     if (!voiceId) return;
@@ -944,16 +952,13 @@ function SourcePanel(props: {
                   </SelectTrigger>
                   <SelectContent align="start" className="min-w-64">
                     <SelectGroup>
-                      <SelectItem value={INHERIT_VOICE} className="text-[10px]">
-                        {inheritLabel}
-                      </SelectItem>
-                      {voices.map((voice) => (
+                      {voiceItems.map((item) => (
                         <SelectItem
-                          key={voice.id}
-                          value={voice.id}
+                          key={item.value}
+                          value={item.value}
                           className="text-[10px]"
                         >
-                          {voice.name} · {voice.gender}
+                          {item.label}
                         </SelectItem>
                       ))}
                     </SelectGroup>

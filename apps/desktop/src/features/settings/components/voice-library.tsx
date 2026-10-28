@@ -7,8 +7,27 @@ import { LoaderCircle, Play, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { requestEngine } from "../deps/engine";
+
+const NO_BASE_VOICE = "__no_base_voice__";
+
+const isModelDownloading = (model?: { install_status?: string }) =>
+  model?.install_status === "downloading" ||
+  model?.install_status === "cancelling";
+
+const ENGINE_ITEMS = [
+  { label: "Edge TTS", value: "edge" },
+  { label: "VoxCPM2", value: "voxcpm2" },
+];
 
 const initialDraft = (engine: VoiceEngine): VoiceDraft => ({
   name: "",
@@ -30,6 +49,7 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [modelsBusy, setModelsBusy] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   const mounted = useRef(false);
   const working = useRef(false);
@@ -42,31 +62,39 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
       .catch((cause: unknown) => {
         if (mounted.current) setError(String(cause));
       });
-    let polling = false;
-    const loadModels = () => {
-      if (polling) return;
-      polling = true;
-      void requestEngine("models.list", {})
-        .then((items) => {
-          if (mounted.current)
-            setInstalled(
-              items.some((model) => model.id === "voxcpm2" && model.installed),
-            );
-        })
-        .catch(() => {})
-        .finally(() => {
-          polling = false;
-        });
-    };
-    loadModels();
-    const timer = window.setInterval(loadModels, 2000);
+    void requestEngine("models.list", {})
+      .then((items) => {
+        if (!mounted.current) return;
+        const model = items.find((item) => item.id === "voxcpm2");
+        setInstalled(Boolean(model?.installed));
+        setModelsBusy(isModelDownloading(model));
+      })
+      .catch(() => undefined);
     return () => {
       mounted.current = false;
-      clearInterval(timer);
       audio.current?.pause();
       audio.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!modelsBusy) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void requestEngine("models.list", {})
+        .then((items) => {
+          if (cancelled) return;
+          const model = items.find((item) => item.id === "voxcpm2");
+          setInstalled(Boolean(model?.installed));
+          setModelsBusy(isModelDownloading(model));
+        })
+        .catch(() => undefined);
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [modelsBusy]);
 
   async function run(id: string, task: () => Promise<void>) {
     if (working.current) return;
@@ -96,30 +124,49 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
   const update = (patch: Partial<VoiceDraft>) =>
     setDraft((value) => (value ? { ...value, ...patch } : value));
   const cannotGenerate = engine === "voxcpm2" && !installed;
+  const genderItems = [
+    { label: `Man${engine === "edge" ? " · Piseth" : ""}`, value: "male" },
+    { label: `Woman${engine === "edge" ? " · Sreymom" : ""}`, value: "female" },
+  ];
+  const baseVoiceItems = [
+    { label: "My recording / voice description", value: NO_BASE_VOICE },
+    ...voices
+      .filter((voice) => voice.engine === "voxcpm2")
+      .map((voice) => ({ label: voice.name, value: voice.id })),
+  ];
   return (
     <section className="mx-auto max-w-2xl space-y-4" aria-label="Voice library">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="mr-auto text-sm font-semibold">
           {clone ? "Voice Clone" : "Voices & TTS"}
         </h2>
-        <select
-          aria-label="TTS engine"
-          className="rounded border bg-background p-2 text-xs"
+        <Select
           value={engine}
+          items={ENGINE_ITEMS}
           disabled={!!busy}
-          onChange={(event) => {
-            setEngine(event.target.value as VoiceEngine);
+          onValueChange={(value) => {
+            if (!value) return;
+            setEngine(value);
             setDraft(null);
             setNotice(null);
             setError(null);
             audio.current?.pause();
           }}
         >
-          <option value="edge">Edge TTS · Online</option>
-          <option value="voxcpm2">VoxCPM2 · Local</option>
-        </select>
+          <SelectTrigger aria-label="TTS engine" className="text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectGroup>
+              {ENGINE_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
         <Button
-          size="sm"
           disabled={!!busy}
           onClick={() => setDraft(initialDraft(engine))}
         >
@@ -261,30 +308,39 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
           </label>
           <label className="block space-y-1 text-xs">
             {engine === "edge" ? "Base voice" : "Voice gender"}
-            <select
-              aria-label="Base voice gender"
-              className="block w-full rounded border bg-background p-2 text-xs"
-              disabled={!!busy}
+            <Select
               value={draft.gender}
-              onChange={(event) =>
+              items={genderItems}
+              disabled={!!busy}
+              onValueChange={(value) => {
+                if (!value) return;
                 update({
-                  gender: event.target.value,
+                  gender: value,
                   engine_voice_id:
                     engine === "edge"
-                      ? event.target.value === "male"
+                      ? value === "male"
                         ? "km-KH-PisethNeural"
                         : "km-KH-SreymomNeural"
                       : null,
-                })
-              }
+                });
+              }}
             >
-              <option value="male">
-                Man{engine === "edge" ? " · Piseth" : ""}
-              </option>
-              <option value="female">
-                Woman{engine === "edge" ? " · Sreymom" : ""}
-              </option>
-            </select>
+              <SelectTrigger
+                aria-label="Base voice gender"
+                className="w-full text-xs"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectGroup>
+                  {genderItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </label>
           {engine === "edge" ? (
             <div className="flex gap-2">
@@ -316,28 +372,35 @@ export function VoiceLibrary({ clone = false }: { clone?: boolean }) {
               </p>
               <label className="block space-y-1 text-xs">
                 Starting voice
-                <select
-                  aria-label="Starting reference voice"
-                  className="block w-full rounded border bg-background p-2 text-xs"
+                <Select
+                  value={draft.base_voice_id ?? NO_BASE_VOICE}
+                  items={baseVoiceItems}
                   disabled={!!busy}
-                  value={draft.base_voice_id ?? ""}
-                  onChange={(event) =>
+                  onValueChange={(value) => {
+                    if (!value) return;
                     update({
-                      base_voice_id: event.target.value || null,
+                      base_voice_id: value === NO_BASE_VOICE ? null : value,
                       reference_audio_path: null,
                       reference_text: null,
-                    })
-                  }
+                    });
+                  }}
                 >
-                  <option value="">My recording / voice description</option>
-                  {voices
-                    .filter((voice) => voice.engine === "voxcpm2")
-                    .map((voice) => (
-                      <option key={voice.id} value={voice.id}>
-                        {voice.name}
-                      </option>
-                    ))}
-                </select>
+                  <SelectTrigger
+                    aria-label="Starting reference voice"
+                    className="w-full text-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectGroup>
+                      {baseVoiceItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </label>
               <Button
                 size="sm"

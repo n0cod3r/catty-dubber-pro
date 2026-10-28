@@ -77,6 +77,17 @@ export function VoiceGenerationPanel({
     voice?.gender,
     preferredPreset,
   );
+  const voiceItems = tts.voices.map((item) => ({
+    label: `${item.name} · ${item.gender}`,
+    value: item.id,
+  }));
+  const presetItems = [
+    ...EDGE_VOICE_PRESETS.map((preset) => ({
+      label: `${preset.label} · ${preset.pitch > 0 ? "+" : ""}${preset.pitch} Hz · 1.25×`,
+      value: preset.id,
+    })),
+    { label: "Custom", value: "custom" },
+  ];
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(
     null,
@@ -160,6 +171,7 @@ export function VoiceGenerationPanel({
         <div className="space-y-1.5 border-t px-2 py-2">
           <Select
             value={tts.voiceId}
+            items={voiceItems}
             onValueChange={(value) => tts.setVoiceId(value || null)}
             disabled={tts.generating}
           >
@@ -172,13 +184,13 @@ export function VoiceGenerationPanel({
             </SelectTrigger>
             <SelectContent align="start" className="min-w-72">
               <SelectGroup>
-                {tts.voices.map((item) => (
+                {voiceItems.map((item) => (
                   <SelectItem
-                    key={item.id}
-                    value={item.id}
+                    key={item.value}
+                    value={item.value}
                     className="text-[11px]"
                   >
-                    {item.name} · {item.gender}
+                    {item.label}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -197,6 +209,7 @@ export function VoiceGenerationPanel({
           )}
           <Select
             value={presetId}
+            items={presetItems}
             disabled={tts.generating || savedProfile}
             onValueChange={(id) => {
               const preset = EDGE_VOICE_PRESETS.find((item) => item.id === id);
@@ -308,7 +321,8 @@ export function VoiceGenerationPanel({
                     <LoaderCircle className="size-3 shrink-0 animate-spin text-primary motion-reduce:animate-none" />
                   )}
                   <Select
-                    value={speakerVoices.voiceBySpeaker[speaker.id] ?? ""}
+                    value={speakerVoices.voiceBySpeaker[speaker.id] ?? null}
+                    items={voiceItems}
                     disabled={
                       tts.generating ||
                       !!tts.assigningSpeakerId ||
@@ -328,13 +342,13 @@ export function VoiceGenerationPanel({
                     </SelectTrigger>
                     <SelectContent align="end" className="min-w-56">
                       <SelectGroup>
-                        {tts.voices.map((item) => (
+                        {voiceItems.map((item) => (
                           <SelectItem
-                            key={item.id}
-                            value={item.id}
+                            key={item.value}
+                            value={item.value}
                             className="text-[10px]"
                           >
-                            {item.name} · {item.gender}
+                            {item.label}
                           </SelectItem>
                         ))}
                       </SelectGroup>
