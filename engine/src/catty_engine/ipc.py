@@ -207,27 +207,33 @@ def handle_request(payload: Any) -> dict[str, Any]:
             result = service.import_episode(params.project_directory, project, params.source, prepare_audio=True).model_dump(mode="json")
         elif request.method == "project.dialogue_assign_speaker":
             params = DialogueSpeakerParams.model_validate(request.params)
-            service = ProjectService(); project = service.open_project(params.project_directory)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
             result = service.assign_dialogue_speaker(params.project_directory, project, params.episode_id, params.segment_id, params.speaker_id, params.expected_speaker_id, create_new=params.create_new).model_dump(mode="json")
         elif request.method == "project.dialogue_update_text":
             params = DialogueTextParams.model_validate(request.params)
-            service = ProjectService(); project = service.open_project(params.project_directory)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
             result = service.update_dialogue_text(params.project_directory, project, params.episode_id, params.segment_id, params.text, params.expected_text).model_dump(mode="json")
         elif request.method == "project.dialogue_update_translation":
             params = DialogueTranslationParams.model_validate(request.params)
-            service = ProjectService(); project = service.open_project(params.project_directory)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
             result = service.update_dialogue_translation(params.project_directory, project, params.episode_id, params.segment_id, params.text, params.expected_text).model_dump(mode="json")
         elif request.method == "project.dialogue_split":
             params = DialogueSplitParams.model_validate(request.params)
-            service = ProjectService(); project = service.open_project(params.project_directory)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
             result = service.split_dialogue_segment(params.project_directory, project, params.episode_id, params.segment_id, params.split_at).model_dump(mode="json")
         elif request.method == "project.dialogue_merge_next":
             params = DialogueEditParams.model_validate(request.params)
-            service = ProjectService(); project = service.open_project(params.project_directory)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
             result = service.merge_dialogue_segment_with_next(params.project_directory, project, params.episode_id, params.segment_id).model_dump(mode="json")
         elif request.method == "project.dialogue_restore":
             params = DialogueRestoreParams.model_validate(request.params)
-            service = ProjectService(); project = service.open_project(params.project_directory)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
             result = service.restore_dialogue(params.project_directory, project, params.episode_id, params.expected_segments, params.dialogue_segments, params.speakers, params.dub_segments).model_dump(mode="json")
         elif request.method == "audio.prepare":
             params = AudioPrepareParams.model_validate(request.params)
@@ -240,7 +246,8 @@ def handle_request(payload: Any) -> dict[str, Any]:
             params = SpeechTranscribeParams.model_validate(request.params)
             from catty_engine.speech.runtime import create_transcription_service
             transcription = create_transcription_service(backend_id=params.asr_backend, asr_config=params.asr_config, vad_backend=params.vad_backend, vad_config=params.vad_config).transcribe(project_directory=params.project_directory, episode_id=params.episode_id, source=params.source, backend_id=params.asr_backend, language=params.language, source_start=params.source_start, duration=params.duration, existing_asset=params.existing_asset)
-            service = ProjectService(); project = service.open_project(params.project_directory)
+            service = ProjectService()
+            project = service.open_project(params.project_directory)
             service.replace_dialogue_segments(params.project_directory, project, params.episode_id, transcription.segments, source_language=params.language, speaker_error=transcription.speaker_error)
             result = transcription.model_dump(mode="json")
         else:
