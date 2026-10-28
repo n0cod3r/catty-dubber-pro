@@ -22,6 +22,7 @@ from ..models import (
 
 _TRANSFORMERS_MODEL_CACHE: dict[str, tuple[Any, Any, str]] = {}
 _MLX_MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
+_MLX_TOKENIZER_CONFIG: dict[str, Any] = {"fix_mistral_regex": True}
 
 
 def _hy_mt2_prompt(segment: TranslationInput, request: TranslationBatchRequest) -> str:
@@ -90,13 +91,7 @@ def _mlx_runtime() -> Any:
 
 
 def _normalize_mlx_tokenizer_config(model_path: Path) -> bool:
-    """Repair tokenizer metadata emitted by some MLX community conversions.
-
-    Hy-MT2 7B 4-bit currently ships ``tokenizer_class=TokenizersBackend``.
-    Transformers cannot resolve that implementation detail as an AutoTokenizer
-    class, while the tokenizer itself is a normal fast tokenizer. Normalize the
-    local metadata once so mlx-lm can load it without requiring a redownload.
-    """
+    """Repair tokenizer metadata emitted by some MLX community conversions."""
     config_path = model_path / "tokenizer_config.json"
     if not config_path.is_file():
         return False
@@ -126,7 +121,10 @@ def _load_mlx_model(model_id: str, manager: ModelManager) -> tuple[Any, Any]:
     mlx_lm = _mlx_runtime()
     model_path = manager.path_for(model_id)
     _normalize_mlx_tokenizer_config(model_path)
-    model, tokenizer = mlx_lm.load(str(model_path))
+    model, tokenizer = mlx_lm.load(
+        str(model_path),
+        tokenizer_config=dict(_MLX_TOKENIZER_CONFIG),
+    )
     result = (model, tokenizer)
     _MLX_MODEL_CACHE[model_id] = result
     return result
