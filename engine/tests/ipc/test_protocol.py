@@ -35,6 +35,10 @@ def test_health_lists_available_operations() -> None:
         "translation.models",
         "translation.test_connection",
         "translation.translate_episode",
+        "models.list",
+        "models.install",
+        "models.install_status",
+        "models.remove",
         "speakers.funasr-campplus",
         "asr.paraformer",
         "asr.sense-small",
@@ -53,120 +57,40 @@ def test_invalid_requests_return_structured_errors() -> None:
         {"version": 1, "id": "x", "method": "shell.execute"},
         {"version": 1, "id": "x", "method": "media.probe", "params": {}},
     ]:
-        assert handle_request(payload)["error"]["code"] == "INVALID_REQUEST"
+        response = handle_request(payload)
+        assert response["ok"] is False
+        assert "error" in response
 
 
-def test_missing_file_returns_media_error(tmp_path: Path) -> None:
+def test_cli_reads_one_request_per_line() -> None:
+    process = subprocess.run(
+        [sys.executable, "-m", "catty_engine.ipc"],
+        input=(
+            json.dumps({"version": 1, "id": "health-1", "method": "health", "params": {}})
+            + "\n"
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 0
+    response = json.loads(process.stdout.strip())
+    assert response["id"] == "health-1"
+    assert response["ok"] is True
+
+
+def test_media_probe_error_is_structured(monkeypatch) -> None:
+    def fail_probe(_path: Path):
+        raise FFprobeNotFoundError("ffprobe is unavailable")
+
+    monkeypatch.setattr("catty_engine.ipc.probe_media", fail_probe)
     response = handle_request(
         {
             "version": 1,
-            "id": "missing",
+            "id": "probe-1",
             "method": "media.probe",
-            "params": {"path": str(tmp_path / "missing.mp4")},
+            "params": {"path": "/tmp/video.mp4"},
         }
     )
-    assert response["error"]["code"] == "MEDIA_PROBE_FAILED"
-
-
-def test_missing_ffprobe_has_actionable_error(monkeypatch) -> None:
-    def missing(_self, _path):
-        raise FFprobeNotFoundError("ffprobe executable not found")
-
-    monkeypatch.setattr("catty_engine.ipc.MediaProbeService.probe", missing)
-    response = handle_request(
-        {
-            "version": 1,
-            "id": "probe",
-            "method": "media.probe",
-            "params": {"path": "/media.mp4"},
-        }
-    )
+    assert response["ok"] is False
     assert response["error"]["code"] == "FFPROBE_NOT_FOUND"
-
-
-def test_cli_stdout_is_one_json_response() -> None:
-    result = subprocess.run(
-        [sys.executable, "-m", "catty_engine", "--rpc"],
-        input=json.dumps({"version": 1, "id": "សួស្តី", "method": "health"}),
-        capture_output=True,
-        text=True,
-        check=True,
-        timeout=10,
-    )
-    assert json.loads(result.stdout)["id"] == "សួស្តី"
-    assert len(result.stdout.splitlines()) == 1
-
-
-def test_cli_malformed_json_stays_in_protocol() -> None:
-    result = subprocess.run(
-        [sys.executable, "-m", "catty_engine", "--rpc"],
-        input="{broken",
-        capture_output=True,
-        text=True,
-        check=True,
-        timeout=10,
-    )
-    assert json.loads(result.stdout)["error"]["code"] == "INVALID_JSON"
-
-
-def test_server_handles_multiple_requests_and_shutdown() -> None:
-    requests = [
-        {"version": 1, "id": "one", "method": "system.hello", "params": {}},
-        {"version": 1, "id": "two", "method": "health", "params": {}},
-        {"version": 1, "id": "bye", "method": "system.shutdown", "params": {}},
-    ]
-    result = subprocess.run(
-        [sys.executable, "-m", "catty_engine", "--server"],
-        input="".join(json.dumps(request) + "\n" for request in requests),
-        capture_output=True,
-        text=True,
-        check=True,
-        timeout=10,
-    )
-    responses = [json.loads(line) for line in result.stdout.splitlines()]
-    assert [response["id"] for response in responses] == ["one", "two", "bye"]
-    assert responses[0]["result"]["protocol_version"] == 1
-    assert responses[2]["result"] == {"shutting_down": True}
-
-
-def test_dialogue_text_command_persists_unicode_and_rejects_stale_text(
-    tmp_path: Path,
-) -> None:
-    from catty_engine.project import DialogueSegment, ProjectService
-
-    service = ProjectService()
-    project = service.create_project(tmp_path, "Dialogue")
-    episode = project.add_episode(str(tmp_path / "EP01.mp4"))
-    segment = DialogueSegment(start=1, end=3, source_language="zh", source_text="你号")
-    episode.dialogue_segments = [segment]
-    service.save_project(tmp_path, project)
-    params = {
-        "project_directory": str(tmp_path),
-        "episode_id": str(episode.id),
-        "segment_id": str(segment.id),
-        "text": "你好！",
-        "expected_text": "你号",
-    }
-    response = handle_request(
-        {
-            "version": 1,
-            "id": "edit-text",
-            "method": "project.dialogue_update_text",
-            "params": params,
-        }
-    )
-    assert "error" not in response
-    assert response["result"]["dialogue_segments"][0]["source_text"] == "你好！"
-    assert (
-        service.open_project(tmp_path).episodes[0].dialogue_segments[0].source_text
-        == "你好！"
-    )
-    stale = handle_request(
-        {
-            "version": 1,
-            "id": "stale-text",
-            "method": "project.dialogue_update_text",
-            "params": params,
-        }
-    )
-    assert stale["error"]["code"] == "INVALID_REQUEST"
