@@ -14,6 +14,7 @@ import {
 
 import { useDialogueEditing } from "../hooks/use-dialogue-editing";
 import { useTranslation } from "../hooks/use-translation";
+import { useTts } from "../hooks/use-tts";
 import { EditorPanels } from "./editor-panels";
 import { Inspector } from "./inspector";
 
@@ -46,16 +47,9 @@ function WorkspaceContent({
   onMetadata,
   onEpisodePersisted,
 }: EditorWorkspaceProps) {
-  const dialogue = useDialogueEditing(
-    episode,
-    projectDirectory,
-    onEpisodePersisted,
-  );
-  const translation = useTranslation(
-    episode,
-    projectDirectory,
-    onEpisodePersisted,
-  );
+  const dialogue = useDialogueEditing(episode, projectDirectory, onEpisodePersisted);
+  const translation = useTranslation(episode, projectDirectory, onEpisodePersisted);
+  const tts = useTts(episode, projectDirectory, onEpisodePersisted);
   const [muted, setMuted] = useState(false);
   const history = useTimelineStore((state) => state.history);
   const initialize = useTimelineStore((state) => state.initialize);
@@ -110,9 +104,7 @@ function WorkspaceContent({
           onMuteChange={setMuted}
           onImport={onImport}
           importing={importing}
-          onMetadata={(metadata) => {
-            if (episode) onMetadata(episode.id, metadata);
-          }}
+          onMetadata={(metadata) => { if (episode) onMetadata(episode.id, metadata); }}
         />
       }
       inspector={
@@ -123,6 +115,7 @@ function WorkspaceContent({
           onSeek={playback.seek}
           dialogue={dialogue}
           translation={translation}
+          tts={tts}
         />
       }
     />
