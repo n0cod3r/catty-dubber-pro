@@ -30,6 +30,7 @@ export function useTts(
   const [voiceId, setVoiceId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const [assigningSpeakerId, setAssigningSpeakerId] = useState<string | null>(null);
   const [progress, setProgress] = useState<TtsProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const operationRef = useRef<string | null>(null);
@@ -42,6 +43,7 @@ export function useTts(
     operationRef.current = null;
     setGenerating(false);
     setPreviewing(false);
+    setAssigningSpeakerId(null);
     setProgress(null);
     setPendingSegmentIds([]);
     setFailedSegmentId(null);
@@ -88,6 +90,51 @@ export function useTts(
         ]),
       ),
     [episode?.dubSegments],
+  );
+
+  const assignSpeakerVoice = useCallback(
+    async (speakerId: string, edgeVoiceId: string) => {
+      if (!episode || generating || assigningSpeakerId) return false;
+      const ticket = revision.current;
+      setAssigningSpeakerId(speakerId);
+      setError(null);
+      try {
+        const profile = await requestEngine("tts.ensure_voice", {
+          project_directory: projectDirectory,
+          voice_id: edgeVoiceId,
+          name: voices.find((item) => item.id === edgeVoiceId)?.name ?? edgeVoiceId,
+        });
+        if (ticket !== revision.current) return false;
+        const persisted = await requestEngine("tts.generate", {
+          project_directory: projectDirectory,
+          episode_id: episode.id,
+          voice_profile_id: profile.id,
+          assign_speaker_id: speakerId,
+          assign_only: true,
+        });
+        if (ticket !== revision.current) return false;
+        onEpisodePersisted(persisted);
+        return true;
+      } catch (cause) {
+        if (ticket === revision.current)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "មិនអាច assign សំឡេងទៅ speaker បានទេ។",
+          );
+        return false;
+      } finally {
+        if (ticket === revision.current) setAssigningSpeakerId(null);
+      }
+    },
+    [
+      assigningSpeakerId,
+      episode,
+      generating,
+      onEpisodePersisted,
+      projectDirectory,
+      voices,
+    ],
   );
 
   const generate = useCallback(
@@ -240,12 +287,14 @@ export function useTts(
     setVoiceId,
     generating,
     previewing,
+    assigningSpeakerId,
     progress,
     pendingSegmentIds,
     failedSegmentId,
     error,
     clearError: () => setError(null),
     dubByDialogue,
+    assignSpeakerVoice,
     generate,
     preview,
     cancel,
