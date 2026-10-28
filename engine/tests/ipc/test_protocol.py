@@ -29,6 +29,8 @@ def test_health_lists_available_operations() -> None:
         "speech.transcribe",
         "settings.get",
         "settings.update",
+        "settings.credential_add",
+        "settings.credential_remove",
         "translation.providers",
         "translation.models",
         "translation.test_connection",
