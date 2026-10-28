@@ -1,3 +1,4 @@
+import contextlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -43,7 +44,12 @@ def _patch(monkeypatch, pipeline):
     monkeypatch.setattr(
         funasr,
         "resolve_models",
-        lambda: {"paraformer-zh": "p", "fsmn-vad": "v", "ct-punc": "c", "campplus": "s"},
+        lambda: {
+            "paraformer-zh": "p",
+            "fsmn-vad": "v",
+            "ct-punc": "c",
+            "campplus": "s",
+        },
     )
     monkeypatch.setattr(funasr, "resolve_device", lambda torch: "cpu")
     monkeypatch.setattr(funasr, "_cpu_threads", lambda: 2)
@@ -54,6 +60,11 @@ def _patch(monkeypatch, pipeline):
             16000,
             np.zeros(int(duration * 16000), dtype=np.float32),
         ),
+    )
+    monkeypatch.setattr(
+        funasr,
+        "_capture_production_pipeline",
+        lambda *args, **kwargs: contextlib.nullcontext(SimpleNamespace(raw_asr=[])),
     )
     loads: list[int] = []
 
