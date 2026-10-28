@@ -27,6 +27,7 @@ EngineMethod = Literal[
     "project.import_episode", "project.dialogue_split", "project.dialogue_merge_next",
     "project.dialogue_restore", "project.dialogue_update_text", "project.dialogue_update_translation",
     "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
+    "settings.credential_add", "settings.credential_remove",
     "translation.providers", "translation.models", "translation.test_connection",
     "translation.translate_episode",
 ]
@@ -126,6 +127,7 @@ def _hello() -> dict[str, Any]:
             "project.dialogue_split", "project.dialogue_merge_next", "project.dialogue_restore",
             "project.dialogue_update_text", "project.dialogue_update_translation",
             "project.dialogue_assign_speaker", "speech.transcribe", "settings.get", "settings.update",
+            "settings.credential_add", "settings.credential_remove",
             "translation.providers", "translation.models", "translation.test_connection",
             "translation.translate_episode", "speakers.funasr-campplus", "asr.paraformer",
             "asr.sense-small", "vad.silero", "system.shutdown",
@@ -163,6 +165,12 @@ def handle_request(payload: Any) -> dict[str, Any]:
         elif request.method == "settings.update":
             from catty_engine.settings.rpc import update
             result = update(request.params)
+        elif request.method == "settings.credential_add":
+            from catty_engine.settings.rpc import add_credential
+            result = add_credential(request.params)
+        elif request.method == "settings.credential_remove":
+            from catty_engine.settings.rpc import remove_credential
+            result = remove_credential(request.params)
         elif request.method == "translation.providers":
             if request.params:
                 raise ValueError("translation.providers does not accept parameters")
@@ -301,5 +309,3 @@ def run_server() -> None:
         except (json.JSONDecodeError, UnicodeDecodeError):
             response = _invalid_json_response()
         _write_response(response)
-        if isinstance(payload, dict) and payload.get("method") == "system.shutdown" and "error" not in response:
-            break
