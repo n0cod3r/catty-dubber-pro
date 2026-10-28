@@ -8,29 +8,18 @@ export async function requestEngine<M extends keyof EngineMethods>(
   params: EngineMethods[M]["params"],
 ): Promise<EngineMethods[M]["result"]> {
   try {
-    return await invoke<EngineMethods[M]["result"]>("engine_request", {
-      method,
-      params,
-    });
+    return await invoke<EngineMethods[M]["result"]>("engine_request", { method, params });
   } catch (cause) {
     const message =
-      typeof cause === "object" &&
-      cause !== null &&
-      "message" in cause &&
-      typeof cause.message === "string"
+      typeof cause === "object" && cause !== null && "message" in cause && typeof cause.message === "string"
         ? cause.message
-        : typeof cause === "string"
-          ? cause
-          : "The engine request failed.";
+        : typeof cause === "string" ? cause : "The engine request failed.";
     addLog("frontend", "ERROR", `${method}: ${message}`);
     throw new Error(message, { cause });
   }
 }
 
-export async function prepareAudio(
-  jobId: string,
-  params: import("@catty/contracts").AudioPrepareParams,
-) {
+export async function prepareAudio(jobId: string, params: import("@catty/contracts").AudioPrepareParams) {
   return invoke<import("@catty/contracts").AudioAsset>("prepare_audio", {
     jobId,
     source: params.source,
@@ -42,4 +31,12 @@ export async function prepareAudio(
 
 export async function cancelAudio(jobId: string) {
   return invoke<void>("cancel_audio", { jobId });
+}
+
+export async function prepareTtsCancel(operationId: string) {
+  return invoke<string>("prepare_tts_cancel", { operationId });
+}
+
+export async function cancelTts(operationId: string) {
+  return invoke<void>("cancel_tts", { operationId });
 }
