@@ -20,7 +20,7 @@ export type AudioPrepareParams = { source: string; episode_id: string; project_d
 export type TranslationProviderId = "local" | "gemini" | "deepseek" | "google" | "baidu" | "openai_compatible";
 export type TranslationStyle = "natural_dubbing" | "literal" | "short_conversational";
 export type ComputeDevice = "auto" | "cpu" | "cuda" | "mps";
-export type TranslationProviderSettings = { selected_model: string | null };
+export type TranslationProviderSettings = { selected_model: string | null; credential_ids?: string[] };
 export type AppSettings = {
   schema_version: number;
   general: { language: string; follow_playhead: boolean };
@@ -48,7 +48,7 @@ export type AppSettings = {
 export type TranslationProviderInfo = { id: TranslationProviderId; name: string; offline: boolean; requires_credentials: boolean; supports_model_discovery: boolean; contextual: boolean; credential_configured: boolean; selected_model: string | null };
 export type TranslationModel = { id: string; name: string; description?: string | null };
 export type ConnectionTestResult = { ok: boolean; message: string };
-export type SettingsSnapshot = { settings: AppSettings; credentials: Partial<Record<TranslationProviderId, boolean>> };
+export type SettingsSnapshot = { settings: AppSettings; credentials: Partial<Record<TranslationProviderId, boolean>>; credential_ids?: Partial<Record<TranslationProviderId, string[]>> };
 
 export type EngineMethods = {
   health: { params: Record<string, never>; result: EngineStatus };
@@ -66,7 +66,7 @@ export type EngineMethods = {
   "project.dialogue_merge_next": { params: DialogueEditParams; result: PersistedEpisode };
   "speech.transcribe": { params: SpeechTranscribeParams; result: TranscriptionResult };
   "settings.get": { params: Record<string, never>; result: SettingsSnapshot };
-  "settings.update": { params: { settings: AppSettings; credentials?: Partial<Record<TranslationProviderId, string | null>> }; result: SettingsSnapshot };
+  "settings.update": { params: { settings: AppSettings; credentials?: Record<string, string | null> }; result: SettingsSnapshot };
   "translation.providers": { params: Record<string, never>; result: TranslationProviderInfo[] };
   "translation.models": { params: { provider: TranslationProviderId; credential?: string | null }; result: TranslationModel[] };
   "translation.test_connection": { params: { provider: TranslationProviderId; credential?: string | null }; result: ConnectionTestResult };
