@@ -140,7 +140,13 @@ def _provider_for_request(parsed: ProviderParams):
 def models(params: dict[str, Any]) -> list[dict[str, Any]]:
     parsed = ProviderParams.model_validate(params)
     if parsed.provider == "local":
-        return ModelManager().list_models()
+        manager = ModelManager()
+        if parsed.credential:
+            if parsed.credential.startswith("install:"):
+                manager.start_install(parsed.credential.removeprefix("install:"))
+            elif parsed.credential.startswith("remove:"):
+                manager.remove(parsed.credential.removeprefix("remove:"))
+        return manager.list_models()
     provider = _provider_for_request(parsed)
     return [item.model_dump(mode="json") for item in provider.list_models()]
 
@@ -148,16 +154,14 @@ def model_list() -> list[dict[str, object]]:
     return ModelManager().list_models()
 
 def model_install(params: dict[str, Any]) -> dict[str, object]:
-    parsed = ModelParams.model_validate(params)
-    return ModelManager().start_install(parsed.model_id)
+    return ModelManager().start_install(ModelParams.model_validate(params).model_id)
 
 def model_install_status(params: dict[str, Any]) -> list[dict[str, object]]:
     parsed = ModelStatusParams.model_validate(params)
     return ModelManager().install_status(parsed.model_id)
 
 def model_remove(params: dict[str, Any]) -> dict[str, object]:
-    parsed = ModelParams.model_validate(params)
-    return ModelManager().remove(parsed.model_id)
+    return ModelManager().remove(ModelParams.model_validate(params).model_id)
 
 def test_connection(params: dict[str, Any]) -> dict[str, Any]:
     provider = _provider_for_request(ProviderParams.model_validate(params))
