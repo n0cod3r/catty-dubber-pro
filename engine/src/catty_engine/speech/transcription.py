@@ -11,7 +11,6 @@ from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
 
 from .backends import AsrBackendRegistry
-from .canonical_alignment import align_observed_paraformer
 from .diagnostics import current_trace, trace_transcription
 from .models import TranscriptionResult
 from .segmentation import split_long_dialogue
@@ -73,30 +72,10 @@ class TranscriptionService:
         backend = self._asr_backends.get(backend_id)
         segments = backend.transcribe(audio, regions, language=language)
 
+        # Canonical alignment belongs to the production ASR backend. Diagnostics
+        # may observe that work, but transcript correctness must never depend on
+        # a debug trace being enabled.
         report_transcription_phase("alignment")
-
-        # FunASR concatenates VAD chunks before punctuation/speaker processing.
-        # Its sentence_info timestamps can therefore lose the silent gaps between
-        # chunks even though the raw Paraformer word timestamps are still correct.
-        # Rebuild canonical dialogue from the already-observed raw timestamps and
-        # final punctuated text. The aligner is intentionally strict and falls
-        # back to sentence_info whenever one-to-one alignment cannot be proven.
-        trace = current_trace()
-        if backend_id == "paraformer" and trace is not None and trace.attempt is not None:
-            observed_result = trace.attempt.get("funasr_result")
-            raw_asr = trace.attempt.get("raw_asr", [])
-            if isinstance(observed_result, list):
-                aligned = align_observed_paraformer(
-                    observed_result,
-                    raw_asr,
-                    start=source_start,
-                    duration=duration,
-                )
-                if aligned is not None:
-                    segments = aligned
-                    trace.data["canonical_alignment"] = "raw_word_timestamps"
-                else:
-                    trace.data["canonical_alignment"] = "sentence_info_fallback"
 
         speaker_error = getattr(backend, "speaker_error", None)
         model = backend.model
