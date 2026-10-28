@@ -22,6 +22,7 @@ struct EngineProcess {
 
 impl EngineProcess {
     fn start() -> Result<Self, String> {
+        crate::logs::record("rust", "INFO", "Starting Python engine");
         let directory = engine_directory();
         let python = engine_python(&directory);
         if !python.is_file() {
@@ -62,6 +63,7 @@ impl EngineProcess {
         });
         std::thread::spawn(move || {
             for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                crate::logs::python_line(&line);
                 eprintln!("[catty-engine] {line}");
             }
         });

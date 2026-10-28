@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 from pathlib import Path
 from typing import Protocol
 
@@ -49,6 +51,7 @@ class SileroVad:
         self._min_speech_duration = min_speech_duration
         self._max_speech_duration = max_speech_duration
 
+    @logged_process
     def detect(
         self,
         audio: Path,
@@ -112,6 +115,7 @@ class WholeClipVad:
 
     id = "whole-clip"
 
+    @logged_process
     def detect(
         self,
         audio: Path,

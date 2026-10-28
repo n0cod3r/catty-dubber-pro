@@ -1,6 +1,8 @@
 import type { EngineMethods } from "@catty/contracts";
 import { invoke } from "@tauri-apps/api/core";
 
+import { addLog } from "../deps/logs";
+
 export async function requestEngine<M extends keyof EngineMethods>(
   method: M,
   params: EngineMethods[M]["params"],
@@ -17,6 +19,7 @@ export async function requestEngine<M extends keyof EngineMethods>(
         : typeof cause === "string"
           ? cause
           : "The engine request failed.";
+    addLog("frontend", "ERROR", `${method}: ${message}`);
     throw new Error(message, { cause });
   }
 }

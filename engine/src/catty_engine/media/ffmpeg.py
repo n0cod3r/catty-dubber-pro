@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 import subprocess
 import tempfile
 import time
@@ -19,6 +21,7 @@ class FFmpegRunner:
         self._executable = str(executable)
         self._cancelled = cancelled or (lambda: False)
 
+    @logged_process
     def _run(self, command: list[str], *, operation: str) -> None:
         process: subprocess.Popen[str] | None = None
         try:

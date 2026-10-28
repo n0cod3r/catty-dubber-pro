@@ -16,6 +16,7 @@ import { clampFinite as clamp } from "@/shared/utils/math";
 import { formatTime } from "@/shared/utils/time";
 
 import { TIMELINE } from "../constants";
+import { LogsButton } from "../deps/logs";
 import { useClipDrag } from "../hooks/use-clip-drag";
 import { useMediaVisuals } from "../hooks/use-media-visuals";
 import { useTimelineScrub } from "../hooks/use-timeline-scrub";
@@ -480,6 +481,7 @@ export function Timeline({
             : "No media"}
         </span>
         <span>{markers.length} markers</span>
+        <LogsButton />
         {clipDrag.draft && (
           <span
             role="status"

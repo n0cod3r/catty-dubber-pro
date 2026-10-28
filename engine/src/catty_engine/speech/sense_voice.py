@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 from pathlib import Path
 
 import sherpa_onnx
@@ -59,6 +61,7 @@ class SenseVoiceBackend:
             self._recognizers[selected_language] = recognizer
         return recognizer
 
+    @logged_process
     def transcribe(
         self,
         audio: Path,

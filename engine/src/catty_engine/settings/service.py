@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 import json
 import os
 from pathlib import Path
@@ -64,6 +66,7 @@ class SettingsService:
                 "Application settings contain invalid values. Fix or remove the file."
             ) from exc
 
+    @logged_process
     def update(self, patch: dict[str, Any]) -> AppSettings:
         if not isinstance(patch, dict):
             raise SettingsError("Settings update must be a JSON object")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 from pathlib import Path
 from math import isclose
 from uuid import UUID
@@ -38,12 +40,14 @@ class ProjectService:
         self._audio_preparation = audio_preparation or AudioPreparationService()
         self._video_proxy = video_proxy or VideoProxyService()
 
+    @logged_process
     def create_project(self, directory: Path, name: str) -> Project:
         return self._store.create(directory=directory, name=name)
 
     def open_project(self, directory: Path) -> Project:
         return self._store.load(directory=directory)
 
+    @logged_process
     def save_project(self, directory: Path, project: Project) -> None:
         self._store.save(directory=directory, project=project)
 
@@ -58,6 +62,7 @@ class ProjectService:
                 return episode
         return None
 
+    @logged_process
     def import_episode(self, directory: Path, project: Project, source_path: str, *, prepare_audio: bool = True) -> Episode:
         path = Path(source_path).expanduser().resolve()
         if not path.is_file():
@@ -82,6 +87,7 @@ class ProjectService:
                 known_ids.add(episode.id)
         return imported
 
+    @logged_process
     def remove_episode(self, directory: Path, project: Project, episode_id: UUID) -> bool:
         before = len(project.episodes)
         project.episodes = [episode for episode in project.episodes if episode.id != episode_id]
@@ -127,6 +133,7 @@ class ProjectService:
         self._store.save(directory=directory, project=project)
         return episode
 
+    @logged_process
     def replace_dialogue_segments(self, directory: Path, project: Project, episode_id: UUID, segments: list[TranscriptSegment], *, source_language: str, speaker_error: str | None = None) -> Episode:
         episode = self._episode(project, episode_id)
         speakers = {
@@ -159,6 +166,7 @@ class ProjectService:
         self._touch_and_save(directory, project, episode)
         return episode
 
+    @logged_process
     def assign_dialogue_speaker(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, speaker_id: UUID | None, expected_speaker_id: UUID | None, *, create_new: bool = False) -> Episode:
         episode = self._episode(project, episode_id)
         segment = episode.dialogue_segments[self._segment_index(episode, segment_id)]
@@ -184,6 +192,7 @@ class ProjectService:
         self._touch_and_save(directory, project, episode)
         return episode
 
+    @logged_process
     def update_dialogue_text(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, text: str, expected_text: str) -> Episode:
         episode = self._episode(project, episode_id)
         segment = episode.dialogue_segments[self._segment_index(episode, segment_id)]
@@ -202,6 +211,7 @@ class ProjectService:
         self._touch_and_save(directory, project, episode)
         return episode
 
+    @logged_process
     def update_dialogue_translation(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, text: str, expected_text: str | None) -> Episode:
         episode = self._episode(project, episode_id)
         segment = episode.dialogue_segments[self._segment_index(episode, segment_id)]
@@ -228,6 +238,7 @@ class ProjectService:
         self._touch_and_save(directory, project, episode)
         return episode
 
+    @logged_process
     def split_dialogue_segment(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID, split_at: float) -> Episode:
         episode = self._episode(project, episode_id)
         index = self._segment_index(episode, segment_id)
@@ -249,6 +260,7 @@ class ProjectService:
         self._touch_and_save(directory, project, episode)
         return episode
 
+    @logged_process
     def merge_dialogue_segment_with_next(self, directory: Path, project: Project, episode_id: UUID, segment_id: UUID) -> Episode:
         episode = self._episode(project, episode_id)
         index = self._segment_index(episode, segment_id)
@@ -292,6 +304,7 @@ class ProjectService:
                     return False
         return True
 
+    @logged_process
     def restore_dialogue(self, directory: Path, project: Project, episode_id: UUID, expected_segments: list[DialogueSegment], segments: list[DialogueSegment], speakers: list[EpisodeSpeaker], dubs: list[DubSegment]) -> Episode:
         episode = self._episode(project, episode_id)
         if not self._same_dialogue(episode.dialogue_segments, expected_segments):

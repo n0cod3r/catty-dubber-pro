@@ -16,10 +16,12 @@ fn request_with_control(method: &str, params: Value, control: Option<(&AtomicBoo
     if control.is_some_and(|(cancelled, _)| cancelled.load(Ordering::Relaxed)) { return Err(EngineError::new("CANCELLED", "Engine request cancelled")); }
     let id = format!("{}-{}", std::process::id(), REQUEST_ID.fetch_add(1, Ordering::Relaxed));
     let payload = json!({"version": 1, "id": id, "method": method, "params": params});
+    crate::logs::record("rust", "INFO", &format!("[{id}] Request {method}"));
     let timeout = if matches!(method, "audio.prepare" | "speech.transcribe" | "project.import_episode" | "project.prepare_episode" | "project.rebuild_proxy" | "translation.translate_episode") { Duration::from_secs(3605) } else { Duration::from_secs(35) };
     let (cancelled, cancel_file) = control.map(|(flag, path)| (Some(flag), Some(path))).unwrap_or((None, None));
-    let response = persistent_engine::request(&payload, cancelled, if method == "audio.prepare" { cancel_file } else { None }, timeout).map_err(|message| match message.as_str() { "CANCELLED" => EngineError::new("CANCELLED", "Engine request cancelled"), "ENGINE_TIMEOUT" => EngineError::new("ENGINE_TIMEOUT", "The engine request timed out"), _ if message.contains("not installed") => EngineError::new("ENGINE_NOT_INSTALLED", message), _ => EngineError::new("ENGINE_IO_ERROR", message) })?;
+    let response = persistent_engine::request(&payload, cancelled, if method == "audio.prepare" { cancel_file } else { None }, timeout).inspect_err(|message| crate::logs::record("rust", "ERROR", &format!("[{id}] {method} transport failed: {message}"))).map_err(|message| match message.as_str() { "CANCELLED" => EngineError::new("CANCELLED", "Engine request cancelled"), "ENGINE_TIMEOUT" => EngineError::new("ENGINE_TIMEOUT", "The engine request timed out"), _ if message.contains("not installed") => EngineError::new("ENGINE_NOT_INSTALLED", message), _ => EngineError::new("ENGINE_IO_ERROR", message) })?;
     if response.get("version") != Some(&json!(1)) || response.get("id") != Some(&json!(id)) { return Err(EngineError::new("ENGINE_PROTOCOL_ERROR", "Engine response version or request ID does not match")); }
+    crate::logs::record("rust", if response.get("error").is_some() { "ERROR" } else { "INFO" }, &format!("[{id}] {method} {}", if response.get("error").is_some() { "failed" } else { "completed" }));
     if let Some(error) = response.get("error") { return Err(serde_json::from_value(error.clone()).map_err(|_| EngineError::new("ENGINE_PROTOCOL_ERROR", "Engine returned an invalid error"))?); }
     response.get("result").cloned().ok_or_else(|| EngineError::new("ENGINE_PROTOCOL_ERROR", "Engine response has no result"))
 }

@@ -10,6 +10,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from catty_engine.logging import logged_request
 from catty_engine.media.audio import AudioAsset
 from catty_engine.media.audio_preparation import AudioPreparationService
 from catty_engine.media.errors import AudioPreparationCancelled, FFmpegError, FFmpegNotFoundError, FFprobeNotFoundError, MediaError, MediaProbeError
@@ -143,6 +144,7 @@ def _open_or_create_project(directory: Path, name: str):
     return service, project
 
 
+@logged_request
 def handle_request(payload: Any) -> dict[str, Any]:
     request_id = payload.get("id") if isinstance(payload, dict) else None
     response: dict[str, Any] = {"version": PROTOCOL_VERSION, "id": request_id}

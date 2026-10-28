@@ -4,7 +4,7 @@ import { AlertCircle, AudioLines, Bot, Database, Gauge, HardDrive, Info, Keyboar
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { requestEngine } from "@/features/engine/services/client";
+import { requestEngine } from "../deps/engine";
 
 const pages = [
   ["general", "ទូទៅ", "General", Settings2], ["translation", "ការបកប្រែ", "Translation", Languages],

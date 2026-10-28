@@ -1,4 +1,5 @@
 mod engine;
+mod logs;
 mod persistent_engine;
 mod processes;
 
@@ -26,6 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(engine::EngineJobs::default())
         .setup(|app| {
+            logs::record("rust", "INFO", "Catty desktop started");
             if let Some(window) = app.get_webview_window("main") {
                 window.maximize()?;
                 window.show()?;
@@ -34,6 +36,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             app_status,
+            logs::app_logs,
             engine::engine_request,
             engine::prepare_audio,
             engine::cancel_audio

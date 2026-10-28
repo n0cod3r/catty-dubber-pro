@@ -7,6 +7,8 @@ optional metadata and are never allowed to delete recognized dialogue.
 
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 import contextlib
 import math
 import os
@@ -31,6 +33,7 @@ MIN_SPEAKER_OVERLAP_SECONDS = 0.30
 MIN_SPEAKER_COVERAGE = 0.50
 
 
+@logged_process
 def resolve_models() -> dict[str, str]:
     """Resolve pinned FunASR models, preferring a complete local cache."""
     from huggingface_hub import snapshot_download
@@ -132,6 +135,7 @@ def resolve_device(torch: Any) -> str:
 
 
 @lru_cache(maxsize=2)
+@logged_process
 def _load_pipeline(
     model_paths: tuple[tuple[str, str], ...], device: str, ncpu: int
 ) -> Any:
@@ -235,6 +239,7 @@ def match_speakers(
     return matched
 
 
+@logged_process
 def _run_generate(
     pipeline: Any,
     samples: Any,
@@ -270,6 +275,7 @@ class FunASRParaformerBackend:
     def __init__(self) -> None:
         self.speaker_error: str | None = None
 
+    @logged_process
     def transcribe(
         self,
         audio: Path,
@@ -322,6 +328,8 @@ class FunASRParaformerBackend:
                     )
                 except Exception as transcription_exc:
                     raise transcription_exc from speaker_exc
+                import logging
+                logging.getLogger(__name__).warning("Speaker detection failed; retaining transcript without speaker labels: %s", speaker_exc)
                 self.speaker_error = str(speaker_exc)
                 return segments
 
@@ -329,6 +337,7 @@ class FunASRParaformerBackend:
 class FunASRSpeakerPipeline:
     """Speaker helper retained for non-Paraformer backends such as SenseVoice."""
 
+    @logged_process
     def transcribe(
         self,
         audio: Path,

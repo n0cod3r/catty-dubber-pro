@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 import os
 import shutil
 import sys
@@ -40,6 +42,7 @@ class ModelManager:
     def __init__(self, root: Path | None = None) -> None:
         self.root = (root or _default_model_root()).expanduser().resolve()
 
+    @logged_process
     def ensure_asr(self, backend_id: str) -> dict[str, Any]:
         if backend_id == "paraformer":
             # Paraformer is provided by FunASR (large model + FSMN-VAD + CT-Punc
@@ -61,6 +64,7 @@ class ModelManager:
             }
         raise ValueError(f"Unsupported ASR backend: {backend_id}")
 
+    @logged_process
     def ensure_vad(self, backend_id: str) -> dict[str, Any]:
         if backend_id != "silero":
             raise ValueError(f"Unsupported VAD backend: {backend_id}")
@@ -117,6 +121,7 @@ class ModelManager:
         return target
 
     @staticmethod
+    @logged_process
     def _download(url: str, target: Path) -> None:
         temporary = target.with_suffix(target.suffix + ".part")
         temporary.unlink(missing_ok=True)

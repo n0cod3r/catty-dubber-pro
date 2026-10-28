@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 import time
+import logging
 from pathlib import Path
 from uuid import UUID
 
@@ -25,6 +28,7 @@ class TranslationService:
     def __init__(self, project_service: ProjectService | None = None) -> None:
         self._projects = project_service or ProjectService()
 
+    @logged_process
     def translate_episode(self, project_directory: Path, episode_id: UUID, *, overwrite_manual: bool = False, batch_size: int = DEFAULT_BATCH_SIZE):
         if batch_size < 1 or batch_size > 20:
             raise ValueError("Translation batch size must be between 1 and 20")
@@ -51,6 +55,7 @@ class TranslationService:
         self._projects.save_project(project_directory, project)
         try:
             for start in range(0, len(candidates), batch_size):
+                logging.getLogger(__name__).info("Translating dialogue batch %d–%d of %d", start + 1, min(start + batch_size, len(candidates)), len(candidates))
                 batch = candidates[start : start + batch_size]
                 request = self._build_request(project, episode_id, batch, app_settings)
                 result = self._translate_batch(translation_settings.provider, app_settings, pool, request)
@@ -77,6 +82,7 @@ class TranslationService:
         return episode
 
     @staticmethod
+    @logged_process
     def _translate_batch(provider_id, app_settings, pool: CredentialPool, request: TranslationBatchRequest):
         if provider_id == "local":
             return create_provider(provider_id, app_settings).translate_batch(request)
@@ -99,6 +105,7 @@ class TranslationService:
             try:
                 return provider.translate_batch(request)
             except ProviderError as exc:
+                logging.getLogger(__name__).warning("Provider %s attempt failed: %s; kind=%s", provider_id, exc, exc.kind)
                 last_error = exc
                 if exc.kind == ProviderErrorKind.RATE_LIMIT:
                     pool.cooldown(credential.id, exc.retry_after or DEFAULT_RATE_LIMIT_COOLDOWN)
@@ -111,6 +118,7 @@ class TranslationService:
                     try:
                         return provider.translate_batch(request)
                     except ProviderError as retry_error:
+                        logging.getLogger(__name__).warning("Provider %s retry failed: %s", provider_id, retry_error)
                         last_error = retry_error
                         attempted.add(credential.id)
                         continue

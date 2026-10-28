@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Protocol
@@ -24,6 +26,7 @@ class MediaProbeService:
     ) -> None:
         self._runner: ProbeRunner = runner or FFprobeRunner()
 
+    @logged_process
     def probe(self, source: str | Path) -> MediaInfo:
         path = Path(source).expanduser().resolve()
         payload = self._runner.probe(path)
@@ -164,6 +167,7 @@ class BatchMediaProbeService:
     ) -> None:
         self._probe = probe or MediaProbeService()
 
+    @logged_process
     def probe(
         self,
         sources: list[str | Path],

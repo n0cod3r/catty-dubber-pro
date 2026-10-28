@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 from pathlib import Path
 
 from .ffmpeg import FFmpegRunner
@@ -14,6 +16,7 @@ class VideoProxyService:
     def __init__(self, runner: FFmpegRunner | None = None) -> None:
         self._runner = runner or FFmpegRunner()
 
+    @logged_process
     def prepare_playback_proxy(
         self,
         *,

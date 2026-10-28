@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 import json
 from pathlib import Path
 from typing import Protocol
@@ -36,6 +38,7 @@ class AudioPreparationService:
     ) -> None:
         self._runner: AudioExtractor = runner or FFmpegRunner()
 
+    @logged_process
     def prepare_speech_audio(
         self,
         *,

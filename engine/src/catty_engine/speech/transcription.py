@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from catty_engine.logging import logged_process
+
 from pathlib import Path
 from typing import Protocol
 from uuid import UUID
@@ -33,6 +35,7 @@ class TranscriptionService:
         self._vad = vad
         self._audio_preparation = audio_preparation or AudioPreparationService()
 
+    @logged_process
     def transcribe(
         self,
         *,
